@@ -76,6 +76,7 @@
 /* Hook for pltsql plugin */
 pltsql_identity_datatype_hook_type pltsql_identity_datatype_hook = NULL;
 post_transform_column_definition_hook_type post_transform_column_definition_hook = NULL;
+post_transform_table_definition_hook_type post_transform_table_definition_hook = NULL;
 
 /* State shared by transformCreateStmt and its subroutines */
 typedef struct
@@ -509,6 +510,11 @@ transformCreateStmt(CreateStmt *stmt, const char *queryString)
 	 * Postprocess extended statistics.
 	 */
 	transformExtendedStatistics(&cxt);
+
+	if (post_transform_table_definition_hook)
+	{
+		(* post_transform_table_definition_hook) (cxt.pstate, cxt.relation, cxt.relation->relname, &cxt.alist);
+	}
 
 	/*
 	 * Output results.
