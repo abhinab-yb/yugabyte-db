@@ -25,6 +25,7 @@
 #include "executor/nodeLimit.h"
 #include "miscadmin.h"
 #include "nodes/nodeFuncs.h"
+#include "parser/parser.h"      /* only needed for GUC variables */
 
 /*  YB includes. */
 #include "pg_yb_utils.h"
@@ -411,6 +412,11 @@ recompute_limits(LimitState *node)
 		/* Interpret NULL count as no count (LIMIT ALL) */
 		if (isNull)
 		{
+			/* TOP (NULL) in TSQL mode should throw error */
+			if (sql_dialect == SQL_DIALECT_TSQL)
+				ereport(ERROR,
+						(errcode(ERRCODE_INVALID_ROW_COUNT_IN_LIMIT_CLAUSE),
+						 errmsg("A TOP or FETCH clause contains an invalid value.")));
 			node->count = 0;
 			node->noCount = true;
 		}
