@@ -11871,6 +11871,7 @@ dumpFunc(Archive *fout, const FuncInfo *finfo)
 	int			nconfigitems = 0;
 	const char *keyword;
 	int			i;
+	bool		is_tsql_mstvf = false;
 
 	/* Do nothing in data-only dump */
 	if (dopt->dataOnly)
@@ -12046,6 +12047,12 @@ dumpFunc(Archive *fout, const FuncInfo *finfo)
 	else
 		keyword = "FUNCTION";	/* works for window functions too */
 
+	is_tsql_mstvf = isTsqlMstvf(fout, finfo, prokind[0], proretset[0] == 't');
+
+	if (is_tsql_mstvf)
+		appendPQExpBufferStr(q,
+							 "SET babelfishpg_tsql.restore_tsql_tabletype = TRUE;\n");
+
 	appendPQExpBuffer(delqry, "DROP %s %s;\n",
 					  keyword, qual_funcsig);
 
@@ -12197,6 +12204,10 @@ dumpFunc(Archive *fout, const FuncInfo *finfo)
 	}
 
 	appendPQExpBuffer(q, "\n    %s;\n", asPart->data);
+
+	if (is_tsql_mstvf)
+		appendPQExpBufferStr(q,
+							 "RESET babelfishpg_tsql.restore_tsql_tabletype;\n");
 
 	append_depends_on_extension(fout, q, &finfo->dobj,
 								"pg_catalog.pg_proc", keyword,
@@ -15562,6 +15573,7 @@ dumpTableSchema(Archive *fout, const TableInfo *tbinfo)
 		char	   *ftoptions = NULL;
 		char	   *srvname = NULL;
 		char	   *foreign = "";
+		bool	   tsql_tabletype = isTsqlTableType(fout, tbinfo);
 
 		/*
 		 * Set reltypename, and collect any relkind-specific data that we
@@ -15695,6 +15707,10 @@ dumpTableSchema(Archive *fout, const TableInfo *tbinfo)
 								  "SELECT pg_catalog.binary_upgrade_set_next_tablegroup_default(true);\n");
 			}
 		}
+
+		if (tsql_tabletype)
+			appendPQExpBufferStr(q,
+								 "SET babelfishpg_tsql.restore_tsql_tabletype = TRUE;\n");
 
 		appendPQExpBuffer(q, "CREATE %s%s %s",
 						  tbinfo->relpersistence == RELPERSISTENCE_UNLOGGED ?
@@ -16001,6 +16017,10 @@ dumpTableSchema(Archive *fout, const TableInfo *tbinfo)
 		}
 		else
 			appendPQExpBufferStr(q, ";\n");
+
+		if (tsql_tabletype)
+			appendPQExpBufferStr(q,
+								 "RESET babelfishpg_tsql.restore_tsql_tabletype;\n");
 
 		/* Materialized views can depend on extensions */
 		if (tbinfo->relkind == RELKIND_MATVIEW)
@@ -18456,6 +18476,9 @@ getDependencies(Archive *fout)
 		else
 			/* normal case */
 			addObjectDependency(dobj, refdobj->dumpId);
+
+		/* Standalone T-SQL table-type as a function's argument or multi-statement TVF */
+		fixTsqlTableTypeDependency(fout, dobj, refdobj, deptype);
 	}
 
 	PQclear(res);
