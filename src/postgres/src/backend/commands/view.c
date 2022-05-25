@@ -41,6 +41,8 @@
 
 static void checkViewTupleDesc(TupleDesc newdesc, TupleDesc olddesc);
 
+inherit_view_constraints_from_table_hook_type inherit_view_constraints_from_table_hook = NULL;
+
 /*---------------------------------------------------------------------
  * DefineVirtualRelation
  *
@@ -75,6 +77,9 @@ DefineVirtualRelation(RangeVar *relation, List *tlist, bool replace,
 											exprType((Node *) tle->expr),
 											exprTypmod((Node *) tle->expr),
 											exprCollation((Node *) tle->expr));
+
+			if (inherit_view_constraints_from_table_hook)
+				(*inherit_view_constraints_from_table_hook) (def, tle->resorigtbl, tle->resorigcol);
 
 			/*
 			 * It's possible that the column is of a collatable type but the
