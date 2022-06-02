@@ -3068,6 +3068,10 @@ get_typcollation(Oid typid)
 
 		result = typtup->typcollation;
 		ReleaseSysCache(tp);
+
+		if (result == DEFAULT_COLLATION_OID)
+			result = CLUSTER_COLLATION_OID();
+
 		return result;
 	}
 	else
