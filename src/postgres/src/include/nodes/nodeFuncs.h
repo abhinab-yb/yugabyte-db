@@ -165,4 +165,7 @@ extern List **YbPlanStateTryGetAggrefs(struct PlanState *planstate);
 
 extern bool YbGetBitmapScanRecheckRequired(struct PlanState *planstate);
 
+typedef int32 (*coalesce_typmod_hook_type) (const CoalesceExpr *cexpr);
+extern PGDLLIMPORT coalesce_typmod_hook_type coalesce_typmod_hook;
+
 #endif							/* NODEFUNCS_H */
