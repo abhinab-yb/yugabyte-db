@@ -941,13 +941,6 @@ fix_domain_typmods_hook_type fix_domain_typmods_hook = NULL;
  */
 %left		JOIN CROSS LEFT FULL RIGHT INNER_P NATURAL
 
-%nonassoc	json_table_column
-%nonassoc	NESTED
-%left		PATH
-
-%nonassoc	empty_json_unique
-%left		WITHOUT WITH_LA_UNIQUE
-
 /* Please note that the following line will be replaced with the contents of given file name even if with starting with a comment */
 /*$$include "gram-tsql-decl.y"*/
 
@@ -15110,7 +15103,7 @@ GenericType:
 					if (fix_domain_typmods_hook)
 						(*fix_domain_typmods_hook)($$);
 				}
-			| type_function_name attrs opt_type_modifiers WITHOUT_LA TIME ZONE
+			| type_function_name attrs opt_type_modifiers WITHOUT TIME ZONE
 				{
 					/*
 					 * This gram rule should only be allowed when we restore
