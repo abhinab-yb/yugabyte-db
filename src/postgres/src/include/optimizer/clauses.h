@@ -14,6 +14,7 @@
 #ifndef CLAUSES_H
 #define CLAUSES_H
 
+#include "access/htup.h"
 #include "nodes/pathnodes.h"
 
 typedef struct
@@ -57,5 +58,8 @@ extern Bitmapset *pull_paramids(Expr *expr);
 extern Node *yb_get_saop_left_op(const Expr *clause);
 
 extern Expr *yb_copy_replace_varnos(Expr *expr, Index oldvarno, Index newvarno);
+
+typedef void (*insert_pltsql_function_defaults_hook_type)(HeapTuple func_tuple, List *defaults, Node **argarray);
+extern PGDLLIMPORT insert_pltsql_function_defaults_hook_type insert_pltsql_function_defaults_hook;
 
 #endif							/* CLAUSES_H */

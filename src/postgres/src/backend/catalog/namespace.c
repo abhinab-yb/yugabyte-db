@@ -212,6 +212,7 @@ typedef struct YbTempNamespaceSuffixBuffer
 char *SYS_NAMESPACE_NAME = "sys";
 
 relname_lookup_hook_type relname_lookup_hook = NULL;
+match_pltsql_func_call_hook_type match_pltsql_func_call_hook = NULL;
 
 
 /* Local functions */
@@ -1054,6 +1055,7 @@ FuncnameGetCandidates(List *names, int nargs, List *argnames,
 		bool		use_defaults;
 		Oid			va_elem_type;
 		int		   *argnumbers = NULL;
+		List	   *defaults = NIL;
 		FuncCandidateList newResult;
 
 		if (OidIsValid(namespaceId))
@@ -1110,7 +1112,18 @@ FuncnameGetCandidates(List *names, int nargs, List *argnames,
 			}
 		}
 
-		if (argnames != NIL)
+		if (is_pltsql_language_oid(procform->prolang) &&
+			match_pltsql_func_call_hook)
+		{
+			if (!match_pltsql_func_call_hook(proctup, nargs, argnames,
+											 include_out_arguments,
+											 &argnumbers, &defaults,
+											 expand_defaults, expand_variadic,
+											 &use_defaults, &any_special,
+											 &variadic, &va_elem_type))
+				continue;
+		}
+		else if (argnames != NIL)
 		{
 			/*
 			 * Call uses named or mixed notation
@@ -1214,11 +1227,14 @@ FuncnameGetCandidates(List *names, int nargs, List *argnames,
 
 			for (i = 0; i < pronargs; i++)
 				newResult->args[i] = proargtypes[argnumbers[i]];
+
+			newResult->tsql_argdefaults = defaults;
 		}
 		else
 		{
 			/* Simple positional case, just copy proargtypes as-is */
 			memcpy(newResult->args, proargtypes, pronargs * sizeof(Oid));
+			newResult->tsql_argdefaults = NIL;
 		}
 		if (variadic)
 		{
