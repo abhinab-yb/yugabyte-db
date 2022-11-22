@@ -179,6 +179,10 @@ static inline bool pgstat_is_kind_valid(int ikind);
 
 uint64_t *yb_new_conn = NULL;
 
+invalidate_stat_table_hook_type invalidate_stat_table_hook = NULL;
+guc_newval_hook_type guc_newval_hook = NULL;
+
+
 /* ----------
  * GUC parameters
  * ----------
@@ -788,6 +792,13 @@ pgstat_clear_snapshot(void)
 	 */
 	pgstat_clear_backend_activity_snapshot();
 	yb_retrieved_concurrent_index_progress = false;
+
+	/*
+	 * Signal babelfishpg_tds extension (if loaded) to
+	 * mark the local TDS status table as invalid too
+	 */
+	if (invalidate_stat_table_hook)
+		(*invalidate_stat_table_hook)();
 }
 
 void *

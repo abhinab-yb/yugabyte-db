@@ -208,6 +208,8 @@ static int	syslog_facility = LOG_LOCAL0;
 static int	syslog_facility = 0;
 #endif
 
+static void assign_lock_timeout(int newval, void *extra);
+static void assign_default_transaction_isolation(int newval, void *extra);
 static void assign_syslog_facility(int newval, void *extra);
 static void assign_syslog_ident(const char *newval, void *extra);
 static void assign_session_replication_role(int newval, void *extra);
@@ -3661,7 +3663,7 @@ static struct config_int ConfigureNamesInt[] =
 		},
 		&LockTimeout,
 		0, 0, INT_MAX,
-		NULL, NULL, NULL
+		NULL, assign_lock_timeout, NULL
 	},
 
 	{
@@ -6209,7 +6211,7 @@ static struct config_enum ConfigureNamesEnum[] =
 		},
 		&DefaultXactIsoLevel,
 		XACT_READ_COMMITTED, isolation_level_options,
-		check_yb_default_xact_isolation, NULL, NULL
+		check_yb_default_xact_isolation, assign_default_transaction_isolation, NULL
 	},
 
 	{
@@ -14278,6 +14280,20 @@ static void
 assign_log_destination(const char *newval, void *extra)
 {
 	Log_destination = *((int *) extra);
+}
+
+static void
+assign_lock_timeout(int newval, void *extra)
+{
+	if (guc_newval_hook)
+		(*guc_newval_hook)("lock_timeout", false, NULL, newval);
+}
+
+static void
+assign_default_transaction_isolation(int newval, void *extra)
+{
+	if (guc_newval_hook)
+		(*guc_newval_hook)("default_transaction_isolation", false, NULL, newval);
 }
 
 static void
