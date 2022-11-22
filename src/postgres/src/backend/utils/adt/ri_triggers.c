@@ -37,6 +37,7 @@
 #include "executor/spi.h"
 #include "lib/ilist.h"
 #include "miscadmin.h"
+#include "parser/parser.h"
 #include "parser/parse_coerce.h"
 #include "parser/parse_relation.h"
 #include "storage/bufmgr.h"
@@ -97,6 +98,35 @@
 #define RI_TRIGTYPE_INSERT 1
 #define RI_TRIGTYPE_UPDATE 2
 #define RI_TRIGTYPE_DELETE 3
+
+/* macro for switching in and out of tsql mode */
+#define RUN_AS_PSQL(qplan)  																				\
+do																											\
+{																											\
+	bool reset_dialect = (sql_dialect == SQL_DIALECT_TSQL);                                         \
+	if (reset_dialect)																						\
+		set_config_option("babelfishpg_tsql.sql_dialect", "postgres",										\
+			(superuser() ? PGC_SUSET : PGC_USERSET),						\
+			PGC_S_SESSION, GUC_ACTION_SAVE, true, 0, false);												\
+																											\
+	PG_TRY();																								\
+	{																										\
+		qplan;																								\
+	}																										\
+	PG_CATCH();																								\
+	{																										\
+		if (reset_dialect)																					\
+			set_config_option("babelfishpg_tsql.sql_dialect", "tsql",										\
+							(superuser() ? PGC_SUSET : PGC_USERSET),		\
+							PGC_S_SESSION, GUC_ACTION_SAVE, true, 0, false);								\
+		PG_RE_THROW();																						\
+	}																										\
+	PG_END_TRY();																							\
+	if (reset_dialect)																						\
+		set_config_option("babelfishpg_tsql.sql_dialect", "tsql",											\
+						(superuser() ? PGC_SUSET : PGC_USERSET),			\
+						PGC_S_SESSION, GUC_ACTION_SAVE, true, 0, false);									\
+} while (0)
 
 
 /*
@@ -500,8 +530,8 @@ RI_FKey_check(TriggerData *trigdata)
 		appendStringInfoString(&querybuf, " FOR KEY SHARE OF x");
 
 		/* Prepare and save the plan */
-		qplan = ri_PlanCheck(querybuf.data, riinfo->nkeys, queryoids,
-							 &qkey, fk_rel, pk_rel);
+		RUN_AS_PSQL(qplan = ri_PlanCheck(querybuf.data, riinfo->nkeys, queryoids,
+							 &qkey, fk_rel, pk_rel));
 	}
 
 	/*
@@ -632,8 +662,8 @@ ri_Check_Pk_Match(Relation pk_rel, Relation fk_rel,
 		appendStringInfoString(&querybuf, " FOR KEY SHARE OF x");
 
 		/* Prepare and save the plan */
-		qplan = ri_PlanCheck(querybuf.data, riinfo->nkeys, queryoids,
-							 &qkey, fk_rel, pk_rel);
+		RUN_AS_PSQL(qplan = ri_PlanCheck(querybuf.data, riinfo->nkeys, queryoids,
+							 &qkey, fk_rel, pk_rel));
 	}
 
 	/*
@@ -824,8 +854,8 @@ ri_restrict(TriggerData *trigdata, bool is_no_action)
 		appendStringInfoString(&querybuf, " FOR KEY SHARE OF x");
 
 		/* Prepare and save the plan */
-		qplan = ri_PlanCheck(querybuf.data, riinfo->nkeys, queryoids,
-							 &qkey, fk_rel, pk_rel);
+		RUN_AS_PSQL(qplan = ri_PlanCheck(querybuf.data, riinfo->nkeys, queryoids,
+							 &qkey, fk_rel, pk_rel));
 	}
 
 	/*
@@ -928,8 +958,8 @@ RI_FKey_cascade_del(PG_FUNCTION_ARGS)
 		}
 
 		/* Prepare and save the plan */
-		qplan = ri_PlanCheck(querybuf.data, riinfo->nkeys, queryoids,
-							 &qkey, fk_rel, pk_rel);
+		RUN_AS_PSQL(qplan = ri_PlanCheck(querybuf.data, riinfo->nkeys, queryoids,
+							 &qkey, fk_rel, pk_rel));
 	}
 
 	/*
@@ -1050,8 +1080,8 @@ RI_FKey_cascade_upd(PG_FUNCTION_ARGS)
 		appendBinaryStringInfo(&querybuf, qualbuf.data, qualbuf.len);
 
 		/* Prepare and save the plan */
-		qplan = ri_PlanCheck(querybuf.data, riinfo->nkeys * 2, queryoids,
-							 &qkey, fk_rel, pk_rel);
+		RUN_AS_PSQL(qplan = ri_PlanCheck(querybuf.data, riinfo->nkeys * 2, queryoids,
+							 &qkey, fk_rel, pk_rel));
 	}
 
 	/*
@@ -1282,8 +1312,8 @@ ri_set(TriggerData *trigdata, bool is_set_null, int tgkind)
 		}
 
 		/* Prepare and save the plan */
-		qplan = ri_PlanCheck(querybuf.data, riinfo->nkeys, queryoids,
-							 &qkey, fk_rel, pk_rel);
+		RUN_AS_PSQL(qplan = ri_PlanCheck(querybuf.data, riinfo->nkeys, queryoids,
+							 &qkey, fk_rel, pk_rel));
 	}
 
 	/*
@@ -1677,7 +1707,7 @@ RI_Initial_Check(Trigger *trigger, Relation fk_rel, Relation pk_rel)
 	 * Generate the plan.  We don't need to cache it, and there are no
 	 * arguments to the plan.
 	 */
-	qplan = SPI_prepare(querybuf.data, 0, NULL);
+	RUN_AS_PSQL(qplan = SPI_prepare(querybuf.data, 0, NULL));
 
 	if (qplan == NULL)
 		elog(ERROR, "SPI_prepare returned %s for %s",

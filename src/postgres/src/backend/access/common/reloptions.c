@@ -32,6 +32,7 @@
 #include "commands/view.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
+#include "parser/parser.h"
 #include "postmaster/postmaster.h"
 #include "utils/array.h"
 #include "utils/attoptcache.h"
@@ -1622,6 +1623,10 @@ parseRelOptionsInternal(Datum options, bool validate,
 			}
 		}
 
+		/*
+		 * We are ignoring unrecognized parameters in TSQL
+		 * dialect without raising error
+		 */
 		if (j >= numoptions && validate)
 		{
 			char	   *s;
@@ -1631,6 +1636,10 @@ parseRelOptionsInternal(Datum options, bool validate,
 			p = strchr(s, '=');
 			if (p)
 				*p = '\0';
+
+			if (sql_dialect == SQL_DIALECT_TSQL)
+				continue;
+
 			ereport(ERROR,
 					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 					 errmsg("unrecognized parameter \"%s\"", s)));

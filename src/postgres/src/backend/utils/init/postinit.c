@@ -96,7 +96,6 @@
 
 static HeapTuple GetDatabaseTuple(const char *dbname);
 static HeapTuple GetDatabaseTupleByOid(Oid dboid);
-static void PerformAuthentication(Port *port);
 static void CheckMyDatabase(const char *name, bool am_superuser, bool override_allow_connections);
 static void ShutdownPostgres(int code, Datum arg);
 static void StatementTimeoutHandler(void);
@@ -221,7 +220,7 @@ GetDatabaseTupleByOid(Oid dboid)
  *
  * returns: nothing.  Will not return at all if there's any failure.
  */
-static void
+void
 PerformAuthentication(Port *port)
 {
 	/* This should be set already, but let's make sure */
@@ -978,7 +977,7 @@ InitPostgresImpl(const char *in_dbname, Oid dboid,
 	{
 		/* normal multiuser case */
 		Assert(MyProcPort != NULL);
-		PerformAuthentication(MyProcPort);
+		(MyProcPort->protocol_config->fn_authenticate)(MyProcPort, &username);
 		InitializeSessionUserId(username, useroid);
 		am_superuser = superuser();
 

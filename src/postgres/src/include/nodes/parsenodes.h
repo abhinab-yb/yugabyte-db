@@ -315,6 +315,7 @@ typedef struct A_Const
 		Boolean		boolval;
 		String		sval;
 		BitString	bsval;
+		TSQL_HexString hsval;
 	}			val;
 	bool		isnull;			/* SQL NULL constant */
 	int			location;		/* token location, or -1 if unknown */
@@ -474,6 +475,7 @@ typedef struct ResTarget
 	List	   *indirection;	/* subscripts, field names, and '*', or NIL */
 	Node	   *val;			/* the value expression to compute or assign */
 	int			location;		/* token location, or -1 if unknown */
+	int			name_location;	/* name token location, or -1 if unknown */
 } ResTarget;
 
 /*
@@ -1643,6 +1645,7 @@ typedef struct InsertStmt
 	List	   *returningList;	/* list of expressions to return */
 	WithClause *withClause;		/* WITH clause */
 	OverridingKind override;	/* OVERRIDING clause */
+	Node	   *execStmt; 		/* for INSERT ... EXECUTE */
 } InsertStmt;
 
 /* ----------------------
@@ -1918,6 +1921,7 @@ typedef struct CreateSchemaStmt
 	RoleSpec   *authrole;		/* the owner of the created schema */
 	List	   *schemaElts;		/* schema components (list of parsenodes) */
 	bool		if_not_exists;	/* just do nothing if schema already exists? */
+	int			location;		/* token location, or -1 if unknown */
 } CreateSchemaStmt;
 
 typedef enum DropBehavior
@@ -2266,6 +2270,8 @@ typedef struct CreateStmt
 
 	char	   *tablegroupname; /* tablegroup to use, or NULL */
 	struct OptSplit *split_options; /* SPLIT statement options */
+
+	bool		tsql_tabletype; /* is this creating a tsql table type? */
 } CreateStmt;
 
 /* ----------
@@ -3163,6 +3169,9 @@ typedef struct DoStmt
 {
 	NodeTag		type;
 	List	   *args;			/* List of DefElem nodes */
+	/* for INSERT ... EXECUTE */
+	Oid 		relation;		/* INSERT target relation */
+	List 	   *attrnos; 		/* columns list by attnum */
 } DoStmt;
 
 typedef struct InlineCodeBlock
@@ -3172,6 +3181,10 @@ typedef struct InlineCodeBlock
 	Oid			langOid;		/* OID of selected language */
 	bool		langIsTrusted;	/* trusted property of the language */
 	bool		atomic;			/* atomic execution context */
+	/* for INSERT ... EXECUTE */
+	Oid 		relation;		/* INSERT target relation */
+	List 	   *attrnos; 		/* columns list by attnum */
+	Node 	   *dest; 			/* dest receiver */
 } InlineCodeBlock;
 
 /* ----------------------
@@ -3189,6 +3202,17 @@ typedef struct CallStmt
 	FuncCall   *funccall;		/* from the parser */
 	FuncExpr   *funcexpr;		/* transformed call, with only input args */
 	List	   *outargs;		/* transformed output-argument expressions */
+	/* for INSERT ... EXECUTE */
+	Oid 		relation;		/* INSERT target relation */
+	List 	   *attrnos; 		/* columns list by attnum */
+	/*
+	 * for nested CallStmt under INSERT ... EXECUTE
+	 * for example, in query "INSERT INTO t1 EXEC ('EXEC p1')"
+	 * the CallStmt of the inner "EXEC p1" will have the following two fields
+	 * filled in based on the outer "INSERT INTO t1 EXEC"
+	 */
+	void 	   *retdesc; 		/* expected TupleDesc of the result rows */
+	void 	   *dest; 			/* DestReceiver to send the result rows */
 } CallStmt;
 
 typedef struct CallContext

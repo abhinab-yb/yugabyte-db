@@ -21,6 +21,8 @@
 #include "access/xact.h"
 #include "catalog/index.h"
 #include "catalog/indexing.h"
+#include "catalog/pg_subscription.h"
+#include "catalog/pg_subscription_rel.h"
 #include "executor/executor.h"
 #include "utils/syscache.h"
 #include "utils/rel.h"
@@ -335,6 +337,10 @@ CatalogTupleInsert(Relation heapRel, HeapTuple tup)
 
 	CatalogTupleCheckConstraints(heapRel, tup);
 
+	/* ENR carries catalog tuples themselves. Do not insert, and skip index.*/
+	if (ENRaddTuple(heapRel, tup))
+		return;
+
 	indstate = CatalogOpenIndexes(heapRel);
 
 	simple_heap_insert(heapRel, tup);
@@ -419,6 +425,10 @@ CatalogTupleInsertWithInfo(Relation heapRel, HeapTuple tup,
 {
 	CatalogTupleCheckConstraints(heapRel, tup);
 
+	/* ENR carries catalog tuples themselves. Do not insert, and skip index.*/
+	if (ENRaddTuple(heapRel, tup))
+		return;
+
 	if (IsYugaByteEnabled())
 	{
 		/* Keep ybctid consistent across all databases. */
@@ -427,6 +437,7 @@ CatalogTupleInsertWithInfo(Relation heapRel, HeapTuple tup,
 		{
 			if (!IsYsqlUpgrade)
 				elog(ERROR, "shared insert cannot be done outside of YSQL upgrade");
+
 
 			YB_FOR_EACH_DB(pg_db_tuple)
 			{
@@ -532,6 +543,10 @@ CatalogTupleUpdate(Relation heapRel, ItemPointer otid, HeapTuple tup)
 
 	CatalogTupleCheckConstraints(heapRel, tup);
 
+	/* ENR carries catalog tuples themselves. Do not update, and skip index.*/
+	if (ENRupdateTuple(heapRel, tup))
+		return;
+
 	indstate = CatalogOpenIndexes(heapRel);
 
 	if (IsYugaByteEnabled())
@@ -581,6 +596,10 @@ CatalogTupleUpdateWithInfo(Relation heapRel, ItemPointer otid, HeapTuple tup,
 						   CatalogIndexState indstate)
 {
 	CatalogTupleCheckConstraints(heapRel, tup);
+
+	/* ENR carries catalog tuples themselves. Do not update.*/
+	if (ENRupdateTuple(heapRel, tup))
+		return;
 
 	if (IsYugaByteEnabled())
 	{

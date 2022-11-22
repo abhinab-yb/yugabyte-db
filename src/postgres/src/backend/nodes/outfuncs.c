@@ -3652,6 +3652,13 @@ _outBitString(StringInfo str, const BitString *node)
 }
 
 static void
+_outTSQL_HexString(StringInfo str, const TSQL_HexString *node)
+{
+	/* internal representation already has leading '0x' */
+	appendStringInfoString(str, node->hsval);
+}
+
+static void
 _outColumnRef(StringInfo str, const ColumnRef *node)
 {
 	WRITE_NODE_TYPE("COLUMNREF");
@@ -3741,6 +3748,7 @@ _outResTarget(StringInfo str, const ResTarget *node)
 	WRITE_NODE_FIELD(indirection);
 	WRITE_NODE_FIELD(val);
 	WRITE_LOCATION_FIELD(location);
+	WRITE_LOCATION_FIELD(name_location);
 }
 
 static void
@@ -4100,6 +4108,8 @@ outNode(StringInfo str, const void *obj)
 		_outString(str, (String *) obj);
 	else if (IsA(obj, BitString))
 		_outBitString(str, (BitString *) obj);
+	else if (IsA(obj, TSQL_HexString))
+		_outTSQL_HexString(str, (TSQL_HexString *) obj);
 	else
 	{
 		appendStringInfoChar(str, '{');

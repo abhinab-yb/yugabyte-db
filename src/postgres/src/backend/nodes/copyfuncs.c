@@ -232,6 +232,7 @@ _copyModifyTable(const ModifyTable *from)
 	COPY_NODE_FIELD(onConflictWhere);
 	COPY_SCALAR_FIELD(exclRelRTI);
 	COPY_NODE_FIELD(exclRelTlist);
+	COPY_NODE_FIELD(callStmt);
 	COPY_NODE_FIELD(mergeActionLists);
 
 	COPY_NODE_FIELD(ybPushdownTlist);
@@ -2949,6 +2950,9 @@ _copyA_Const(const A_Const *from)
 			case T_BitString:
 				COPY_STRING_FIELD(val.bsval.bsval);
 				break;
+			case T_TSQL_HexString:
+				COPY_STRING_FIELD(val.hsval.hsval);
+				break;
 			default:
 				elog(ERROR, "unrecognized node type: %d",
 					 (int) nodeTag(&from->val));
@@ -3032,6 +3036,7 @@ _copyResTarget(const ResTarget *from)
 	COPY_NODE_FIELD(indirection);
 	COPY_NODE_FIELD(val);
 	COPY_LOCATION_FIELD(location);
+	COPY_LOCATION_FIELD(name_location);
 
 	return newnode;
 }
@@ -3425,6 +3430,7 @@ _copyInsertStmt(const InsertStmt *from)
 	COPY_NODE_FIELD(returningList);
 	COPY_NODE_FIELD(withClause);
 	COPY_SCALAR_FIELD(override);
+	COPY_NODE_FIELD(execStmt);
 
 	return newnode;
 }
@@ -3697,6 +3703,10 @@ _copyCallStmt(const CallStmt *from)
 	COPY_NODE_FIELD(funccall);
 	COPY_NODE_FIELD(funcexpr);
 	COPY_NODE_FIELD(outargs);
+	COPY_SCALAR_FIELD(relation);
+	COPY_NODE_FIELD(attrnos);
+	COPY_SCALAR_FIELD(retdesc);
+	COPY_SCALAR_FIELD(dest);
 
 	return newnode;
 }
@@ -3765,6 +3775,7 @@ CopyCreateStmtFields(const CreateStmt *from, CreateStmt *newnode)
 	COPY_STRING_FIELD(accessMethod);
 	COPY_SCALAR_FIELD(if_not_exists);
 	COPY_NODE_FIELD(split_options);
+	COPY_SCALAR_FIELD(tsql_tabletype);
 }
 
 static CreateStmt *
@@ -3978,6 +3989,8 @@ _copyDoStmt(const DoStmt *from)
 	DoStmt	   *newnode = makeNode(DoStmt);
 
 	COPY_NODE_FIELD(args);
+	COPY_SCALAR_FIELD(relation);
+	COPY_NODE_FIELD(attrnos);
 
 	return newnode;
 }
@@ -4879,6 +4892,7 @@ _copyCreateSchemaStmt(const CreateSchemaStmt *from)
 	COPY_NODE_FIELD(authrole);
 	COPY_NODE_FIELD(schemaElts);
 	COPY_SCALAR_FIELD(if_not_exists);
+	COPY_LOCATION_FIELD(location);
 
 	return newnode;
 }
@@ -5252,6 +5266,16 @@ _copyBitString(const BitString *from)
 	BitString  *newnode = makeNode(BitString);
 
 	COPY_STRING_FIELD(bsval);
+
+	return newnode;
+}
+
+static TSQL_HexString *
+_copyTSQL_HexString(const TSQL_HexString *from)
+{
+	TSQL_HexString *newnode = makeNode(TSQL_HexString);
+
+	COPY_STRING_FIELD(hsval);
 
 	return newnode;
 }
@@ -5744,6 +5768,9 @@ copyObjectImpl(const void *from)
 			break;
 		case T_BitString:
 			retval = _copyBitString(from);
+			break;
+		case T_TSQL_HexString:
+			retval = _copyTSQL_HexString(from);
 			break;
 
 			/*

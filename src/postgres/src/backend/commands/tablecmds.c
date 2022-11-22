@@ -85,6 +85,10 @@
 #include "nodes/nodeFuncs.h"
 #include "nodes/parsenodes.h"
 #include "optimizer/optimizer.h"
+#include "nodes/pg_list.h"
+#include "optimizer/clauses.h"
+#include "optimizer/planner.h"
+#include "optimizer/prep.h"
 #include "parser/parse_clause.h"
 #include "parser/parse_coerce.h"
 #include "parser/parse_collate.h"
@@ -94,6 +98,7 @@
 #include "parser/parse_type.h"
 #include "parser/parse_utilcmd.h"
 #include "parser/parser.h"
+#include "parser/scansup.h"  /* downcase_identifier */
 #include "partitioning/partbounds.h"
 #include "partitioning/partdesc.h"
 #include "pgstat.h"
@@ -163,6 +168,8 @@ typedef struct OnCommitItem
 
 static List *on_commits = NIL;
 
+InvokePreDropColumnHook_type InvokePreDropColumnHook = NULL;
+check_extended_attoptions_hook_type check_extended_attoptions_hook = NULL;
 
 /*
  * State information for ALTER TABLE
@@ -744,6 +751,7 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 	LOCKMODE	parentLockmode;
 	const char *accessMethod = NULL;
 	Oid			accessMethodId = InvalidOid;
+	ObjectAddress tsql_tabletype_address;
 
 	/* YB variables. */
 	Oid			rowTypeId = InvalidOid;
@@ -1176,6 +1184,12 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 	}
 
 	/*
+	 * If we are here for creating TSQL table type, we will need to record the
+	 * pg_type entry's address, so that we can adjust the dependency later on.
+	 */
+	if (stmt->tsql_tabletype && typaddress == NULL)
+		typaddress = &tsql_tabletype_address;
+	/*
 	 * Create the relation.  Inherited defaults and constraints are passed in
 	 * for immediate handling --- since they don't need parsing, they can be
 	 * stored immediately.
@@ -1499,6 +1513,20 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 	ObjectAddressSet(address, RelationRelationId, relationId);
 
 	/*
+	 * If we are here for creating TSQL table type, we will treat the created
+	 * relation as the template table for the table type, and the implicitly
+	 * created composite type as the desired table type.
+	 * So, remove the composite type's dependency on the relation, and record
+	 * the relation's dependency on the composite type.
+	 */
+	if (stmt->tsql_tabletype)
+	{
+		deleteDependencyRecordsForClass(typaddress->classId, typaddress->objectId,
+										RelationRelationId, DEPENDENCY_INTERNAL);
+		recordDependencyOn(&address, typaddress, DEPENDENCY_INTERNAL);
+	}
+
+	/*
 	 * Clean up.  We keep lock on new relation (although it shouldn't be
 	 * visible to anyone else anyway, until commit).
 	 */
@@ -1737,6 +1765,17 @@ RemoveRelations(DropStmt *drop)
 		obj.objectSubId = 0;
 
 		add_exact_object_address(&obj, objects);
+
+		/* 
+		* If the relation is a table, we must look for triggers and drop them 
+		* when in the tsql dialect because the user does not create a function for
+		* the trigger - we create it internally, and so the table cannot be dropped
+		* if there is a tsql trigger on it because of the dependency of the function.
+		*/
+		if (object_access_hook && drop->removeType == OBJECT_TABLE)
+		{
+			InvokeObjectDropHook(RelationRelationId,relOid,0);
+		}
 	}
 
 	performMultipleDeletions(objects, drop->behavior, flags);
@@ -2788,6 +2827,9 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 		/* We can't process inherited defaults until newattmap is complete. */
 		inherited_defaults = cols_with_defaults = NIL;
 
+		/* We can't process inherited defaults until newattno[] is complete. */
+		inherited_defaults = cols_with_defaults = NIL;
+
 		for (parent_attno = 1; parent_attno <= tupleDesc->natts;
 			 parent_attno++)
 		{
@@ -3484,6 +3526,31 @@ findAttrByName(const char *attributeName, List *schema)
 
 		i++;
 	}
+
+	if (sql_dialect == SQL_DIALECT_TSQL
+		&& pltsql_case_insensitive_identifiers)
+	{
+		char *attrname = downcase_identifier(attributeName, strlen(attributeName), false, false);
+		int attrlen = strlen(attrname);
+
+		i = 1;
+		
+		foreach(s, schema)
+		{
+			ColumnDef  *def = lfirst(s);
+
+			if (strlen(def->colname) == attrlen)
+			{
+				char *defname = downcase_identifier(def->colname, strlen(def->colname), false, false);
+
+				if (strncmp(attrname, defname, attrlen) == 0)
+					return i;
+			}
+
+			i++;
+		}
+	}
+	
 	return 0;
 }
 
@@ -8770,8 +8837,9 @@ ATExecSetOptions(Relation rel, const char *colName, Node *options,
 	newOptions = transformRelOptions(isnull ? (Datum) 0 : datum,
 									 castNode(List, options), NULL, NULL,
 									 false, isReset);
-	/* Validate new options */
-	(void) attribute_reloptions(newOptions, true);
+	/* Validate new options except for those allowed by extension */
+	if (!check_extended_attoptions_hook || !check_extended_attoptions_hook(options))
+		(void) attribute_reloptions(newOptions, true);
 
 	/* Build new tuple. */
 	memset(repl_null, false, sizeof(repl_null));
@@ -9090,6 +9158,9 @@ ATExecDropColumn(List **wqueue, AlteredTableInfo *yb_tab, Relation rel,
 						colName, RelationGetRelationName(rel))));
 
 	ReleaseSysCache(tuple);
+
+	if (InvokePreDropColumnHook)
+		(*InvokePreDropColumnHook) (rel, attnum);
 
 	/*
 	 * Propagate to children as appropriate.  Unlike most other ALTER
@@ -11827,6 +11898,7 @@ ATExecValidateConstraint(List **wqueue, Relation rel, char *constrName,
 			bool		isnull;
 			Datum		val;
 			char	   *conbin;
+
 
 			/*
 			 * If we're recursing, the parent has already done this, so skip

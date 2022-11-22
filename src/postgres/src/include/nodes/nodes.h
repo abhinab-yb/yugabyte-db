@@ -562,6 +562,11 @@ typedef enum NodeTag
 	T_YbSkippableEntities,
 	T_YbUpdateAffectedEntities,
 
+	/*
+	 * Additional TAG FOR VALUE NODES (value.h)
+	 */
+	T_TSQL_HexString,
+
 } NodeTag;
 
 /*

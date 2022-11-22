@@ -649,7 +649,8 @@ RemoveConstraintById(Oid conId)
 		elog(ERROR, "constraint %u is not of a known type", conId);
 
 	/* Fry the constraint itself */
-	CatalogTupleDelete(conDesc, tup);
+	if (!ENRdropTuple(conDesc, tup))
+		CatalogTupleDelete(conDesc, tup);
 
 	/* Clean up */
 	ReleaseSysCache(tup);
@@ -1122,8 +1123,8 @@ get_primary_key_attnos(Oid relid, bool deferrableOk, Oid *constraintOid)
 	/* Set *constraintOid, to avoid complaints about uninitialized vars */
 	*constraintOid = InvalidOid;
 
-	/* 
-	 * YB change: Search the catcache here to avoid having to go to master. 
+	/*
+	 * YB change: Search the catcache here to avoid having to go to master.
 	 * This will trigger a master RPC if this is the first time we're looking
 	 * up the primary key for this relation.
 	 */
@@ -1165,8 +1166,8 @@ get_primary_key_attnos(Oid relid, bool deferrableOk, Oid *constraintOid)
 			break;
 
 		/* Extract the conkey array, ie, attnums of PK's columns */
-		adatum = IsYugaByteEnabled() 
-			? SysCacheGetAttr(CONSTROID, tuple, Anum_pg_constraint_conkey, &isNull) 
+		adatum = IsYugaByteEnabled()
+			? SysCacheGetAttr(CONSTROID, tuple, Anum_pg_constraint_conkey, &isNull)
 			: heap_getattr(tuple, Anum_pg_constraint_conkey, RelationGetDescr(pg_constraint), &isNull);
 		if (isNull)
 			elog(ERROR, "null conkey for constraint %u",

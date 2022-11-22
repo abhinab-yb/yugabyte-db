@@ -117,9 +117,30 @@ enum SysCacheIdentifier
 	USERMAPPINGOID,
 	USERMAPPINGUSERSERVER,
 	YBTABLEGROUPOID,
-	YBCONSTRAINTRELIDTYPIDNAME
+	YBCONSTRAINTRELIDTYPIDNAME,
 
-#define SysCacheSize (YBCONSTRAINTRELIDTYPIDNAME + 1)
+	/*
+	 * Below are cache IDs for extensions. We need to have them defined here
+	 * instead of their respective extension modules because we do not want
+	 * the IDs to conflict.
+	 */
+	SYSDATABASEOID,
+	SYSDATABASENAME
+};
+
+#define SysCacheNoExtensionSize (USERMAPPINGUSERSERVER+ 1)
+#define SysCacheSize (SYSDATABASENAME + 1)
+
+/*
+ *		struct cachedesc: information defining a single syscache
+ */
+struct cachedesc
+{
+	Oid			reloid;			/* OID of the relation being cached */
+	Oid			indoid;			/* OID of index relation for this cache */
+	int			nkeys;			/* # of keys needed for cache lookup */
+	int			key[4];			/* attribute numbers of key attrs */
+	int			nbuckets;		/* number of hash buckets for this cache */
 };
 
 typedef enum YbCatalogCacheTable
@@ -191,6 +212,7 @@ extern int YbGetCatalogCacheTableIdFromCacheId(int cache_id);
 
 extern void InitCatalogCache(void);
 extern void InitCatalogCachePhase2(void);
+extern void InitExtensionCatalogCache(struct cachedesc *cacheinfo, int startid, int cachelength);
 
 extern HeapTuple SearchSysCache(int cacheId,
 								Datum key1, Datum key2, Datum key3, Datum key4);

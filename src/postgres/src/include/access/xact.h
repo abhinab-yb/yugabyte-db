@@ -570,4 +570,14 @@ extern void YBClearDdlHandles(void);
 extern void YbClearCurrentTransactionId(void);
 extern bool YbHasOnlyInternalRcSubTransactions(void);
 extern void YbClearParallelContexts(void);
+
+extern bool IsTopTransactionName(const char *name);
+extern void SetTopTransactionName(const char *name);
+extern bool IsTransactionBlockActive(void);
+extern void RollbackAndReleaseSavepoint(const char *name);
+
+/* Nested transaction count */
+extern uint32 NestedTranCount;
+extern bool AbortCurTransaction;
+
 #endif							/* XACT_H */

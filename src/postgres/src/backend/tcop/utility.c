@@ -62,6 +62,7 @@
 #include "commands/view.h"
 #include "libpq/libpq-be.h"
 #include "miscadmin.h"
+#include "parser/parser.h"
 #include "parser/parse_utilcmd.h"
 #include "postmaster/bgwriter.h"
 #include "rewrite/rewriteDefine.h"
@@ -810,7 +811,12 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 
 		case T_CreatedbStmt:
 			/* no event triggers for global objects */
-			PreventInTransactionBlock(isTopLevel, "CREATE DATABASE");
+			/* In case of TSQL mode, we allow create database from
+			 * transaction blocks to turn batch mode ON by default.
+			 */
+			if (sql_dialect != SQL_DIALECT_TSQL) {
+				PreventInTransactionBlock(isTopLevel, "CREATE DATABASE");
+			}
 			createdb(pstate, (CreatedbStmt *) parsetree);
 			break;
 
@@ -831,7 +837,12 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 
 		case T_DropdbStmt:
 			/* no event triggers for global objects */
-			PreventInTransactionBlock(isTopLevel, "DROP DATABASE");
+			/* In case of TSQL mode, we allow drop database from
+			 * transaction blocks to turn batch mode ON by default.
+			 */
+			if (sql_dialect != SQL_DIALECT_TSQL) {
+				PreventInTransactionBlock(isTopLevel, "DROP DATABASE");
+			}
 			DropDatabase(pstate, (DropdbStmt *) parsetree);
 			break;
 

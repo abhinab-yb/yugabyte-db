@@ -56,9 +56,11 @@
 #include "catalog/storage.h"
 #include "commands/tablecmds.h"
 #include "commands/typecmds.h"
+#include "executor/spi.h"
 #include "miscadmin.h"
 #include "nodes/nodeFuncs.h"
 #include "optimizer/optimizer.h"
+#include "parser/parser.h"      /* only needed for GUC variables */
 #include "parser/parse_coerce.h"
 #include "parser/parse_collate.h"
 #include "parser/parse_expr.h"
@@ -79,6 +81,8 @@
 #include "catalog/pg_init_privs.h"
 #include "catalog/pg_yb_tablegroup.h"
 #include "pg_yb_utils.h"
+
+InvokePreAddConstraintsHook_type InvokePreAddConstraintsHook = NULL;
 
 /* Potentially set by pg_upgrade_support functions */
 Oid			binary_upgrade_next_heap_pg_class_oid = InvalidOid;
@@ -681,6 +685,16 @@ CheckAttributeType(const char *attname,
 						   containing_rowtypes,
 						   flags);
 	}
+	else if (att_typtype == TYPTYPE_RANGE)
+	{
+		/*
+		 * If it's a range, recurse to check its subtype.
+		 */
+		CheckAttributeType(attname, get_range_subtype(atttypid),
+						   get_range_collation(atttypid),
+						   containing_rowtypes,
+						   flags);
+	}
 	else if (OidIsValid((att_typelem = get_element_type(atttypid))))
 	{
 		/*
@@ -1247,6 +1261,10 @@ heap_create_with_catalog(const char *relname,
 	MultiXactId relminmxid;
 	/* YB variables. */
 	bool		is_system = IsCatalogNamespace(relnamespace);
+	bool		is_enr = false;
+
+	if (relpersistence == RELPERSISTENCE_TEMP && sql_dialect == SQL_DIALECT_TSQL)
+		is_enr = true;
 
 	pg_class_desc = table_open(RelationRelationId, RowExclusiveLock);
 
@@ -1277,9 +1295,10 @@ heap_create_with_catalog(const char *relname,
 		/*
 		 * This would fail later on anyway, if the relation already exists.  But
 		 * by catching it here we can emit a nicer error message.
+		 * But allow same-name ENR as long as the it's not in the current query env.
 		 */
 		existing_relid = get_relname_relid(relname, relnamespace);
-		if (existing_relid != InvalidOid)
+		if (existing_relid != InvalidOid && (!is_enr || get_ENR(currentQueryEnv, relname)))
 			ereport(ERROR,
 					(errcode(ERRCODE_DUPLICATE_TABLE),
 					 errmsg("relation \"%s\" already exists", relname)));
@@ -1295,7 +1314,7 @@ heap_create_with_catalog(const char *relname,
 									   ObjectIdGetDatum(relnamespace));
 	}
 
-	if (OidIsValid(old_type_oid))
+	if (OidIsValid(old_type_oid) && (!is_enr || get_ENR(currentQueryEnv, relname)))
 	{
 		if (!moveArrayTypeName(old_type_oid, relname, relnamespace))
 			ereport(ERROR,
@@ -1462,6 +1481,21 @@ heap_create_with_catalog(const char *relname,
 							   &relminmxid,
 							   true);
 
+	/*
+	 * If it's temp table, create ENR entry for it when using TSQL dialect.
+	 */
+	if (is_enr)
+	{
+		MemoryContext oldcontext = MemoryContextSwitchTo(CacheMemoryContext);
+		EphemeralNamedRelation enr = palloc0(sizeof(EphemeralNamedRelationData));
+		enr->md.name = palloc0(strlen(relname) + 1);
+		strncpy(enr->md.name, relname, strlen(relname) + 1);
+		enr->md.reliddesc = relid;
+		enr->md.enrtype = ENR_TSQL_TEMP;
+		register_ENR(currentQueryEnv, enr);
+		MemoryContextSwitchTo(oldcontext);
+	}
+
 	Assert(relid == RelationGetRelid(new_rel_desc));
 
 	new_rel_desc->rd_rel->relrewrite = relrewrite;
@@ -1599,6 +1633,7 @@ heap_create_with_catalog(const char *relname,
 	 * YB NOTE:
 	 * For non-view system relations during YSQL upgrade, we do not need to do
 	 * anything.
+	 * Skip this for ENR too, since we will be searching them in query environment.
 	 */
 	if (relkind != RELKIND_COMPOSITE_TYPE &&
 		relkind != RELKIND_TOASTVALUE &&
@@ -1735,7 +1770,8 @@ DeleteRelationTuple(Oid relid)
 		elog(ERROR, "cache lookup failed for relation %u", relid);
 
 	/* delete the relation tuple from pg_class, and finish up */
-	CatalogTupleDelete(pg_class_desc, tup);
+	if (!ENRdropTuple(pg_class_desc, tup))
+		CatalogTupleDelete(pg_class_desc, tup);
 
 	ReleaseSysCache(tup);
 
@@ -1772,7 +1808,8 @@ DeleteAttributeTuples(Oid relid)
 
 	/* Delete all the matching tuples */
 	while ((atttup = systable_getnext(scan)) != NULL)
-		CatalogTupleDelete(attrel, atttup);
+		if (!ENRdropTuple(attrel, atttup))
+			CatalogTupleDelete(attrel, atttup);
 
 	/* Clean up after the scan */
 	systable_endscan(scan);
@@ -1813,7 +1850,8 @@ DeleteSystemAttributeTuples(Oid relid)
 
 	/* Delete all the matching tuples */
 	while ((atttup = systable_getnext(scan)) != NULL)
-		CatalogTupleDelete(attrel, atttup);
+		if (!ENRdropTuple(attrel, atttup))
+			CatalogTupleDelete(attrel, atttup);
 
 	/* Clean up after the scan */
 	systable_endscan(scan);
@@ -1859,7 +1897,8 @@ RemoveAttributeById(Oid relid, AttrNumber attnum)
 	{
 		/* System attribute (probably OID) ... just delete the row */
 
-		CatalogTupleDelete(attr_rel, tuple);
+		if (!ENRdropTuple(attr_rel, tuple))
+			CatalogTupleDelete(attr_rel, tuple);
 	}
 	else
 	{
@@ -2055,7 +2094,7 @@ heap_drop_with_catalog(Oid relid)
 	/* Decrement sticky object count if the relation being dropped is a TEMP TABLE. */
 	if (YbIsClientYsqlConnMgr() && (rel)->rd_islocaltemp)
 		decrement_sticky_object_count();
-	
+
 	/*
 	 * Schedule unlinking of the relation's physical files at commit.
 	 * For Yugabyte-backed relations, there aren't any physical files to remove.
@@ -2111,6 +2150,9 @@ heap_drop_with_catalog(Oid relid)
 	 * delete relation tuple
 	 */
 	DeleteRelationTuple(relid);
+
+	/* Try drop ENR entry, will skip internally if it's not an ENR.*/
+	ENRDropEntry(relid);
 
 	if (OidIsValid(parentOid))
 	{
@@ -2511,6 +2553,9 @@ AddRelationNewConstraints(Relation rel,
 										   false,
 										   true);
 	addNSItemToQuery(pstate, nsitem, true, true, true);
+
+	if (InvokePreAddConstraintsHook)
+		(*InvokePreAddConstraintsHook) (rel, pstate, newColDefaults);
 
 	/*
 	 * Process column default expressions.
@@ -3157,7 +3202,8 @@ RemoveStatistics(Oid relid, AttrNumber attnum)
 
 	/* we must loop even when attnum != 0, in case of inherited stats */
 	while (HeapTupleIsValid(tuple = systable_getnext(scan)))
-		CatalogTupleDelete(pgstatistic, tuple);
+		if (!ENRdropTuple(pgstatistic, tuple))
+			CatalogTupleDelete(pgstatistic, tuple);
 
 	systable_endscan(scan);
 

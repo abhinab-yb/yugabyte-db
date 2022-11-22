@@ -70,4 +70,7 @@ extern bool YbIsSysCatalogTabletRelation(Relation rel);
 extern bool YbIsSysCatalogTabletRelationByIds(Oid relationId, Oid namespaceId,
 											  char *namespace_name);
 
+typedef bool (*IsExtendedCatalogHookType) (Oid relationId);
+extern IsExtendedCatalogHookType IsExtendedCatalogHook;
+
 #endif							/* CATALOG_H */

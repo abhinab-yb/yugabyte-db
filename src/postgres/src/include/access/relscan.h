@@ -229,6 +229,10 @@ typedef struct SysScanDescData
 	struct SnapshotData *snapshot;	/* snapshot to unregister at end of scan */
 	struct TupleTableSlot *slot;
 	YbSysScanBase	ybscan;			/* only valid in yb-scan case */
+
+	bool enr;
+	List *enr_tuplist;
+	int enr_tuplist_i;
 }			SysScanDescData;
 
 #endif							/* RELSCAN_H */
