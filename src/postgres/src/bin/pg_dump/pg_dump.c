@@ -56,6 +56,7 @@
 #include "catalog/pg_trigger_d.h"
 #include "catalog/pg_type_d.h"
 #include "common/connect.h"
+#include "dump_babel_utils.h"
 #include "dumputils.h"
 #include "fe_utils/option_utils.h"
 #include "fe_utils/string_utils.h"
@@ -8224,6 +8225,7 @@ getCasts(Archive *fout, int *numCasts)
 
 		/* Decide whether we want to dump it */
 		selectDumpableCast(&(castinfo[i]), fout);
+		bbf_selectDumpableCast(&(castinfo[i]));
 	}
 
 	PQclear(res);
