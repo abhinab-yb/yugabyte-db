@@ -320,4 +320,6 @@ extern bool HasNonRITrigger(const TriggerDesc* trigDesc);
 extern void BeginCompositeTriggers(MemoryContext curCxt);
 extern void EndCompositeTriggers(bool error);
 
+extern bool TsqlRecuresiveCheck(ResultRelInfo *resultRelInfo);
+
 #endif							/* TRIGGER_H */
