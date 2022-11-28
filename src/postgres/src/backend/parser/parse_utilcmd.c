@@ -2904,13 +2904,22 @@ transformIndexConstraint(Constraint *constraint, CreateStmtContext *cxt)
 
 			if (IsYugaByteEnabled())
 			{
-				/* Yugabyte's key is based on name only */
-				key = index_elem->name;
-				if (index_elem->expr != NULL)
-					ereport(ERROR,
-							(errcode(ERRCODE_WRONG_OBJECT_TYPE),
-							 errmsg("cannot create a primary key or unique constraint on expressions"),
-							 parser_errposition(cxt->pstate, constraint->location)));
+				/* T-SQL parser might have directly prepared indexElem */
+				if (nodeTag(lfirst(lc)) == T_IndexElem)
+				{
+					IndexElem * i = (IndexElem *) lfirst(lc);
+					key = i->name;
+				}
+				else
+				{
+					/* Yugabyte's key is based on name only */
+					key = index_elem->name;
+					if (index_elem->expr != NULL)
+						ereport(ERROR,
+								(errcode(ERRCODE_WRONG_OBJECT_TYPE),
+								errmsg("cannot create a primary key or unique constraint on expressions"),
+								parser_errposition(cxt->pstate, constraint->location)));
+				}
 
 				Assert(key != NULL);
 			}
