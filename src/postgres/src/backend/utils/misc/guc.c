@@ -6538,6 +6538,10 @@ static struct config_enum ConfigureNamesEnum[] =
 		NULL, NULL, NULL
 	},
 
+/*
+ * When changing this guc value directly without set_config_option,The function 
+ * assign_sql_dialect() should also be invoked with the assignment. 
+ */
 	{
 		{"yb_pg_batch_detection_mechanism", PGC_USERSET, COMPAT_OPTIONS_CLIENT,
 			gettext_noop("The drivers use message protocol to communicate "
