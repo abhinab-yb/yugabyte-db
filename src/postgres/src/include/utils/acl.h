@@ -337,4 +337,7 @@ extern AclMode pg_tablegroup_aclmask(Oid grp_oid, Oid roleid,
 extern AclResult pg_tablegroup_aclcheck(Oid grp_oid, Oid roleid, AclMode mode);
 extern bool pg_tablegroup_ownercheck(Oid grp_oid, Oid roleid);
 
+typedef bool (*tsql_has_linked_srv_permissions_hook_type) (Oid roleid);
+extern PGDLLIMPORT tsql_has_linked_srv_permissions_hook_type tsql_has_linked_srv_permissions_hook;
+
 #endif							/* ACL_H */

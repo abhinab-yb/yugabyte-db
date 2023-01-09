@@ -152,6 +152,8 @@ static void recordExtensionInitPrivWorker(Oid objoid, Oid classoid, int objsubid
 										  Acl *new_acl);
 static bool YbCheckAclCopiesEqual(Acl *old_acl, Acl *new_acl);
 
+tsql_has_linked_srv_permissions_hook_type tsql_has_linked_srv_permissions_hook = NULL;
+
 /*
  * If is_grant is true, adds the given privileges for the list of
  * grantees to the existing old_acl.  If is_grant is false, the
@@ -5129,6 +5131,14 @@ pg_foreign_data_wrapper_aclmask(Oid fdw_oid, Oid roleid,
 
 	/* Bypass permission checks for superusers */
 	if (superuser_arg(roleid))
+		return mask;
+
+	/*
+	 * Additionally if the babelfishpg_tsql extension is loaded, and if the current
+	 * session user is sysadmin of babelfish db then we can also bypass permission
+	 * checks for a foreign data wrapper for such a user
+	 */
+	if (tsql_has_linked_srv_permissions_hook && (*tsql_has_linked_srv_permissions_hook)(roleid))
 		return mask;
 
 	/*
