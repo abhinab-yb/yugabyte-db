@@ -293,6 +293,9 @@ PgSession::PgSession(
           &PgSession::FlushOperations, this, std::placeholders::_1, std::placeholders::_2),
           buffering_settings_),
       pg_callbacks_(pg_callbacks) {
+      LOG(INFO) << "PgSession constructor called";
+      trace_ = Trace::NewTrace();
+      LOG(INFO) << (trace_ ? "Trace initialized" : "Trace empty");
       Update(&buffering_settings_);
 }
 
@@ -319,12 +322,18 @@ Status PgSession::IsDatabaseColocated(const PgOid database_oid, bool *colocated,
 //--------------------------------------------------------------------------------------------------
 
 Status PgSession::DropDatabase(const std::string& database_name, PgOid database_oid) {
+
+  TRACE_TO(trace_, __func__, "testing trace $0 $1", 9, 8);
+
   tserver::PgDropDatabaseRequestPB req;
   req.set_database_name(database_name);
   req.set_database_oid(database_oid);
 
   RETURN_NOT_OK(pg_client_.DropDatabase(&req, CoarseTimePoint()));
   RETURN_NOT_OK(DeleteDBSequences(database_oid));
+
+  LOG(INFO) << (trace_ ? trace_->DumpToString(true) : "Not collected");
+
   return Status::OK();
 }
 
