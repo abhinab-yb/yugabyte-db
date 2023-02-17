@@ -278,6 +278,13 @@ class YBTransaction::Impl final : public internal::TxnBatcherIf {
     metadata_.priority = priority;
   }
 
+  void EnsureTraceCreated() {
+    if (!trace_) {
+      trace_ = new Trace;
+      TRACE_TO(trace_, "Ensure Trace Created");
+    }
+  }
+
   uint64_t GetPriority() const {
     return metadata_.priority;
   }
@@ -2192,6 +2199,10 @@ Result<TransactionMetadata> YBTransaction::Release() {
 
 Trace* YBTransaction::trace() {
   return impl_->trace();
+}
+
+void YBTransaction::EnsureTraceCreated() {
+  return impl_->EnsureTraceCreated();
 }
 
 void YBTransaction::SetActiveSubTransaction(SubTransactionId id) {
