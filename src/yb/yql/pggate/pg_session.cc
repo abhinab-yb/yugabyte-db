@@ -610,6 +610,7 @@ Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOpti
       options.set_namespace_id(GetPgsqlNamespaceId(database_oid));
     }
   }
+  options.set_trace_requested(pg_txn_manager_->ShouldEnableTracing());
 
   if (!ops_options.cache_key.empty()) {
     options.mutable_caching_info()->set_key(std::move(ops_options.cache_key));
@@ -636,6 +637,7 @@ void PgSession::ProcessPerformOnTxnSerialNo(
   if (ensure_read_time_set_for_current_txn_serial_no && read_time && !options->has_read_time()) {
     read_time.ToPB(options->mutable_read_time());
   }
+  options->set_trace_requested(pg_txn_manager_->ShouldEnableTracing());
 }
 
 Result<bool> PgSession::ForeignKeyReferenceExists(const LightweightTableYbctid& key,
