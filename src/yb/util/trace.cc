@@ -279,6 +279,7 @@ ThreadSafeArena* Trace::GetAndInitArena() {
 }
 
 scoped_refptr<Trace> Trace::NewTrace() {
+    return scoped_refptr<Trace>(new Trace());
   if (GetAtomicFlag(&FLAGS_enable_tracing)) {
     return scoped_refptr<Trace>(new Trace());
   }

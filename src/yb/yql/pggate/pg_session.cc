@@ -292,9 +292,9 @@ PgSession::PgSession(
       buffer_(std::bind(
           &PgSession::FlushOperations, this, std::placeholders::_1, std::placeholders::_2),
           buffering_settings_),
-      pg_callbacks_(pg_callbacks) {
+      pg_callbacks_(pg_callbacks),
+      trace_(Trace::NewTrace()) {
       LOG(INFO) << "PgSession constructor called";
-      trace_ = Trace::NewTrace();
       LOG(INFO) << (trace_ ? "Trace initialized" : "Trace empty");
       Update(&buffering_settings_);
 }
