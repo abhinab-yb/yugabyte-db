@@ -236,7 +236,7 @@ struct TraceEntry {
 
   size_t message_len;
   TraceEntry* next;
-  char message[0];
+  char message[500];
 
   void Dump(std::ostream* out) const {
     *out << const_basename(file_path) << ':' << line_number

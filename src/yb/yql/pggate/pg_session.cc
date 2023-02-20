@@ -331,8 +331,6 @@ Status PgSession::DropDatabase(const std::string& database_name, PgOid database_
   RETURN_NOT_OK(pg_client_.DropDatabase(&req, CoarseTimePoint()));
   RETURN_NOT_OK(DeleteDBSequences(database_oid));
 
-  LOG(INFO) << (trace_ ? trace_->DumpToString(true) : "Not collected");
-
   return Status::OK();
 }
 
@@ -628,6 +626,9 @@ Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOpti
   pg_client_.PerformAsync(&options, &ops.operations, [promise](const PerformResult& result) {
     promise->set_value(result);
   });
+
+  LOG(INFO) << (trace_ ? trace_->DumpToString(true) : "Not collected");
+
   return PerformFuture(promise->get_future(), this, std::move(ops.relations));
 }
 
@@ -809,7 +810,6 @@ template<class Generator>
 Result<PerformFuture> PgSession::DoRunAsync(
     const Generator& generator, uint64_t* in_txn_limit,
     ForceNonBufferable force_non_bufferable, std::string&& cache_key) {
-  TRACE_TO(trace_, __func__, "test trace query");
   auto table_op = generator();
   SCHECK(!table_op.IsEmpty(), IllegalState, "Operation list must not be empty");
   const auto* table = table_op.table;
@@ -829,7 +829,6 @@ Result<PerformFuture> PgSession::DoRunAsync(
     has_write_ops_in_ddl_mode_ = has_write_ops_in_ddl_mode_ || (ddl_mode && !IsReadOnly(**op));
     RETURN_NOT_OK(runner.Apply(*table, *op, in_txn_limit, force_non_bufferable));
   }
-//  LOG(INFO) << (trace_ ? trace_->DumpToString(true) : "Not collected");
   return runner.Flush(std::move(cache_key));
 }
 
