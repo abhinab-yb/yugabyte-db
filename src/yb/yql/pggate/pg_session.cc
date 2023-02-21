@@ -186,7 +186,7 @@ class PgSession::RunHelper {
         !force_non_bufferable && op->is_write()) {
         if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
           LOG(INFO) << "Buffering operation: " << op->ToString();
-          TRACE_TO(pg_session_.trace_, __func__, "testing trace $0 $1", 9, 8);
+          // TRACE_TO(pg_session_.trace_, __func__, "testing trace $0 $1", 9, 8);
         }
         return buffer.Add(table,
                           PgsqlWriteOpPtr(std::move(op), down_cast<PgsqlWriteOp*>(op.get())),
@@ -213,7 +213,7 @@ class PgSession::RunHelper {
 
     if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
       LOG(INFO) << "Applying operation: " << op->ToString();
-      TRACE_TO(pg_session_.trace_, __func__, "testing trace $0 $1", 9, 8);
+      // TRACE_TO(pg_session_.trace_, __func__, "testing trace $0 $1", 9, 8);
     }
 
     const auto row_mark_type = GetRowMarkType(*op);
@@ -322,15 +322,13 @@ Status PgSession::IsDatabaseColocated(const PgOid database_oid, bool *colocated,
 //--------------------------------------------------------------------------------------------------
 
 Status PgSession::DropDatabase(const std::string& database_name, PgOid database_oid) {
-  TRACE_TO(trace_, __func__, "testing trace $0 $1", 9, 8);
-
+  // TRACE_TO(trace_, __func__, "testing trace $0 $1", 9, 8);
   tserver::PgDropDatabaseRequestPB req;
   req.set_database_name(database_name);
   req.set_database_oid(database_oid);
 
   RETURN_NOT_OK(pg_client_.DropDatabase(&req, CoarseTimePoint()));
   RETURN_NOT_OK(DeleteDBSequences(database_oid));
-
   return Status::OK();
 }
 
@@ -543,7 +541,7 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
     LOG(INFO) << "Flushing buffered operations, using "
               << (transactional ? "transactional" : "non-transactional")
               << " session (num ops: " << ops.size() << ")";
-    TRACE_TO(trace_, __func__, "testing trace $0 $1", 9, 8);
+    // TRACE_TO(trace_, __func__, "testing trace $0 $1", 9, 8);
   }
 
   if (transactional) {
