@@ -213,7 +213,7 @@ class PgSession::RunHelper {
 
     if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
       LOG(INFO) << "Applying operation: " << op->ToString();
-      // TRACE_TO(pg_session_.trace_, __func__, "testing trace $0 $1", 9, 8);
+      TRACE_TO(pg_session_.trace_, __func__, "testing trace $0 $1", 9, 8);
     }
 
     const auto row_mark_type = GetRowMarkType(*op);
