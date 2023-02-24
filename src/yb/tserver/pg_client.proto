@@ -434,6 +434,20 @@ message PgPerformResponsePB {
   repeated PgsqlResponsePB responses = 2;
   ReadHybridTimePB catalog_read_time = 3;
   fixed64 used_in_txn_limit_ht = 4;
+
+  message TracePB {
+    message EntryPB {
+      string file_path = 1;
+      uint32 line_number = 2;
+      string message = 3;
+      uint64 timestamp = 4;
+    }
+
+    repeated EntryPB entries = 1;
+    repeated TracePB children = 2;
+  }
+
+  TracePB trace = 5;
 }
 
 message PgReserveOidsRequestPB {

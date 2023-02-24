@@ -226,24 +226,11 @@ ScopedAdoptTrace::~ScopedAdoptTrace() {
   DFAKE_SCOPED_LOCK_THREAD_LOCKED(ctor_dtor_);
 }
 
-// Struct which precedes each entry in the trace.
-struct TraceEntry {
-  CoarseTimePoint timestamp;
-
-  // The source file and line number which generated the trace message.
-  const char* file_path;
-  int line_number;
-
-  size_t message_len;
-  TraceEntry* next;
-  char message[0];
-
-  void Dump(std::ostream* out) const {
+void TraceEntry::Dump(std::ostream* out) const {
     *out << const_basename(file_path) << ':' << line_number
          << "] ";
     out->write(message, message_len);
-  }
-};
+}
 
 Trace::Trace() {
 }
@@ -371,6 +358,18 @@ void Trace::AddEntry(TraceEntry* entry) {
 
 void Trace::Dump(std::ostream *out, bool include_time_deltas) const {
   Dump(out, 0, include_time_deltas);
+}
+
+void Trace::getEntriesAndChildren(
+    std::vector<TraceEntry*>& entries, std::vector<scoped_refptr<Trace> >& child_traces) {
+  std::lock_guard<simple_spinlock> l(lock_);
+  for (TraceEntry* cur = entries_head_;
+    cur != nullptr;
+    cur = cur->next) {
+    entries.push_back(cur);
+  }
+
+  child_traces = child_traces_;
 }
 
 void Trace::Dump(std::ostream* out, int32_t tracing_depth, bool include_time_deltas) const {

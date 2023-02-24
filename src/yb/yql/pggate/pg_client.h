@@ -20,6 +20,9 @@
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/version.hpp>
 
+#include "opentelemetry/nostd/shared_ptr.h"
+#include "opentelemetry/trace/span.h"
+
 #include "yb/client/client_fwd.h"
 
 #include "yb/common/pg_types.h"
@@ -157,6 +160,7 @@ class PgClient {
   void PerformAsync(
       tserver::PgPerformOptionsPB* options,
       PgsqlOps* operations,
+      opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> span,
       const PerformCallback& callback);
 
   Result<bool> CheckIfPitrActive();

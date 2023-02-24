@@ -74,6 +74,7 @@ Result<PerformFuture::Data> PerformFuture::Get() {
   auto result = future.get();
   RETURN_NOT_OK(PatchStatus(result.status, relations_));
   session_->TrySetCatalogReadPoint(result.catalog_read_time);
+
   return Data{
       .response = std::move(result.response),
       .used_in_txn_limit = result.used_in_txn_limit};
@@ -88,9 +89,7 @@ Result<PerformFuture::Data> PerformFuture::Get(MonoDelta* wait_time) {
   }
 
   auto start_time = CoarseMonoClock::Now();
-  RETURN_NOT_OK(this->session_->StartQueryEvent("RPC GET"));
   auto response = Get();
-  RETURN_NOT_OK(this->session_->StopQueryEvent("RPC GET"));
   *wait_time += CoarseMonoClock::Now() - start_time;
   return response;
 }

@@ -200,6 +200,8 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   Status StartQueryEvent(const char*);
   Status StopQueryEvent(const char*);
 
+  nostd::shared_ptr<opentelemetry::trace::Span> StartDocDbEvent(const char* event_name);
+
   //------------------------------------------------------------------------------------------------
   // Operations on Tablegroup.
   //------------------------------------------------------------------------------------------------

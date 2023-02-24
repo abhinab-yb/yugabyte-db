@@ -118,7 +118,20 @@ DECLARE_int32(tracing_level);
 
 namespace yb {
 
-struct TraceEntry;
+// Struct which precedes each entry in the trace.
+struct TraceEntry {
+  CoarseTimePoint timestamp;
+
+  // The source file and line number which generated the trace message.
+  const char* file_path;
+  int line_number;
+
+  size_t message_len;
+  TraceEntry* next;
+  char message[0];
+
+  void Dump(std::ostream* out) const;
+};
 
 // A trace for a request or other process. This supports collecting trace entries
 // from a number of threads, and later dumping the results to a stream.
@@ -162,6 +175,9 @@ class Trace : public RefCountedThreadSafe<Trace> {
 
   void SubstituteAndTrace(
       const char* file_path, int line_number, CoarseTimePoint now, GStringPiece format);
+
+  void getEntriesAndChildren(
+      std::vector<TraceEntry*>& entries, std::vector<scoped_refptr<Trace> >& child_traces);
 
   // Dump the trace buffer to the given output stream.
   //

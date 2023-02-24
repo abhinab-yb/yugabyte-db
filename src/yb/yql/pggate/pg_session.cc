@@ -348,6 +348,7 @@ PgSession::PgSession(
           buffering_settings_),
       pg_callbacks_(pg_callbacks) {
       Update(&buffering_settings_);
+      this->query_tracer_ = nullptr;
 }
 
 PgSession::~PgSession() = default;
@@ -485,6 +486,10 @@ Status PgSession::StopQueryEvent(const char* event_name) {
   this->tokens_.pop();
   this->spans_.pop();
   return Status::OK();
+}
+
+nostd::shared_ptr<opentelemetry::trace::Span> PgSession::StartDocDbEvent(const char* event_name) {
+  return this->query_tracer_->StartSpan(event_name);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -711,7 +716,12 @@ Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOpti
     options.mutable_caching_info()->set_key(std::move(ops_options.cache_key));
   }
 
-  pg_client_.PerformAsync(&options, &ops.operations, [promise](const PerformResult& result) {
+  nostd::shared_ptr<opentelemetry::trace::Span> span;
+  if (this->query_tracer_)
+    span = this->StartDocDbEvent("Perform Async");
+  else
+    span = nullptr;
+  pg_client_.PerformAsync(&options, &ops.operations, span, [promise](const PerformResult& result) {
     promise->set_value(result);
   });
   return PerformFuture(promise->get_future(), this, std::move(ops.relations));

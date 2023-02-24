@@ -584,4 +584,18 @@ message PgsqlResponsePB {
   // Repeated field provides support for multiple Statuses per response, allowing to return
   // not only detailed error, but also warnings and notices.
   repeated AppStatusPB error_status = 16;
+
+  message trace {
+    message trace_entry {
+      required string file_path = 1;
+      required uint32 line_number = 2;
+      required string message = 3;
+      required uint64 timestamp = 4;
+    }
+
+    repeated trace_entry entries = 1;
+    repeated trace children = 2;
+  }
+
+  optional trace traces = 17;
 }
