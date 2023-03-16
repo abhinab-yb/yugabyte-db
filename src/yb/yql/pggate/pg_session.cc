@@ -33,6 +33,7 @@
 #include "opentelemetry/sdk/trace/tracer_provider_factory.h"
 #include "opentelemetry/trace/provider.h"
 #include "opentelemetry/trace/span_metadata.h"
+#include "opentelemetry/sdk/resource/semantic_conventions.h"
 
 #include "yb/client/table_info.h"
 
@@ -895,8 +896,9 @@ void PgSession::InitTracer() {
   trace_file_handle_ = std::make_shared<std::ofstream>(std::ofstream(trace_file_name_.c_str()));
   auto exporter = trace_exporter::OStreamSpanExporterFactory::Create(*trace_file_handle_.get());
   auto processor = sdktrace::SimpleSpanProcessorFactory::Create(std::move(exporter));
+  auto resource = opentelemetry::sdk::resource::Resource::Create({{opentelemetry::sdk::resource::SemanticConventions::kServiceName, "PG_SERVICE"}});
   std::shared_ptr<opentelemetry::trace::TracerProvider> provider_ =
-      sdktrace::TracerProviderFactory::Create(std::move(processor));
+      sdktrace::TracerProviderFactory::Create(std::move(processor), resource);
   trace::Provider::SetTracerProvider(provider_);
 }
 
