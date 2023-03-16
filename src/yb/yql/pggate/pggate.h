@@ -530,9 +530,6 @@ class PgApiImpl {
 
   Status ExecSelect(PgStatement *handle, const PgExecParameters *exec_params);
 
-  Status StartTraceForQuery();
-  Status StopTraceForQuery();
-
   //------------------------------------------------------------------------------------------------
   // Trace
   Status StartTraceForQuery();

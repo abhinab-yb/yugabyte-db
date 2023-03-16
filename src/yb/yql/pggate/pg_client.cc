@@ -534,6 +534,13 @@ class PgClient::Impl {
     data->controller.set_invoke_callback_mode(rpc::InvokeCallbackMode::kReactorThread);
 
     proxy_->PerformAsync(req, &data->resp, SetupController(&data->controller), [data] {
+      auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+      auto tracer = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
+      auto docdb_span = tracer->StartSpan("tserver / PgClientService :: Perform");
+      auto docdb_scope = tracer->WithActiveSpan(docdb_span);
+      docdb_span->SetAttribute("pg_client_session_perform_time (ns)", int64_t(data->resp.pg_client_session_perform_time()));
+      docdb_span->End();
+
       PerformResult result;
       result.status = data->controller.status();
       result.response = data->controller.response();
@@ -550,15 +557,7 @@ class PgClient::Impl {
         result.used_in_txn_limit = HybridTime::FromPB(data->resp.used_in_txn_limit_ht());
       }
       data->callback(result);
-    });    
-
-    auto docdb_span = tracer->StartSpan("tserver / PgClientService :: Perform");
-
-    auto docdb_scope = tracer->WithActiveSpan(docdb_span);
-      
-    docdb_span->SetAttribute("pg_client_session_perform_time (ns)", int64_t(data->resp.pg_client_session_perform_time()));
-    docdb_span->End();
-    
+    });
     span->End();
   }
 
