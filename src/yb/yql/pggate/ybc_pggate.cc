@@ -1435,8 +1435,6 @@ YBCStatus YBCStopTraceForQuery() {
   return ToYBCStatus(pgapi->StopTraceForQuery());
 }
 
-<<<<<<< HEAD
-=======
 YBCStatus YBCStartQueryEvent(const char* event_name) {
   return ToYBCStatus(pgapi->StartQueryEvent(event_name));
 }
@@ -1445,7 +1443,6 @@ YBCStatus YBCStopQueryEvent(const char *event_name) {
   return ToYBCStatus(pgapi->StopQueryEvent(event_name));
 }
 
->>>>>>> 1c8f12e1b21e2d6dd611352228dbd3b88f1e600c
 YBCStatus YBCGetIndexBackfillProgress(YBCPgOid* index_oids, YBCPgOid* database_oids,
                                       uint64_t** backfill_statuses,
                                       int num_indexes) {
