@@ -907,6 +907,8 @@ void PgSession::CleanupTracer() {
     trace_file_handle_.reset();
     trace_file_handle_ = nullptr;
   }
+  std::shared_ptr<opentelemetry::trace::TracerProvider> none;
+  opentelemetry::trace::Provider::SetTracerProvider(none);
 }
 
 template<class Generator>

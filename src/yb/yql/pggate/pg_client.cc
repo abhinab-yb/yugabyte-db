@@ -40,6 +40,9 @@
 #include "yb/yql/pggate/pg_tabledesc.h"
 #include "yb/util/flags.h"
 
+#include "opentelemetry/sdk/version/version.h"
+#include "opentelemetry/trace/provider.h"
+
 DECLARE_bool(use_node_hostname_for_local_tserver);
 DECLARE_int32(backfill_index_client_rpc_timeout_ms);
 DECLARE_int32(yb_client_admin_operation_timeout_sec);
@@ -431,6 +434,14 @@ class PgClient::Impl {
     data->controller.set_invoke_callback_mode(rpc::InvokeCallbackMode::kReactorThread);
 
     proxy_->PerformAsync(req, &data->resp, SetupController(&data->controller), [data] {
+      
+      auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+      auto tracer = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
+      auto docdb_span = tracer->StartSpan("tserver / PgClientService :: Perform");
+      auto docdb_scope = tracer->WithActiveSpan(docdb_span);
+      docdb_span->SetAttribute("pg_client_session_perform_time (ns)", int64_t(data->resp.pg_client_session_perform_time()));
+      docdb_span->End();
+
       PerformResult result;
       result.status = data->controller.status();
       result.response = data->controller.response();
