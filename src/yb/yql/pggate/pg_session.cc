@@ -34,6 +34,7 @@
 #include "opentelemetry/trace/provider.h"
 #include "opentelemetry/trace/span_metadata.h"
 #include "opentelemetry/sdk/resource/semantic_conventions.h"
+#include "opentelemetry/trace/semantic_conventions.h"
 
 #include "yb/client/table_info.h"
 
@@ -451,7 +452,9 @@ Status PgSession::StartTraceForQuery() {
   InitTracer();
   auto provider = opentelemetry::trace::Provider::GetTracerProvider();
   this->query_tracer_ = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
-  auto span = this->query_tracer_->StartSpan("Statement");
+  auto span = this->query_tracer_->StartSpan("Statement",
+    {{opentelemetry::trace::SemanticConventions::kCodeFunction, "PgSession::StartTraceForQuery"},
+     {opentelemetry::trace::SemanticConventions::kCodeLineno, "456"}});
   this->spans_.push(span);
   this->tokens_.push(opentelemetry::context::RuntimeContext::Attach(
       opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
