@@ -40,6 +40,12 @@
 #include "yb/yql/pggate/pg_gate_fwd.h"
 #include "yb/yql/pggate/ybc_pg_typedefs.h"
 
+#include "opentelemetry/context/context.h"
+#include "opentelemetry/trace/span_context.h"
+#include "opentelemetry/trace/span_id.h"
+#include "opentelemetry/trace/trace_id.h"
+#include "opentelemetry/trace/trace_flags.h"
+
 namespace yb {
 namespace pggate {
 
@@ -153,6 +159,8 @@ class PgClient {
   Status DeleteSequenceTuple(int64_t db_oid, int64_t seq_oid);
 
   Status DeleteDBSequences(int64_t db_oid);
+
+  Status StartTraceForQuery();
 
   void PerformAsync(
       tserver::PgPerformOptionsPB* options,

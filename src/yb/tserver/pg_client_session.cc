@@ -749,6 +749,7 @@ Status PgClientSession::FinishTransaction(
 
 Status PgClientSession::Perform(
     PgPerformRequestPB* req, PgPerformResponsePB* resp, rpc::RpcContext* context) {
+  auto start_time = MonoTime::Now();
   VLOG_WITH_PREFIX(5) << "Perform req=" << req->ShortDebugString();
   PgResponseCache::Setter setter;
   auto& options = *req->mutable_options();
@@ -756,6 +757,8 @@ Status PgClientSession::Perform(
     setter = response_cache_.Get(
         std::move(*options.mutable_caching_info()->mutable_key()), resp, context);
     if (!setter) {
+      auto pg_client_session_perform_time = MonoTime::Now() - start_time;
+      resp->set_pg_client_session_perform_time(pg_client_session_perform_time.ToNanoseconds());
       return Status::OK();
     }
   }
@@ -788,6 +791,8 @@ Status PgClientSession::Perform(
                           << "transaction";
     }
   });
+  auto pg_client_session_perform_time = MonoTime::Now() - start_time;
+  resp->set_pg_client_session_perform_time(pg_client_session_perform_time.ToNanoseconds());
   return Status::OK();
 }
 

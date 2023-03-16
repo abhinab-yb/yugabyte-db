@@ -246,7 +246,15 @@ set(TSERVER_DEPS
   ysql_upgrade
   cdc
   cdc_consumer_proto
-  xcluster_producer_proto)
+  xcluster_producer_proto
+  opentelemetry_exporter_ostream_span
+  opentelemetry_trace
+  opentelemetry_exporter_in_memory
+  opentelemetry_exporter_ostream_metrics
+  opentelemetry_common
+  opentelemetry_metrics
+  opentelemetry_resources
+  opentelemetry_version)
 
 ADD_YB_LIBRARY(tserver
   SRCS ${TSERVER_SRCS}

@@ -521,6 +521,11 @@ YBCStatus YBCPgExecSelect(YBCPgStatement handle, const YBCPgExecParameters *exec
 void YBCGetAndResetReadRpcStats(YBCPgStatement handle, uint64_t* reads, uint64_t* read_wait,
                                 uint64_t* tbl_reads, uint64_t* tbl_read_wait);
 
+<<<<<<< HEAD
+YBCStatus YBCStartTraceForQuery();
+YBCStatus YBCStopTraceForQuery();
+
+=======
 // Trace Functions
 YBCStatus YBCStartTraceForQuery();
 YBCStatus YBCStopTraceForQuery();
@@ -528,6 +533,7 @@ YBCStatus YBCStopTraceForQuery();
 YBCStatus YBCStartQueryEvent(const char* event_name);
 YBCStatus YBCStopQueryEvent(const char* event_name);
 
+>>>>>>> 1c8f12e1b21e2d6dd611352228dbd3b88f1e600c
 // Transaction control -----------------------------------------------------------------------------
 YBCStatus YBCPgBeginTransaction();
 YBCStatus YBCPgRecreateTransaction();

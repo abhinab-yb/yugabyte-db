@@ -11,6 +11,8 @@
 // under the License.
 //
 
+#include <map>
+
 #include "yb/yql/pggate/pg_client.h"
 
 #include "yb/client/client-internal.h"
@@ -40,6 +42,13 @@
 #include "yb/yql/pggate/pg_tabledesc.h"
 #include "yb/util/flags.h"
 
+#include "opentelemetry/sdk/version/version.h"
+#include "opentelemetry/context/propagation/text_map_propagator.h"
+#include "opentelemetry/context/propagation/global_propagator.h"
+#include "opentelemetry/trace/semantic_conventions.h"
+#include "opentelemetry/trace/propagation/http_trace_context.h"
+#include "opentelemetry/trace/provider.h"
+
 DECLARE_bool(use_node_hostname_for_local_tserver);
 DECLARE_int32(backfill_index_client_rpc_timeout_ms);
 DECLARE_int32(yb_client_admin_operation_timeout_sec);
@@ -51,6 +60,32 @@ DECLARE_bool(TEST_index_read_multiple_partitions);
 DECLARE_bool(TEST_enable_db_catalog_version_mode);
 
 using namespace std::literals;
+namespace context = opentelemetry::context;
+
+class CustomContext : public opentelemetry::context::propagation::TextMapCarrier
+{
+public:
+  CustomContext(std::map<std::string, std::string> context) : context_(context) {}
+  CustomContext() = default;
+  virtual opentelemetry::nostd::string_view Get(
+      opentelemetry::nostd::string_view key) const noexcept override
+  {
+    return opentelemetry::nostd::string_view(context_.at(std::string(key)));
+  }
+
+  virtual void Set(opentelemetry::nostd::string_view key,
+                   opentelemetry::nostd::string_view value) noexcept override
+  {
+    std::cout << " Client ::: Adding " << key << " " << value << "\n";
+    context_[std::string(key)] = std::string(value);
+  }
+
+  // void Set(std::string key, std::string value) {
+  //   context_[key] = value;
+  // }
+
+  std::map<std::string, std::string> context_;
+};
 
 namespace yb {
 namespace pggate {
@@ -415,6 +450,33 @@ class PgClient::Impl {
     return ResponseStatus(resp);
   }
 
+  Status StartTraceForQuery() {
+    auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+    auto tracer = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
+    // opentelemetry::trace::StartSpanOptions options;
+    // options.kind = opentelemetry::trace::SpanKind::kClient;
+
+    // std::string span_name = "PgClient :: StartTrace";
+    // auto span             = tracer->StartSpan(
+    //     span_name);
+
+    // auto scope = tracer->WithActiveSpan(span);
+    
+    // inject current context to grpc metadata
+    // auto current_ctx = context::RuntimeContext::GetCurrent();
+    // GrpcClientCarrier carrier(&context);
+    // auto prop = context::propagation::GlobalTextMapPropagator::GetGlobalPropagator();
+    // prop->Inject(carrier, current_ctx);
+    auto span = tracer->StartSpan("PgClient :: StartTrace");
+    auto scope = tracer->WithActiveSpan(span);
+    span->End();  
+    return Status::OK();
+  }
+
+  Status StopTraceForQuery() {
+    return Status::OK();
+  }
+
   void PerformAsync(
       tserver::PgPerformOptionsPB* options,
       PgsqlOps* operations,
@@ -424,6 +486,47 @@ class PgClient::Impl {
     req.set_session_id(session_id_);
     *req.mutable_options() = std::move(*options);
     PrepareOperations(&req, operations);
+    
+    auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+    auto tracer = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
+    // opentelemetry::trace::StartSpanOptions options_;
+    // options_.kind = opentelemetry::trace::SpanKind::kClient;
+
+    auto span = tracer->StartSpan("postgres / PgClient :: PerformAsync");
+                                              // {{opentelemetry::trace::SemanticConventions::kRpcSystem, "rpc"},
+                                              //  {opentelemetry::trace::SemanticConventions::kRpcService, "PgClient"},
+                                              //  {opentelemetry::trace::SemanticConventions::kRpcMethod, "PerformAsync"},
+                                              //  {opentelemetry::trace::SemanticConventions::kRpcGrpcStatusCode, 0}},
+                                              // options_);
+
+    auto scope = tracer->WithActiveSpan(span);
+    
+    // inject current context to protobuf
+    // auto current_ctx = context::RuntimeContext::GetCurrent();
+    // CustomContext carrier;
+    // auto prop = context::propagation::GlobalTextMapPropagator::GetGlobalPropagator();
+    // prop->Inject(carrier, current_ctx);
+
+    // std::string traceparent = "traceparent";
+    // std::string tracestate = "tracestate";
+    // std::string null = "";
+
+    // if(carrier.context_.count(traceparent)) {
+    //   req.ref_trace_parent_key(traceparent);
+    //   req.ref_trace_parent_value(std::string(carrier.Get(traceparent)));
+    // } else {
+    //   req.ref_trace_parent_key(null);
+    //   req.ref_trace_parent_value(null);
+    // }
+
+    // if(carrier.context_.count(tracestate)) {
+    //   req.ref_trace_state_key(tracestate);
+    //   req.ref_trace_state_value(std::string(carrier.Get(tracestate)));
+    // } else {
+    //   req.ref_trace_state_key(null);
+    //   req.ref_trace_state_value(null);
+    // }
+
 
     auto data = std::make_shared<PerformData>(&arena);
     data->operations = std::move(*operations);
@@ -447,7 +550,16 @@ class PgClient::Impl {
         result.used_in_txn_limit = HybridTime::FromPB(data->resp.used_in_txn_limit_ht());
       }
       data->callback(result);
-    });
+    });    
+
+    auto docdb_span = tracer->StartSpan("tserver / PgClientService :: Perform");
+
+    auto docdb_scope = tracer->WithActiveSpan(docdb_span);
+      
+    docdb_span->SetAttribute("pg_client_session_perform_time (ns)", int64_t(data->resp.pg_client_session_perform_time()));
+    docdb_span->End();
+    
+    span->End();
   }
 
   void PrepareOperations(tserver::LWPgPerformRequestPB* req, PgsqlOps* operations) {
@@ -830,6 +942,10 @@ Status PgClient::DeleteSequenceTuple(int64_t db_oid, int64_t seq_oid) {
 
 Status PgClient::DeleteDBSequences(int64_t db_oid) {
   return impl_->DeleteDBSequences(db_oid);
+}
+
+Status PgClient::StartTraceForQuery() {
+  return impl_->StartTraceForQuery();  
 }
 
 void PgClient::PerformAsync(

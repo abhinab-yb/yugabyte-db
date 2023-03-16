@@ -426,6 +426,10 @@ message PgPerformRequestPB {
   PgPerformOptionsPB options = 2;
   repeated PgPerformOpPB ops = 3;
   fixed64 write_time = 4;
+  string trace_parent_key = 5;
+  string trace_parent_value = 6;
+  string trace_state_key = 7;
+  string trace_state_value = 8;
 }
 
 message PgPerformResponsePB {
@@ -433,6 +437,7 @@ message PgPerformResponsePB {
   repeated PgsqlResponsePB responses = 2;
   ReadHybridTimePB catalog_read_time = 3;
   fixed64 used_in_txn_limit_ht = 4;
+  int64 pg_client_session_perform_time = 5;
 }
 
 message PgReserveOidsRequestPB {

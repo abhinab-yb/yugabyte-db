@@ -85,6 +85,9 @@ class PgClientServiceImpl : public PgClientServiceIf {
 
   void InvalidateTableCache();
 
+  void InitTracer();
+  void CleanupTracer();
+
 #define YB_PG_CLIENT_METHOD_DECLARE(r, data, method) \
   void method( \
       const BOOST_PP_CAT(BOOST_PP_CAT(Pg, method), RequestPB)* req, \

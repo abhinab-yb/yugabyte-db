@@ -31,7 +31,11 @@
 #include "opentelemetry/exporters/ostream/span_exporter.h"
 #include "opentelemetry/sdk/trace/simple_processor_factory.h"
 #include "opentelemetry/sdk/trace/tracer_provider_factory.h"
+#include "opentelemetry/sdk/trace/tracer_context_factory.h"
 #include "opentelemetry/trace/provider.h"
+#include "opentelemetry/context/propagation/global_propagator.h"
+#include "opentelemetry/context/propagation/text_map_propagator.h"
+#include "opentelemetry/trace/propagation/http_trace_context.h"
 #include "opentelemetry/trace/span_metadata.h"
 
 #include "yb/client/table_info.h"
@@ -705,11 +709,18 @@ Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOpti
   if (!ops_options.cache_key.empty()) {
     options.mutable_caching_info()->set_key(std::move(ops_options.cache_key));
   }
-
+  
+  auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+  auto query_tracer_ = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
+  auto query_span_ = query_tracer_->StartSpan("Inside PgSession::Perform");
+  auto scope = query_tracer_->WithActiveSpan(query_span_);
+  
   pg_client_.PerformAsync(&options, &ops.operations, [promise](const PerformResult& result) {
     promise->set_value(result);
   });
-  return PerformFuture(promise->get_future(), this, std::move(ops.relations));
+  auto res = PerformFuture(promise->get_future(), this, std::move(ops.relations));
+  query_span_->End();
+  return res;
 }
 
 void PgSession::ProcessPerformOnTxnSerialNo(
@@ -893,11 +904,19 @@ void PgSession::InitTracer() {
   trace_file_name_ = GetTraceFileName();
   std::cout << "Starting tracing log file at: " << trace_file_name_ << std::endl;
   trace_file_handle_ = std::make_shared<std::ofstream>(std::ofstream(trace_file_name_.c_str()));
+  
   auto exporter = trace_exporter::OStreamSpanExporterFactory::Create(*trace_file_handle_.get());
   auto processor = sdktrace::SimpleSpanProcessorFactory::Create(std::move(exporter));
-  std::shared_ptr<opentelemetry::trace::TracerProvider> provider_ =
+  std::shared_ptr<opentelemetry::trace::TracerProvider> provider =
       sdktrace::TracerProviderFactory::Create(std::move(processor));
-  trace::Provider::SetTracerProvider(provider_);
+  
+  // Set the global trace provider
+  opentelemetry::trace::Provider::SetTracerProvider(provider);
+  
+  // set global propagator
+  opentelemetry::context::propagation::GlobalTextMapPropagator::SetGlobalPropagator(
+      opentelemetry::nostd::shared_ptr<opentelemetry::context::propagation::TextMapPropagator>(
+          new opentelemetry::trace::propagation::HttpTraceContext()));
 }
 
 void PgSession::CleanupTracer() {
@@ -907,6 +926,8 @@ void PgSession::CleanupTracer() {
     trace_file_handle_.reset();
     trace_file_handle_ = nullptr;
   }
+  std::shared_ptr<opentelemetry::trace::TracerProvider> none;
+  opentelemetry::trace::Provider::SetTracerProvider(none);
 }
 
 template<class Generator>

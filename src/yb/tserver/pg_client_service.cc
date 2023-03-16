@@ -15,6 +15,8 @@
 
 #include <mutex>
 #include <queue>
+#include <fstream>
+#include <stdlib.h>
 
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/mem_fun.hpp>
@@ -56,10 +58,50 @@
 #include "yb/util/status.h"
 #include "yb/util/flags.h"
 
+#include "opentelemetry/sdk/version/version.h"
+#include "opentelemetry/trace/provider.h"
+#include "opentelemetry/context/propagation/text_map_propagator.h"
+#include "opentelemetry/context/propagation/global_propagator.h"
+#include "opentelemetry/trace/propagation/http_trace_context.h"
+#include "opentelemetry/trace/semantic_conventions.h"
+#include "opentelemetry/exporters/ostream/span_exporter_factory.h"
+#include "opentelemetry/exporters/ostream/span_exporter.h"
+#include "opentelemetry/sdk/trace/simple_processor_factory.h"
+#include "opentelemetry/sdk/trace/tracer_provider_factory.h"
+#include "opentelemetry/sdk/trace/tracer_context_factory.h"
+#include "opentelemetry/nostd/variant.h"
+
 using namespace std::literals;
+namespace sdktrace = opentelemetry::sdk::trace;
+namespace trace_exporter = opentelemetry::exporter::trace;
 
 DEFINE_UNKNOWN_uint64(pg_client_session_expiration_ms, 60000,
               "Pg client session expiration time in milliseconds.");
+
+class CustomContext : public opentelemetry::context::propagation::TextMapCarrier
+{
+public:
+  CustomContext(std::map<std::string, std::string> context) : context_(context) {}
+  CustomContext() = default;
+  virtual opentelemetry::nostd::string_view Get(
+      opentelemetry::nostd::string_view key) const noexcept override
+  {
+    return opentelemetry::nostd::string_view(context_.at(std::string(key)));
+  }
+
+  virtual void Set(opentelemetry::nostd::string_view key,
+                   opentelemetry::nostd::string_view value) noexcept override
+  {
+    std::cout << " Client ::: Adding " << key << " " << value << "\n";
+    context_[std::string(key)] = std::string(value);
+  }
+
+  // void Set(std::string key, std::string value) {
+  //   context_[key] = value;
+  // }
+
+  std::map<std::string, std::string> context_;
+};
 
 namespace yb {
 namespace tserver {
@@ -459,8 +501,104 @@ class PgClientServiceImpl::Impl {
     return Status::OK();
   }
 
+  std::string trace_file_name_;
+  std::shared_ptr<std::ofstream> trace_file_handle_;
+
+  std::string GetTraceFileName() {
+    return "/home/asaha/var/logs/tserver/trace_tserver_" + std::to_string(rand()) + ".log";
+  }
+
+  void InitTracer() {
+
+    trace_file_name_ = GetTraceFileName();
+    trace_file_handle_ = std::make_shared<std::ofstream>(std::ofstream(trace_file_name_.c_str()));
+    
+    auto exporter = trace_exporter::OStreamSpanExporterFactory::Create(*trace_file_handle_.get());
+    auto processor = sdktrace::SimpleSpanProcessorFactory::Create(std::move(exporter));
+    std::shared_ptr<opentelemetry::trace::TracerProvider> provider =
+        sdktrace::TracerProviderFactory::Create(std::move(processor));
+    
+    // Set the global trace provider
+    opentelemetry::trace::Provider::SetTracerProvider(provider);
+    
+    // set global propagator
+    opentelemetry::context::propagation::GlobalTextMapPropagator::SetGlobalPropagator(
+        opentelemetry::nostd::shared_ptr<opentelemetry::context::propagation::TextMapPropagator>(
+            new opentelemetry::trace::propagation::HttpTraceContext()));
+  }
+
+  void CleanupTracer() {
+    if (trace_file_handle_ != nullptr) {
+      std::cout << "Closing tracing log file at: " << trace_file_name_ << std::endl;
+      trace_file_handle_.get()->close();
+      trace_file_handle_.reset();
+      trace_file_handle_ = nullptr;
+    }
+    std::shared_ptr<opentelemetry::trace::TracerProvider> none;
+    opentelemetry::trace::Provider::SetTracerProvider(none);
+  }
+
   void Perform(PgPerformRequestPB* req, PgPerformResponsePB* resp, rpc::RpcContext* context) {
+
+    // InitTracer();
+
+    // opentelemetry::trace::StartSpanOptions options;
+    // options.kind = opentelemetry::trace::SpanKind::kServer;
+
+    // const auto& trace_parent_key_   = req->trace_parent_key();
+    // const auto& trace_parent_value_ = req->trace_parent_value();
+    // const auto& trace_state_key_    = req->trace_state_key();
+    // const auto& trace_state_value_  = req->trace_state_value();
+
+    // CustomContext carrier;
+
+    // if(trace_parent_key_ != std::string("")) {
+      // carrier.Set(opentelemetry::nostd::string_view(trace_parent_key_), opentelemetry::nostd::string_view(trace_parent_value_));
+    // }
+    // else {
+    //   std::ofstream log_file("/home/asaha/var/logs/tserver/empty_context_par.log");
+    //   log_file << "null context" << std::endl;
+    //   log_file.close();
+    // }
+    // if(trace_state_key_ != std::string("")) {
+    //   carrier.Set(std::string(trace_state_key_), std::string(trace_state_value_));
+    // } else {
+    //   std::ofstream log_file("/home/asaha/var/logs/tserver/empty_context_state.log");
+    //   log_file << "null context" << std::endl;
+    //   log_file << trace_parent_key_ << " : " << trace_parent_value_ << std::endl;
+    //   log_file.close();
+    // }
+
+    // auto prop        = opentelemetry::context::propagation::GlobalTextMapPropagator::GetGlobalPropagator();
+    // auto current_ctx = opentelemetry::context::RuntimeContext::GetCurrent();
+    // auto new_context = prop->Extract(carrier, current_ctx);
+    // options.parent   = opentelemetry::trace::GetSpan(new_context)->GetContext();
+
+    // if(opentelemetry::nostd::get<opentelemetry::trace::SpanContext>(options.parent).span_id().IsValid()) {
+    //   std::ofstream log_file("/home/asaha/var/logs/tserver/correct_span.log");
+    //   log_file << trace_file_name_ << std::endl;
+    // }
+    // if(opentelemetry::nostd::get<opentelemetry::trace::SpanContext>(options.parent).trace_id().IsValid()) {
+    //   std::ofstream log_file("/home/asaha/var/logs/tserver/correct_trace.log");
+    //   log_file << trace_file_name_ << std::endl;
+    // }
+
+    // auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+    // auto tracer = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
+
+    // std::string span_name = "PgClientService/Perform";
+    // auto span             = tracer->StartSpan(span_name);
+    //                                           // {{opentelemetry::trace::SemanticConventions::kRpcSystem, "rpc"},
+    //                                           //  {opentelemetry::trace::SemanticConventions::kRpcService, "YbPgClientService"},
+    //                                           //  {opentelemetry::trace::SemanticConventions::kRpcMethod, "Perform"},
+    //                                           //  {opentelemetry::trace::SemanticConventions::kRpcGrpcStatusCode, 0}},
+    //                                           // options);
+    // auto scope            = tracer->WithActiveSpan(span);
     auto status = DoPerform(req, resp, context);
+
+    // span->End();
+
+    // CleanupTracer();
     if (!status.ok()) {
       Respond(status, resp, context);
     }
