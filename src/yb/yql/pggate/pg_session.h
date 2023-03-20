@@ -194,7 +194,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   // Operations for a query
   //------------------------------------------------------------------------------------------------
 
-  Status StartTraceForQuery();
+  Status StartTraceForQuery(int pid);
   Status StopTraceForQuery();
 
   Status StartQueryEvent(const char*);
@@ -358,7 +358,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
 
   void GetAndResetOperationFlushRpcStats(uint64_t* count, uint64_t* wait_time);
 
-  void InitTracer();
+  void InitTracer(int pid);
   void CleanupTracer();
   std::string GetTraceFileName();
 
@@ -434,7 +434,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   std::stack<nostd::shared_ptr<opentelemetry::trace::Span>> spans_;
   std::stack<nostd::unique_ptr<opentelemetry::context::Token>> tokens_;
 
-  std::string trace_file_name_base_ = "/home/asaha/var/logs/tserver/";
+  std::string trace_file_name_base_ = "/home/centos/yugabyte-data/node-1/disk-1/yb-data/tserver/logs/";
   std::string trace_file_name_;
   std::shared_ptr<std::ofstream> trace_file_handle_ = nullptr;
 };
