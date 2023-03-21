@@ -1229,6 +1229,10 @@ YBCStatus YBCPgEnableFollowerReads(bool enable_follower_reads, int32_t staleness
   return ToYBCStatus(pgapi->EnableFollowerReads(enable_follower_reads, staleness_ms));
 }
 
+YBCStatus YBCPgEnableTracing(bool tracing) {
+  return ToYBCStatus(pgapi->EnableTracing(tracing));
+}
+
 YBCStatus YBCPgSetTransactionDeferrable(bool deferrable) {
   return ToYBCStatus(pgapi->SetTransactionDeferrable(deferrable));
 }
@@ -1427,8 +1431,8 @@ void YBCGetAndResetReadRpcStats(YBCPgStatement handle, uint64_t* reads, uint64_t
   pgapi->GetAndResetReadRpcStats(handle, reads, read_wait, tbl_reads, tbl_read_wait);
 }
 
-YBCStatus YBCStartTraceForQuery() {
-  return ToYBCStatus(pgapi->StartTraceForQuery());
+YBCStatus YBCStartTraceForQuery(int pid, const char* query_string) {
+  return ToYBCStatus(pgapi->StartTraceForQuery(pid, query_string));
 }
 
 YBCStatus YBCStopTraceForQuery() {

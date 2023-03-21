@@ -419,6 +419,7 @@ message PgPerformOptionsPB {
   uint32 active_sub_transaction_id = 16;
   CachingInfo caching_info = 17;
   bool read_from_followers = 18;
+  bool trace_requested = 19;
 }
 
 message PgPerformRequestPB {
@@ -433,7 +434,22 @@ message PgPerformResponsePB {
   repeated PgsqlResponsePB responses = 2;
   ReadHybridTimePB catalog_read_time = 3;
   fixed64 used_in_txn_limit_ht = 4;
-  int64 safe_time_wait = 5;
+
+  message TracePB {
+    message EntryPB {
+      string file_path = 1;
+      uint32 line_number = 2;
+      string message = 3;
+      uint64 timestamp = 4;
+    }
+
+    repeated EntryPB entries = 1;
+    repeated TracePB children = 2;
+  }
+
+  TracePB trace = 5;
+
+  int64 safe_time_wait = 6;
 }
 
 message PgReserveOidsRequestPB {

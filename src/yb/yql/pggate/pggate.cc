@@ -1543,7 +1543,9 @@ Status PgApiImpl::ExecSelect(PgStatement *handle, const PgExecParameters *exec_p
 // Traces.
 //--------------------------------------------------------------------------------------------------
 
-Status PgApiImpl::StartTraceForQuery() { return pg_session_->StartTraceForQuery(); }
+Status PgApiImpl::StartTraceForQuery(int pid, const char *query_string) {
+  return pg_session_->StartTraceForQuery(pid, query_string);
+}
 
 Status PgApiImpl::StopTraceForQuery() { return pg_session_->StopTraceForQuery(); }
 
@@ -1797,6 +1799,10 @@ Status PgApiImpl::SetTransactionIsolationLevel(int isolation) {
 
 Status PgApiImpl::SetTransactionReadOnly(bool read_only) {
   return pg_txn_manager_->SetReadOnly(read_only);
+}
+
+Status PgApiImpl::EnableTracing(bool tracing) {
+  return pg_txn_manager_->EnableTracing(tracing);
 }
 
 Status PgApiImpl::EnableFollowerReads(bool enable_follower_reads, int32_t staleness_ms) {

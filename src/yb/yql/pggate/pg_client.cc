@@ -54,6 +54,7 @@ DECLARE_bool(TEST_index_read_multiple_partitions);
 DECLARE_bool(TEST_enable_db_catalog_version_mode);
 
 using namespace std::literals;
+using Properties = std::map<std::string, opentelemetry::common::AttributeValue>;
 
 namespace yb {
 namespace pggate {
@@ -69,6 +70,7 @@ struct PerformData {
   tserver::LWPgPerformResponsePB resp;
   rpc::RpcController controller;
   PerformCallback callback;
+  opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> span;
 
   explicit PerformData(ThreadSafeArena* arena) : resp(arena) {
   }
@@ -90,6 +92,39 @@ struct PerformData {
       ++i;
     }
     return Status::OK();
+  }
+
+  void deserialize_trace(
+      opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> span,
+      const tserver::LWPgPerformResponsePB_LWTracePB& tracePB,
+      int level
+  ) {
+    // Add events entries
+    if (tracePB.entries_size() > 0) {
+      for (auto& entryPB : tracePB.entries()) {
+        auto since_epoch = std::chrono::seconds(entryPB.timestamp());
+        opentelemetry::common::SystemTimestamp timestamp(since_epoch);
+        Properties properties = {
+          {"file.path", opentelemetry::nostd::string_view(
+                            entryPB.file_path().cdata(), entryPB.file_path().size())},
+          {"line", (int32_t)entryPB.line_number()},
+          {"level", level}};
+
+        span->AddEvent(opentelemetry::nostd::string_view(
+            entryPB.message().cdata(), entryPB.message().size()),
+            timestamp, properties);
+      }
+    }
+
+    if (tracePB.children_size() > 0) {
+      for (auto& childPB : tracePB.children()) {
+        this->deserialize_trace(
+            span,
+            childPB,
+            level+1
+        );
+      }
+    }
   }
 };
 
@@ -421,6 +456,7 @@ class PgClient::Impl {
   void PerformAsync(
       tserver::PgPerformOptionsPB* options,
       PgsqlOps* operations,
+      opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> span,
       const PerformCallback& callback) {
     auto& arena = operations->front()->arena();
     tserver::LWPgPerformRequestPB req(&arena);
@@ -432,6 +468,7 @@ class PgClient::Impl {
     data->operations = std::move(*operations);
     data->callback = callback;
     data->controller.set_invoke_callback_mode(rpc::InvokeCallbackMode::kReactorThread);
+    data->span = span;
 
     proxy_->PerformAsync(req, &data->resp, SetupController(&data->controller), [data] {
       if(data->resp.has_safe_time_wait() && data->resp.safe_time_wait() != int64_t(-1)) {
@@ -456,6 +493,11 @@ class PgClient::Impl {
           result.catalog_read_time = ReadHybridTime::FromPB(data->resp.catalog_read_time());
         }
         result.used_in_txn_limit = HybridTime::FromPB(data->resp.used_in_txn_limit_ht());
+        if (data->resp.has_trace()) {
+          data->deserialize_trace(data->span, data->resp.trace(), 0);
+        }
+        if (data->span)
+          data->span->End();
       }
       data->callback(result);
     });
@@ -846,8 +888,9 @@ Status PgClient::DeleteDBSequences(int64_t db_oid) {
 void PgClient::PerformAsync(
     tserver::PgPerformOptionsPB* options,
     PgsqlOps* operations,
+    opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> span,
     const PerformCallback& callback) {
-  impl_->PerformAsync(options, operations, callback);
+  impl_->PerformAsync(options, operations, span, callback);
 }
 
 Result<bool> PgClient::CheckIfPitrActive() {

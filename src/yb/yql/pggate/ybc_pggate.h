@@ -522,7 +522,7 @@ void YBCGetAndResetReadRpcStats(YBCPgStatement handle, uint64_t* reads, uint64_t
                                 uint64_t* tbl_reads, uint64_t* tbl_read_wait);
 
 // Trace Functions
-YBCStatus YBCStartTraceForQuery();
+YBCStatus YBCStartTraceForQuery(int pid, const char* query_string);
 YBCStatus YBCStopTraceForQuery();
 
 YBCStatus YBCStartQueryEvent(const char* event_name);
@@ -539,6 +539,7 @@ YBCStatus YBCPgAbortTransaction();
 YBCStatus YBCPgSetTransactionIsolationLevel(int isolation);
 YBCStatus YBCPgSetTransactionReadOnly(bool read_only);
 YBCStatus YBCPgSetTransactionDeferrable(bool deferrable);
+YBCStatus YBCPgEnableTracing(bool tracing);
 YBCStatus YBCPgEnableFollowerReads(bool enable_follower_reads, int32_t staleness_ms);
 YBCStatus YBCPgEnterSeparateDdlTxnMode();
 bool YBCPgHasWriteOperationsInDdlTxnMode();

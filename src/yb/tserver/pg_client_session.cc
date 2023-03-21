@@ -47,6 +47,7 @@
 #include "yb/util/scope_exit.h"
 #include "yb/util/status_format.h"
 #include "yb/util/string_util.h"
+#include "yb/util/trace.h"
 #include "yb/util/write_buffer.h"
 #include "yb/util/yb_pg_errcodes.h"
 
@@ -326,6 +327,7 @@ struct PerformData {
   PgClientSession::UsedReadTimePtr used_read_time;
   PgResponseCache::Setter cache_setter;
   HybridTime used_in_txn_limit;
+  bool trace_requested;
 
   void FlushDone(client::FlushStatus* flush_status) {
     auto status = CombineErrorsToStatus(flush_status->errors, flush_status->status);
@@ -349,6 +351,35 @@ struct PerformData {
   }
 
  private:
+  void fill_trace(PgPerformResponsePB::TracePB& tracePB, Trace& trace) {
+    std::vector<TraceEntry*> entries;
+    std::vector<scoped_refptr<Trace>> child_traces;
+    trace.getEntriesAndChildren(entries, child_traces);
+
+    // First fill up entries
+    if (!entries.empty()) {
+      auto& entriesPB = *tracePB.mutable_entries();
+      entriesPB.Reserve(narrow_cast<int>(entries.size()));
+      for (const auto& entry : entries) {
+        auto& entryPB = *entriesPB.Add();
+        entryPB.set_file_path(entry->file_path);
+        entryPB.set_line_number(entry->line_number);
+        entryPB.set_message(entry->message, entry->message_len);
+        entryPB.set_timestamp(ToSeconds(entry->timestamp.time_since_epoch()));
+      }
+    }
+
+    // Fill in child traces
+    if (!child_traces.empty()) {
+      auto& child_tracesPB = *tracePB.mutable_children();
+      child_tracesPB.Reserve(narrow_cast<int>(child_traces.size()));
+      for (const auto& child : child_traces) {
+        auto& child_tracePB = *child_tracesPB.Add();
+        fill_trace(child_tracePB, *child.get());
+      }
+    }
+  }
+
   Status ProcessResponse() {
     int idx = 0;
     for (const auto& op : ops) {
@@ -387,6 +418,10 @@ struct PerformData {
       resp->set_used_in_txn_limit_ht(used_in_txn_limit.ToUint64());
     }
 
+    if (trace_requested) {
+      auto& tracePB = *resp->mutable_trace();
+      fill_trace(tracePB, *context.trace());
+    }
     return Status::OK();
   }
 };
@@ -764,6 +799,20 @@ Status PgClientSession::Perform(
   VLOG_WITH_PREFIX(5) << "using in_txn_limit_ht: " << in_txn_limit;
   auto session_info = VERIFY_RESULT(SetupSession(*req, context->GetClientDeadline(), in_txn_limit));
   auto* session = session_info.first.session.get();
+  auto transaction = session_info.first.transaction;
+
+  if (options.trace_requested()) {
+    context->EnsureTraceCreated();
+    if (transaction) {
+      transaction->EnsureTraceCreated();
+      context->trace()->AddChildTrace(transaction->trace());
+      transaction->trace()->set_must_print(true);
+    } else {
+      context->trace()->set_must_print(true);
+    }
+  }
+  ADOPT_TRACE(context->trace());
+
   auto ops = VERIFY_RESULT(PrepareOperations(req, session, &context->sidecars(), &table_cache_));
   auto ops_count = ops.size();
   auto data = std::make_shared<PerformData>(PerformData {
@@ -774,7 +823,8 @@ Status PgClientSession::Perform(
     .table_cache = &table_cache_,
     .used_read_time = session_info.second,
     .cache_setter = std::move(setter),
-    .used_in_txn_limit = in_txn_limit
+    .used_in_txn_limit = in_txn_limit,
+    .trace_requested = options.trace_requested()
   });
 
   auto transaction = session_info.first.transaction;

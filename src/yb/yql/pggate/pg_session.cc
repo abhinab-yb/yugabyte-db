@@ -33,6 +33,8 @@
 #include "opentelemetry/sdk/trace/tracer_provider_factory.h"
 #include "opentelemetry/trace/provider.h"
 #include "opentelemetry/trace/span_metadata.h"
+#include "opentelemetry/sdk/resource/semantic_conventions.h"
+#include "opentelemetry/trace/semantic_conventions.h"
 
 #include "yb/client/table_info.h"
 
@@ -346,6 +348,7 @@ PgSession::PgSession(
           buffering_settings_),
       pg_callbacks_(pg_callbacks) {
       Update(&buffering_settings_);
+      this->query_tracer_ = nullptr;
 }
 
 PgSession::~PgSession() = default;
@@ -446,11 +449,18 @@ Status PgSession::DeleteDBSequences(int64_t db_oid) {
 
 //--------------------------------------------------------------------------------------------------
 
-Status PgSession::StartTraceForQuery() {
-  InitTracer();
+Status PgSession::StartTraceForQuery(int pid, const char* query_string) {
+  InitTracer(pid);
   auto provider = opentelemetry::trace::Provider::GetTracerProvider();
   this->query_tracer_ = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
-  auto span = this->query_tracer_->StartSpan("Statement");
+  auto span = this->query_tracer_->StartSpan(
+      "Statement",
+      {
+          {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__},
+          {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__},
+          {opentelemetry::trace::SemanticConventions::kDbStatement, query_string}
+      }
+      );
   this->spans_.push(span);
   this->tokens_.push(opentelemetry::context::RuntimeContext::Attach(
       opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
@@ -459,6 +469,7 @@ Status PgSession::StartTraceForQuery() {
 
 Status PgSession::StopTraceForQuery() {
   nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.top();
+  span->SetStatus(opentelemetry::trace::StatusCode::kOk);
   span->End();
   this->tokens_.pop();
   this->spans_.pop();
@@ -467,7 +478,14 @@ Status PgSession::StopTraceForQuery() {
 }
 
 Status PgSession::StartQueryEvent(const char* event_name) {
-  auto span = this->query_tracer_->StartSpan(event_name);
+  auto span = this->query_tracer_->StartSpan(
+      event_name,
+      {
+        {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__}, {
+          opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__
+        }
+      }
+    );
   this->spans_.push(span);
   this->tokens_.push(
       opentelemetry::context::RuntimeContext::Attach(
@@ -477,10 +495,15 @@ Status PgSession::StartQueryEvent(const char* event_name) {
 
 Status PgSession::StopQueryEvent(const char* event_name) {
   nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.top();
+  span->SetStatus(opentelemetry::trace::StatusCode::kOk);
   span->End();
   this->tokens_.pop();
   this->spans_.pop();
   return Status::OK();
+}
+
+nostd::shared_ptr<opentelemetry::trace::Span> PgSession::StartDocDbEvent(const char* event_name) {
+  return this->query_tracer_->StartSpan(event_name);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -701,12 +724,18 @@ Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOpti
       options.set_namespace_id(GetPgsqlNamespaceId(database_oid));
     }
   }
+  options.set_trace_requested(pg_txn_manager_->ShouldEnableTracing());
 
   if (!ops_options.cache_key.empty()) {
     options.mutable_caching_info()->set_key(std::move(ops_options.cache_key));
   }
 
-  pg_client_.PerformAsync(&options, &ops.operations, [promise](const PerformResult& result) {
+  nostd::shared_ptr<opentelemetry::trace::Span> span;
+  if (this->query_tracer_)
+    span = this->StartDocDbEvent("Perform Async");
+  else
+    span = nullptr;
+  pg_client_.PerformAsync(&options, &ops.operations, span, [promise](const PerformResult& result) {
     promise->set_value(result);
   });
   return PerformFuture(promise->get_future(), this, std::move(ops.relations));
@@ -727,6 +756,7 @@ void PgSession::ProcessPerformOnTxnSerialNo(
   if (ensure_read_time_set_for_current_txn_serial_no && read_time && !options->has_read_time()) {
     read_time.ToPB(options->mutable_read_time());
   }
+  options->set_trace_requested(pg_txn_manager_->ShouldEnableTracing());
 }
 
 Result<bool> PgSession::ForeignKeyReferenceExists(const LightweightTableYbctid& key,
@@ -889,14 +919,17 @@ std::string PgSession::GetTraceFileName() {
   return trace_file_name_base_ + "trace_" + std::to_string(rand()) + ".log";
 }
 
-void PgSession::InitTracer() {
+void PgSession::InitTracer(int pid) {
   trace_file_name_ = GetTraceFileName();
   std::cout << "Starting tracing log file at: " << trace_file_name_ << std::endl;
   trace_file_handle_ = std::make_shared<std::ofstream>(std::ofstream(trace_file_name_.c_str()));
   auto exporter = trace_exporter::OStreamSpanExporterFactory::Create(*trace_file_handle_.get());
   auto processor = sdktrace::SimpleSpanProcessorFactory::Create(std::move(exporter));
+  auto resource = opentelemetry::sdk::resource::Resource::Create(
+    {{opentelemetry::sdk::resource::SemanticConventions::kServiceName, "PG_SERVICE"},
+     {opentelemetry::sdk::resource::SemanticConventions::kProcessPid, std::to_string(pid)}});
   std::shared_ptr<opentelemetry::trace::TracerProvider> provider_ =
-      sdktrace::TracerProviderFactory::Create(std::move(processor));
+      sdktrace::TracerProviderFactory::Create(std::move(processor), resource);
   trace::Provider::SetTracerProvider(provider_);
 }
 

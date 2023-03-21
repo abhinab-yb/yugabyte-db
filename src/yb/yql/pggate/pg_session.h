@@ -194,11 +194,13 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   // Operations for a query
   //------------------------------------------------------------------------------------------------
 
-  Status StartTraceForQuery();
+  Status StartTraceForQuery(int pid, const char* query_string);
   Status StopTraceForQuery();
 
   Status StartQueryEvent(const char*);
   Status StopQueryEvent(const char*);
+
+  nostd::shared_ptr<opentelemetry::trace::Span> StartDocDbEvent(const char* event_name);
 
   //------------------------------------------------------------------------------------------------
   // Operations on Tablegroup.
@@ -358,7 +360,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
 
   void GetAndResetOperationFlushRpcStats(uint64_t* count, uint64_t* wait_time);
 
-  void InitTracer();
+  void InitTracer(int pid);
   void CleanupTracer();
   std::string GetTraceFileName();
 
