@@ -1431,8 +1431,8 @@ void YBCGetAndResetReadRpcStats(YBCPgStatement handle, uint64_t* reads, uint64_t
   pgapi->GetAndResetReadRpcStats(handle, reads, read_wait, tbl_reads, tbl_read_wait);
 }
 
-YBCStatus YBCStartTraceForQuery(int pid) {
-  return ToYBCStatus(pgapi->StartTraceForQuery(pid));
+YBCStatus YBCStartTraceForQuery(int pid, const char* query_string) {
+  return ToYBCStatus(pgapi->StartTraceForQuery(pid, query_string));
 }
 
 YBCStatus YBCStopTraceForQuery() {

@@ -532,7 +532,7 @@ class PgApiImpl {
 
   //------------------------------------------------------------------------------------------------
   // Trace
-  Status StartTraceForQuery(int pid);
+  Status StartTraceForQuery(int pid, const char* query_string);
   Status StopTraceForQuery();
 
   Status StartQueryEvent(const char* event_name);

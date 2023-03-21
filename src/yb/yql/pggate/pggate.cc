@@ -1543,7 +1543,9 @@ Status PgApiImpl::ExecSelect(PgStatement *handle, const PgExecParameters *exec_p
 // Traces.
 //--------------------------------------------------------------------------------------------------
 
-Status PgApiImpl::StartTraceForQuery(int pid) { return pg_session_->StartTraceForQuery(pid); }
+Status PgApiImpl::StartTraceForQuery(int pid, const char *query_string) {
+  return pg_session_->StartTraceForQuery(pid, query_string);
+}
 
 Status PgApiImpl::StopTraceForQuery() { return pg_session_->StopTraceForQuery(); }
 

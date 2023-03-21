@@ -194,7 +194,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   // Operations for a query
   //------------------------------------------------------------------------------------------------
 
-  Status StartTraceForQuery(int pid);
+  Status StartTraceForQuery(int pid, const char* query_string);
   Status StopTraceForQuery();
 
   Status StartQueryEvent(const char*);

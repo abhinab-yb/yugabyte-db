@@ -449,13 +449,18 @@ Status PgSession::DeleteDBSequences(int64_t db_oid) {
 
 //--------------------------------------------------------------------------------------------------
 
-Status PgSession::StartTraceForQuery(int pid) {
+Status PgSession::StartTraceForQuery(int pid, const char* query_string) {
   InitTracer(pid);
   auto provider = opentelemetry::trace::Provider::GetTracerProvider();
   this->query_tracer_ = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
-  auto span = this->query_tracer_->StartSpan("Statement",
-    {{opentelemetry::trace::SemanticConventions::kCodeFunction, "PgSession::StartTraceForQuery"},
-     {opentelemetry::trace::SemanticConventions::kCodeLineno, "456"}});
+  auto span = this->query_tracer_->StartSpan(
+      "Statement",
+      {
+          {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__},
+          {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__},
+          {opentelemetry::trace::SemanticConventions::kDbStatement, query_string}
+      }
+      );
   this->spans_.push(span);
   this->tokens_.push(opentelemetry::context::RuntimeContext::Attach(
       opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
@@ -464,6 +469,7 @@ Status PgSession::StartTraceForQuery(int pid) {
 
 Status PgSession::StopTraceForQuery() {
   nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.top();
+  span->SetStatus(opentelemetry::trace::StatusCode::kOk);
   span->End();
   this->tokens_.pop();
   this->spans_.pop();
@@ -472,7 +478,14 @@ Status PgSession::StopTraceForQuery() {
 }
 
 Status PgSession::StartQueryEvent(const char* event_name) {
-  auto span = this->query_tracer_->StartSpan(event_name);
+  auto span = this->query_tracer_->StartSpan(
+      event_name,
+      {
+        {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__}, {
+          opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__
+        }
+      }
+    );
   this->spans_.push(span);
   this->tokens_.push(
       opentelemetry::context::RuntimeContext::Attach(
@@ -482,6 +495,7 @@ Status PgSession::StartQueryEvent(const char* event_name) {
 
 Status PgSession::StopQueryEvent(const char* event_name) {
   nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.top();
+  span->SetStatus(opentelemetry::trace::StatusCode::kOk);
   span->End();
   this->tokens_.pop();
   this->spans_.pop();
