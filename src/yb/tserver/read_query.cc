@@ -446,6 +446,7 @@ Status ReadQuery::DoPickReadTime(server::Clock* clock) {
   if (metrics) {
     auto safe_time_wait = MonoTime::Now() - start_time;
     metrics->read_time_wait->Increment(safe_time_wait.ToMicroseconds());
+    resp_->set_safe_time_wait(safe_time_wait.ToMicroseconds());
   }
   return Status::OK();
 }
@@ -458,7 +459,9 @@ bool ReadQuery::IsPgsqlFollowerReadAtAFollower() const {
 
 Status ReadQuery::Complete() {
   for (;;) {
+    auto safe_time_wait = resp_->safe_time_wait();
     resp_->Clear();
+    resp_->set_safe_time_wait(safe_time_wait);
     context_.sidecars().Reset();
     VLOG(1) << "Read time: " << read_time_ << ", safe: " << safe_ht_to_read_;
     const auto result = VERIFY_RESULT(DoRead());

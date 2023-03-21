@@ -699,6 +699,9 @@ void Batcher::ProcessRpcStatus(const AsyncRpc &rpc, const Status &s) {
 
 void Batcher::ProcessReadResponse(const ReadRpc &rpc, const Status &s) {
   ProcessRpcStatus(rpc, s);
+  if(rpc.resp().has_safe_time_wait()) {
+    shared_from_this()->set_safe_time_wait_trace(rpc.resp().safe_time_wait());
+  }
 }
 
 void Batcher::ProcessWriteResponse(const WriteRpc &rpc, const Status &s) {

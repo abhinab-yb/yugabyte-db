@@ -255,6 +255,7 @@ void YBSession::FlushStarted(internal::BatcherPtr batcher) {
 void YBSession::FlushFinished(internal::BatcherPtr batcher) {
   std::lock_guard<simple_spinlock> l(lock_);
   CHECK_EQ(flushed_batchers_.erase(batcher), 1);
+  this->set_safe_time_wait_trace(batcher->get_safe_time_wait_trace());
 }
 
 bool YBSession::allow_local_calls_in_curr_thread() const {

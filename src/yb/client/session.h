@@ -246,9 +246,14 @@ class YBSession : public std::enable_shared_from_this<YBSession> {
     ConsistentReadPoint* read_point() const;
   };
 
+  int64_t get_safe_time_wait_trace() { return safe_time_wait_trace; }
+  void set_safe_time_wait_trace(int64_t safe_time_wait_trace_) { this->safe_time_wait_trace = safe_time_wait_trace_; }
+
  private:
   friend class YBClient;
   friend class internal::Batcher;
+
+  int64_t safe_time_wait_trace = -1;
 
   internal::Batcher& Batcher();
 

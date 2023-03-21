@@ -434,14 +434,14 @@ class PgClient::Impl {
     data->controller.set_invoke_callback_mode(rpc::InvokeCallbackMode::kReactorThread);
 
     proxy_->PerformAsync(req, &data->resp, SetupController(&data->controller), [data] {
-      
-      auto provider = opentelemetry::trace::Provider::GetTracerProvider();
-      auto tracer = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
-      auto docdb_span = tracer->StartSpan("tserver / PgClientService :: Perform");
-      auto docdb_scope = tracer->WithActiveSpan(docdb_span);
-      docdb_span->SetAttribute("pg_client_session_perform_time (ns)", int64_t(data->resp.pg_client_session_perform_time()));
-      docdb_span->End();
-
+      if(data->resp.has_safe_time_wait() && data->resp.safe_time_wait() != int64_t(-1)) {
+        auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+        auto tracer = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
+        auto docdb_span = tracer->StartSpan("DocDB :: safe_time_wait");
+        auto docdb_scope = tracer->WithActiveSpan(docdb_span);
+        docdb_span->SetAttribute("safe_time_wait (ms)", int64_t(data->resp.safe_time_wait()));
+        docdb_span->End();
+      }
       PerformResult result;
       result.status = data->controller.status();
       result.response = data->controller.response();

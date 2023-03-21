@@ -251,11 +251,16 @@ class Batcher : public Runnable, public std::enable_shared_from_this<Batcher> {
   // from the error collector.
   static const std::string kErrorReachingOutToTServersMsg;
 
+  int64_t get_safe_time_wait_trace() { return safe_time_wait_trace; }
+  void set_safe_time_wait_trace(int64_t safe_time_wait_trace_) { this->safe_time_wait_trace = safe_time_wait_trace_; }
+
  private:
   friend class RefCountedThreadSafe<Batcher>;
   friend class AsyncRpc;
   friend class WriteRpc;
   friend class ReadRpc;
+
+  int64_t safe_time_wait_trace = -1;
 
   void Flushed(const InFlightOps& ops, const Status& status, FlushExtraResult flush_extra_result);
 
