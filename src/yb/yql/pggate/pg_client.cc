@@ -476,7 +476,7 @@ class PgClient::Impl {
 
     proxy_->PerformAsync(req, &data->resp, SetupController(&data->controller), [data, parent_context] {
       if(data->resp.has_safe_time_wait() && data->resp.safe_time_wait() != int64_t(-1)
-          && data->resp.has_safe_time_wait_start()&& data->resp.safe_time_wait_start() != int64_t(-1)) {
+          && data->resp.has_safe_time_wait_start() && data->resp.safe_time_wait_start() != int64_t(-1)) {
         auto safe_time_wait_start = std::chrono::nanoseconds(data->resp.safe_time_wait_start());
         auto safe_time_wait_end = std::chrono::nanoseconds(data->resp.safe_time_wait_start() + data->resp.safe_time_wait());
 
