@@ -492,6 +492,7 @@ class PgClient::Impl {
         auto tracer = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
         auto docdb_span = tracer->StartSpan("DocDB :: safe_time_wait", start_options);
         auto docdb_scope = tracer->WithActiveSpan(docdb_span);
+        docdb_span->SetStatus(opentelemetry::trace::StatusCode::kOk);
 
         opentelemetry::trace::EndSpanOptions end_options;
         opentelemetry::common::SteadyTimestamp steady_end_timestamp(safe_time_wait_end);
