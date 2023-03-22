@@ -472,11 +472,10 @@ class PgClient::Impl {
     data->controller.set_invoke_callback_mode(rpc::InvokeCallbackMode::kReactorThread);
     data->span = span;
 
-    trace_api::SpanContext parent_context = opentelemetry::trace::Tracer::GetCurrentSpan()->GetContext();
-
-    proxy_->PerformAsync(req, &data->resp, SetupController(&data->controller), [data, parent_context] {
+    proxy_->PerformAsync(req, &data->resp, SetupController(&data->controller), [data] {
       if(data->resp.has_safe_time_wait() && data->resp.safe_time_wait() != int64_t(-1)
-          && data->resp.has_safe_time_wait_start() && data->resp.safe_time_wait_start() != int64_t(-1)) {
+          && data->resp.has_safe_time_wait_start() && data->resp.safe_time_wait_start() != int64_t(-1)
+          && data->span != nullptr) {
         auto safe_time_wait_start = std::chrono::nanoseconds(data->resp.safe_time_wait_start());
         auto safe_time_wait_end = std::chrono::nanoseconds(data->resp.safe_time_wait_start() + data->resp.safe_time_wait());
 
@@ -486,7 +485,7 @@ class PgClient::Impl {
 
         start_options.start_system_time = system_timestamp;
         start_options.start_steady_time = steady_start_timestamp;
-        start_options.parent = parent_context;
+        start_options.parent = data->span->GetContext();
 
         auto provider = opentelemetry::trace::Provider::GetTracerProvider();
         auto tracer = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
