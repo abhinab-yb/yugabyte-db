@@ -410,6 +410,8 @@ Status ReadQuery::DoPickReadTime(server::Clock* clock) {
   MonoTime start_time;
   if (metrics) {
     start_time = MonoTime::Now();
+    resp_->set_safe_time_wait_start(std::chrono::duration_cast<std::chrono::nanoseconds>(
+      std::chrono::system_clock::now().time_since_epoch()).count());
   }
   if (!read_time_) {
     safe_ht_to_read_ = VERIFY_RESULT(abstract_tablet_->SafeTime(require_lease_));
@@ -446,7 +448,7 @@ Status ReadQuery::DoPickReadTime(server::Clock* clock) {
   if (metrics) {
     auto safe_time_wait = MonoTime::Now() - start_time;
     metrics->read_time_wait->Increment(safe_time_wait.ToMicroseconds());
-    resp_->set_safe_time_wait(safe_time_wait.ToMicroseconds());
+    resp_->set_safe_time_wait(safe_time_wait.ToNanoseconds());
   }
   return Status::OK();
 }
@@ -460,8 +462,10 @@ bool ReadQuery::IsPgsqlFollowerReadAtAFollower() const {
 Status ReadQuery::Complete() {
   for (;;) {
     auto safe_time_wait = resp_->safe_time_wait();
+    auto safe_time_wait_start = resp_->safe_time_wait_start();
     resp_->Clear();
     resp_->set_safe_time_wait(safe_time_wait);
+    resp_->set_safe_time_wait_start(safe_time_wait_start);
     context_.sidecars().Reset();
     VLOG(1) << "Read time: " << read_time_ << ", safe: " << safe_ht_to_read_;
     const auto result = VERIFY_RESULT(DoRead());

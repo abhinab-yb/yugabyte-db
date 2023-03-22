@@ -450,6 +450,7 @@ message PgPerformResponsePB {
   TracePB trace = 5;
 
   int64 safe_time_wait = 6;
+  int64 safe_time_wait_start = 7;
 }
 
 message PgReserveOidsRequestPB {

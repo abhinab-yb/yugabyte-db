@@ -827,10 +827,10 @@ Status PgClientSession::Perform(
     .trace_requested = options.trace_requested()
   });
 
-  auto transaction = session_info.first.transaction;
   session->FlushAsync([this, data, transaction, ops_count, session](client::FlushStatus* flush_status) {
-    if(session->get_safe_time_wait_trace() != int64_t(-1)) {
+    if(session->get_safe_time_wait_trace() != int64_t(-1) && session->get_safe_time_wait_trace_start() != int64_t(-1)) {
       data->resp->set_safe_time_wait(session->get_safe_time_wait_trace());
+      data->resp->set_safe_time_wait_start(session->get_safe_time_wait_trace_start());
     }
     data->FlushDone(flush_status);
     if (transaction) {

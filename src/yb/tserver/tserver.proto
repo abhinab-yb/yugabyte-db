@@ -246,6 +246,8 @@ message ReadResponsePB {
   optional fixed64 local_limit_ht = 10;
 
   optional fixed64 safe_time_wait = 11;
+
+  optional fixed64 safe_time_wait_start = 12;
 }
 
 // Truncate tablet request.

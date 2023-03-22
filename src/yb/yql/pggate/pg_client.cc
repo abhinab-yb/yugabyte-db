@@ -13,6 +13,8 @@
 
 #include "yb/yql/pggate/pg_client.h"
 
+#include <chrono>
+
 #include "yb/client/client-internal.h"
 #include "yb/client/table.h"
 #include "yb/client/table_info.h"
@@ -470,15 +472,34 @@ class PgClient::Impl {
     data->controller.set_invoke_callback_mode(rpc::InvokeCallbackMode::kReactorThread);
     data->span = span;
 
-    proxy_->PerformAsync(req, &data->resp, SetupController(&data->controller), [data] {
-      if(data->resp.has_safe_time_wait() && data->resp.safe_time_wait() != int64_t(-1)) {
+    trace_api::SpanContext parent_context = opentelemetry::trace::Tracer::GetCurrentSpan()->GetContext();
+
+    proxy_->PerformAsync(req, &data->resp, SetupController(&data->controller), [data, parent_context] {
+      if(data->resp.has_safe_time_wait() && data->resp.safe_time_wait() != int64_t(-1)
+          && data->resp.has_safe_time_wait_start()&& data->resp.safe_time_wait_start() != int64_t(-1)) {
+        auto safe_time_wait_start = std::chrono::nanoseconds(data->resp.safe_time_wait_start());
+        auto safe_time_wait_end = std::chrono::nanoseconds(data->resp.safe_time_wait_start() + data->resp.safe_time_wait());
+
+        opentelemetry::common::SystemTimestamp system_timestamp(safe_time_wait_start);
+        opentelemetry::common::SteadyTimestamp steady_start_timestamp(safe_time_wait_start);
+        opentelemetry::trace::StartSpanOptions start_options;
+
+        start_options.start_system_time = system_timestamp;
+        start_options.start_steady_time = steady_start_timestamp;
+        start_options.parent = parent_context;
+
         auto provider = opentelemetry::trace::Provider::GetTracerProvider();
         auto tracer = provider->GetTracer("pg_session", OPENTELEMETRY_SDK_VERSION);
-        auto docdb_span = tracer->StartSpan("DocDB :: safe_time_wait");
+        auto docdb_span = tracer->StartSpan("DocDB :: safe_time_wait", start_options);
         auto docdb_scope = tracer->WithActiveSpan(docdb_span);
-        docdb_span->SetAttribute("safe_time_wait (ms)", int64_t(data->resp.safe_time_wait()));
-        docdb_span->End();
+
+        opentelemetry::trace::EndSpanOptions end_options;
+        opentelemetry::common::SteadyTimestamp steady_end_timestamp(safe_time_wait_end);
+
+        end_options.end_steady_time = steady_end_timestamp;
+        docdb_span->End(end_options);
       }
+
       PerformResult result;
       result.status = data->controller.status();
       result.response = data->controller.response();

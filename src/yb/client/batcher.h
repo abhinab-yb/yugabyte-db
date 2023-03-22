@@ -254,6 +254,9 @@ class Batcher : public Runnable, public std::enable_shared_from_this<Batcher> {
   int64_t get_safe_time_wait_trace() { return safe_time_wait_trace; }
   void set_safe_time_wait_trace(int64_t safe_time_wait_trace_) { this->safe_time_wait_trace = safe_time_wait_trace_; }
 
+  int64_t get_safe_time_wait_trace_start() { return safe_time_wait_trace_start; }
+  void set_safe_time_wait_trace_start(int64_t safe_time_wait_trace_start_) { this->safe_time_wait_trace_start = safe_time_wait_trace_start_; }
+
  private:
   friend class RefCountedThreadSafe<Batcher>;
   friend class AsyncRpc;
@@ -261,6 +264,7 @@ class Batcher : public Runnable, public std::enable_shared_from_this<Batcher> {
   friend class ReadRpc;
 
   int64_t safe_time_wait_trace = -1;
+  int64_t safe_time_wait_trace_start = -1;
 
   void Flushed(const InFlightOps& ops, const Status& status, FlushExtraResult flush_extra_result);
 

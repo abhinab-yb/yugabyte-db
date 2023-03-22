@@ -702,6 +702,7 @@ void Batcher::ProcessReadResponse(const ReadRpc &rpc, const Status &s) {
   ProcessRpcStatus(rpc, s);
   if(rpc.resp().has_safe_time_wait()) {
     shared_from_this()->set_safe_time_wait_trace(rpc.resp().safe_time_wait());
+    shared_from_this()->set_safe_time_wait_trace_start(rpc.resp().safe_time_wait_start());
   }
 }
 
