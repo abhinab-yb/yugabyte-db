@@ -2151,23 +2151,29 @@ yb_pg_stat_retrieve_concurrent_index_progress()
 Datum
 yb_pg_enable_tracing(PG_FUNCTION_ARGS)
 {
-	
 	int pid = PG_GETARG_INT32(0);
-	bool ok;
 
-	if(pid == 0)						/* Enable tracing for all the processes */
+	if(pid < 0)
 	{
-		ok = SignalTracingAllProcs(1);
-	}
-	else
-	{
-		ok = SignalTracing(1, pid);
-	}
-	
-	if(!ok)
-	{
+		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                        errmsg("PID cannot be negative")));
 		PG_RETURN_BOOL(false);
 	}
+
+	if(!SignalTracing(1, pid))
+	{
+		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                        errmsg("Backend with PID = %d not found", pid)));
+		PG_RETURN_BOOL(false);
+	}
+
+	/* Set all the variables like log_min_duration here
+	 * Prev_value = GetConfigOption
+	 * Store in PGPROC ? 
+	 * where to store ?
+	 * set and unset in postgres.c? can just store as local variables there?
+	 */
+	SetConfigOption("log_statement", "all", PGC_SUSET, PGC_S_SESSION);
 
 	PG_RETURN_BOOL(true);
 }
@@ -2176,22 +2182,24 @@ Datum
 yb_pg_disable_tracing(PG_FUNCTION_ARGS)
 {
 	int pid = PG_GETARG_INT32(0);
-	bool ok;
 
-	if(pid == 0)						/* Disable tracing for all the processes */
+	if(pid < 0)
 	{
-		ok = SignalTracingAllProcs(0);
+		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                        errmsg("PID cannot be negative")));
+		PG_RETURN_BOOL(false);
 	}
-	else
+
+	if(!SignalTracing(0, pid))
 	{
-		ok = SignalTracing(0, pid);
-	}
-	
-	if(!ok)
-	{
+		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                        errmsg("Backend with PID = %d not found", pid)));
 		PG_RETURN_BOOL(false);
 	}
 	
+	/* Unset all the variables like log_min_duration here */
+	SetConfigOption("log_statement", "none", PGC_SUSET, PGC_S_SESSION);
+
 	PG_RETURN_BOOL(true);
 }
 
@@ -2201,12 +2209,20 @@ is_yb_pg_tracing_enabled(PG_FUNCTION_ARGS)
 {
 	int pid = PG_GETARG_INT32(0);
 
-	if(pid == 0)
+	if(pid <= 0)
 	{
+		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                        errmsg("PID needs to be positive")));
 		PG_RETURN_BOOL(false);
 	}
 	
-	bool is_tracing_enabled = CheckTracingEnabled(pid);
-	
-	PG_RETURN_BOOL(is_tracing_enabled);
+	int result = CheckTracingEnabled(pid);
+	if(result == -1)
+	{
+		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                        errmsg("Backend with PID = %d not found", pid)));
+		PG_RETURN_BOOL(false);
+	}
+
+	PG_RETURN_BOOL(result);
 }

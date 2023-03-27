@@ -1093,11 +1093,11 @@ exec_simple_query(const char *query_string)
 		 */
 		oldcontext = MemoryContextSwitchTo(MessageContext);
 
-		YBCStartQueryEvent("analyz_and_rewrite");
+		YBCStartQueryEvent("analyze_and_rewrite");
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
 												NULL, 0, NULL);
 
-		YBCStopQueryEvent("analyz_and_rewrite");
+		YBCStopQueryEvent("analyze_and_rewrite");
 
 		YBCStartQueryEvent("plan");
 		plantree_list = pg_plan_queries(querytree_list,
@@ -4642,14 +4642,23 @@ yb_exec_simple_query_impl(const void* query_string)
 static void
 yb_exec_simple_query(const char* query_string, MemoryContext exec_context)
 {
-	YBCStartTraceForQuery(MyProc->pid, query_string);
+
+	bool is_tracing_enabled = 0;
+	if(pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
+	{
+		YBCStartTraceForQuery(MyProc->pid, query_string);
+		is_tracing_enabled = 1;
+	}
 	YBQueryRestartData restart_data  = {
 		.portal_name  = NULL,
 		.query_string = query_string,
 		.command_tag  = yb_parse_command_tag(query_string)
 	};
 	yb_exec_query_wrapper(exec_context, &restart_data, &yb_exec_simple_query_impl, query_string);
-	YBCStopTraceForQuery();
+	if(is_tracing_enabled)
+	{
+		YBCStopTraceForQuery();
+	}
 }
 
 typedef struct YBExecuteMessageFunctorContext
@@ -5106,34 +5115,6 @@ PostgresMain(int argc, char *argv[],
 		MemoryContextSwitchTo(MessageContext);
 		MemoryContextResetAndDeleteChildren(MessageContext);
 
-		/*
-		 * is_yb_tracing_enabled is an atomic variable in the shared memory which specifies whether tracing
-		 * is enabled for the backend or not.
-		 * prev_yb_tracing_enabled is a local boolean variable which tells us the previous state of 
-		 * is_yb_tracing_enabled. So if there is a mismatch between the two variables we know that tracing
-		 * was either enabled or disabled for the backend.
-		 */
-		if(pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
-		{
-			if(!prev_yb_tracing_enabled)
-			{
-				/*
-				 * We actually enable tracing here. First store the previous state of the flags and then set
-				 * the flags to the desired values.
-				 */
-				store_prev_flags();
-				log_statement = LOGSTMT_MOD;
-				prev_yb_tracing_enabled = true;
-			}
-		}
-		else
-		{
-			if(prev_yb_tracing_enabled)					/* Disable Tracing */
-			{
-				load_prev_flags();
-				prev_yb_tracing_enabled = false;
-			}
-		}
 
 		initStringInfo(&input_message);
 
