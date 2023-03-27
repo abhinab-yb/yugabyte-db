@@ -52,7 +52,6 @@
 #include "storage/procarray.h"
 #include "storage/procsignal.h"
 #include "storage/spin.h"
-#include "tcop/tcopprot.h"
 #include "utils/timeout.h"
 #include "utils/timestamp.h"
 
@@ -71,9 +70,6 @@ double		RetryBackoffMultiplier;
 /* Pointer to this process's PGPROC and PGXACT structs, if any */
 PGPROC	   *MyProc = NULL;
 PGXACT	   *MyPgXact = NULL;
-
-/* We need to store (and later restore) the state of the flags as they were before tracing was enabled */
-TRACE_FLAGS *PrevFlags = NULL; // do we still need them?
 
 /*
  * This spinlock protects the freelist of recycled PGPROC structures.
@@ -1910,33 +1906,4 @@ BecomeLockGroupMember(PGPROC *leader, int pid)
 	LWLockRelease(leader_lwlock);
 
 	return ok;
-}
-/* 
- * As of now I have only added one flag, log_statement. If everything else is fine, other flags will be 
- * added.
- *
- * Discussion : Consider the following scenario - 
- * 
- * Initially, log_statement = X
- * then, tracing is enabled for this backend which sets log_statement = Y
- * then user says, set log_statement = Z
- * Now when tracing will be disabled, the flags will be restored to their previous values and log_statement
- * will become X again, even though user explicitly set it to Z.
- */
-
- // are these still needed?
-void
-store_prev_flags(void)
-{
-	if(PrevFlags == NULL)
-	{
-		PrevFlags = (struct TRACE_FLAGS *) malloc(sizeof(TRACE_FLAGS));
-	}
-	PrevFlags->log_statement = log_statement;
-}
-
-void
-load_prev_flags(void)
-{
-	log_statement = PrevFlags->log_statement;
 }

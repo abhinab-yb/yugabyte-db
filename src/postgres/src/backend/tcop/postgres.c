@@ -92,7 +92,6 @@
  *		global variables
  * ----------------
  */
-bool prev_yb_tracing_enabled = false;
 const char *debug_query_string; /* client-supplied query string */
 
 /* Note: whereToSendOutput is initialized for the bootstrap/standalone case */
@@ -1093,11 +1092,11 @@ exec_simple_query(const char *query_string)
 		 */
 		oldcontext = MemoryContextSwitchTo(MessageContext);
 
-		YBCStartQueryEvent("analyze_and_rewrite");
+		YBCStartQueryEvent("analyz_and_rewrite");
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
 												NULL, 0, NULL);
 
-		YBCStopQueryEvent("analyze_and_rewrite");
+		YBCStopQueryEvent("analyz_and_rewrite");
 
 		YBCStartQueryEvent("plan");
 		plantree_list = pg_plan_queries(querytree_list,
@@ -5137,7 +5136,6 @@ PostgresMain(int argc, char *argv[],
 		 */
 		MemoryContextSwitchTo(MessageContext);
 		MemoryContextResetAndDeleteChildren(MessageContext);
-
 
 		initStringInfo(&input_message);
 

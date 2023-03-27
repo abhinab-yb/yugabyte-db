@@ -76,13 +76,6 @@ struct XidCache
  */
 #define INVALID_PGPROCNO		PG_INT32_MAX
 
-typedef struct TRACE_FLAGS
-{
-	int log_statement;
-
-} TRACE_FLAGS;
-
-extern PGDLLIMPORT TRACE_FLAGS *PrevFlags;
 /*
  * Each backend has a PGPROC struct in shared memory.  There is also a list of
  * currently-unused PGPROC structs that will be reallocated to new backends.
