@@ -4643,7 +4643,7 @@ static void
 yb_exec_simple_query(const char* query_string, MemoryContext exec_context)
 {
 
-	bool is_tracing_enabled = 0;
+	bool is_tracing_enabled = 0; /* Store it locally, so we can turn it off later even if tracing was disabled just after this */
 	if(pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
 	{
 		YBCStartTraceForQuery(MyProc->pid, query_string);
