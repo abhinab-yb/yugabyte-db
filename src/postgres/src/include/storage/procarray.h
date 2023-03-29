@@ -126,7 +126,11 @@ extern void ProcArrayGetReplicationSlotXmin(TransactionId *xmin,
 								TransactionId *catalog_xmin);
 
 extern bool SignalTracing(uint32 signal, int pid);
+extern bool SignalTracingWithoutQueryId(uint32 signal, int pid)
+extern bool SignalTracingWithQueryId(uint32 signal, int pid, uint64 query_id)
 
-extern int CheckTracingEnabled(int pid);
+extern int IsTracingEnabled(int pid);
+extern int IsTracingEnabledWithoutQueryId(int pid)
+extern int IsTracingEnabledWithQueryId(int pid, uint64 query_id)
 
 #endif							/* PROCARRAY_H */

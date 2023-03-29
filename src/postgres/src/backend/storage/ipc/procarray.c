@@ -4133,9 +4133,8 @@ KnownAssignedXidsReset(void)
 	LWLockRelease(ProcArrayLock);
 }
 
-/* Enable/Disable tracing for all connected backends */
 bool
-SignalTracingAllProcs(uint32 signal)
+SignalTracingWithoutQueryId(uint32 signal, int pid)
 {
 	ProcArrayStruct *arrayP = procArray;
 	int			index;
@@ -4146,68 +4145,158 @@ SignalTracingAllProcs(uint32 signal)
 		int			pgprocno = arrayP->pgprocnos[index];
 		volatile PGPROC *proc = &allProcs[pgprocno];
 
-		if(proc->pid == 0)
+		if (proc->pid == 0)
 			continue;	/* do not count prepared xacts */
-		if(proc->isBackgroundWorker)
+		if (proc->isBackgroundWorker)
 			continue;	/* do not count background workers*/
-		pg_atomic_write_u32(&proc->is_yb_tracing_enabled, signal);
-	}
-	LWLockRelease(ProcArrayLock);
 
-	return true;
-}
-
-/* Enable/Disable tracing for the proc with the given pid */
-// pid = 0, all procs
-bool
-SignalTracing(uint32 signal, int pid)
-{
-	if(pid == 0)
-	{
-		return SignalTracingAllProcs(signal);
-	}
-
-	ProcArrayStruct *arrayP = procArray;
-	int			index;
-
-	LWLockAcquire(ProcArrayLock, LW_SHARED);
-	for (index = 0; index < arrayP->numProcs; index++)
-	{
-		int			pgprocno = arrayP->pgprocnos[index];
-		volatile PGPROC *proc = &allProcs[pgprocno];
-		if(proc->pid == pid)
+		if (proc->pid == pid)
 		{
 			pg_atomic_write_u32(&proc->is_yb_tracing_enabled, signal);
 			LWLockRelease(ProcArrayLock);
 			return true;
 		}
+		else if (pid == 0)
+		{
+			pg_atomic_write_u32(&proc->is_yb_tracing_enabled, signal);
+		}
 	}
 	LWLockRelease(ProcArrayLock);
 
-	return false; /* The process was not found */
+	return (pid > 0); /* Process was not found */
 }
 
-/* Check whether tracing is enabled for proc with given pid */
-int
-CheckTracingEnabled(int pid)
+bool
+SignalTracingWithQueryId(uint32 signal, int pid, uint64 query_id)
 {
-
 	ProcArrayStruct *arrayP = procArray;
 	int			index;
-	bool		is_tracing_enabled;
 
 	LWLockAcquire(ProcArrayLock, LW_SHARED);
 	for (index = 0; index < arrayP->numProcs; index++)
 	{
 		int			pgprocno = arrayP->pgprocnos[index];
 		volatile PGPROC *proc = &allProcs[pgprocno];
-		if(proc->pid == pid)
+
+		if (proc->pid == 0)
+			continue;	/* do not count prepared xacts */
+		if (proc->isBackgroundWorker)
+			continue;	/* do not count background workers*/
+
+		if (proc->pid == pid)
+		{
+			if (signal)
+			{
+				/* Take lock of queries_to_be_traced and insert query_id */
+			}
+			else
+			{
+				/* Take lock of queries_to_be_traced and remove query_id */
+			}
+			LWLockRelease(ProcArrayLock);
+			return true;
+		}
+		else if (pid == 0)
+		{
+			if (signal)
+			{
+				/* Take lock of queries_to_be_traced and insert query_id */
+			}
+			else
+			{
+				/* Take lock of queries_to_be_traced and remove query_id */
+			}
+		}
+	}
+	LWLockRelease(ProcArrayLock);
+
+	return (pid > 0); /* Process was not found */
+}
+
+/* Enable/Disable tracing for the proc with the given pid and query_id */
+bool
+SignalTracing(uint32 signal, int pid, uint64 query_id)
+{
+	return (query_id == -1 ? SignalTracingWithoutQueryId(signal, pid) : SignalTracingWithQueryId(signal, pid, query_id));
+}
+
+int
+IsTracingEnabledWithoutQueryId(int pid)
+{
+	ProcArrayStruct *arrayP = procArray;
+	int			index;
+	int         is_tracing_enabled = 1;
+
+	LWLockAcquire(ProcArrayLock, LW_SHARED);
+	for (index = 0; index < arrayP->numProcs; index++)
+	{
+		int			pgprocno = arrayP->pgprocnos[index];
+		volatile PGPROC *proc = &allProcs[pgprocno];
+
+		if (proc->pid == 0)
+			continue;	/* do not count prepared xacts */
+		if (proc->isBackgroundWorker)
+			continue;	/* do not count background workers*/
+
+		if (proc->pid == pid)
 		{
 			is_tracing_enabled = pg_atomic_read_u32(&proc->is_yb_tracing_enabled);
 			LWLockRelease(ProcArrayLock);
 			return is_tracing_enabled;
 		}
+		else if (pid == 0)
+		{
+			is_tracing_enabled &= pg_atomic_read_u32(&proc->is_yb_tracing_enabled);
+		}
 	}
 	LWLockRelease(ProcArrayLock);
-	return -1; /* Process doesn't exist */
+
+	if (pid > 0)
+		return -1; /* Process was not found */
+
+	return is_tracing_enabled;
+}
+
+int
+IsTracingEnabledWithQueryId(int pid, uint64 query_id)
+{
+	ProcArrayStruct *arrayP = procArray;
+	int			index;
+	int         is_tracing_enabled = 1;
+
+	LWLockAcquire(ProcArrayLock, LW_SHARED);
+	for (index = 0; index < arrayP->numProcs; index++)
+	{
+		int			pgprocno = arrayP->pgprocnos[index];
+		volatile PGPROC *proc = &allProcs[pgprocno];
+
+		if (proc->pid == 0)
+			continue;	/* do not count prepared xacts */
+		if (proc->isBackgroundWorker)
+			continue;	/* do not count background workers*/
+
+		if (proc->pid == pid)
+		{
+			/* Take lock of queries_to_be_traced and check this query_id */
+			LWLockRelease(ProcArrayLock);
+			return is_tracing_enabled;
+		}
+		else if (pid == 0)
+		{
+			/* Take lock of queries_to_be_traced and check this query_id */
+		}
+	}
+	LWLockRelease(ProcArrayLock);
+
+	if (pid > 0)
+		return -1; /* Process was not found */
+
+	return is_tracing_enabled;
+}
+
+/* Check whether tracing is enabled for proc with given pid */
+int
+IsTracingEnabled(int pid, uint64 query_id)
+{
+	return (query_id == -1 ? IsTracingEnabledWithoutQueryId(pid) : IsTracingEnabledWithQueryId(pid, query_id));
 }

@@ -2152,28 +2152,22 @@ Datum
 yb_pg_enable_tracing(PG_FUNCTION_ARGS)
 {
 	int pid = PG_GETARG_INT32(0);
+	int query_id = DatumGetUInt64(PG_GETARG_DATUM(1));
+
+	if(pid == -1)
+		pid = MyProcPid; /* if PID = -1, that means the current session */
+
+	if(queryid < -1)
+		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                        errmsg("query_id cannot be less than -1")));	
 
 	if(pid < 0)
-	{
 		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                        errmsg("PID cannot be negative")));
-		PG_RETURN_BOOL(false);
-	}
+                        errmsg("pid cannot be less than -1")));
 
-	if(!SignalTracing(1, pid))
-	{
+	if(!SignalTracing(1, pid, query_id))
 		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                        errmsg("Backend with PID = %d not found", pid)));
-		PG_RETURN_BOOL(false);
-	}
-
-	/* Set all the variables like log_min_duration here
-	 * Prev_value = GetConfigOption
-	 * Store in PGPROC ? 
-	 * where to store ?
-	 * set and unset in postgres.c? can just store as local variables there?
-	 */
-	SetConfigOption("log_statement", "all", PGC_SUSET, PGC_S_SESSION);
+                        errmsg("Backend with pid = %d not found", pid)));
 
 	PG_RETURN_BOOL(true);
 }
@@ -2182,23 +2176,22 @@ Datum
 yb_pg_disable_tracing(PG_FUNCTION_ARGS)
 {
 	int pid = PG_GETARG_INT32(0);
+	int query_id = DatumGetUInt64(PG_GETARG_DATUM(1));
+
+	if(pid == -1)
+		pid = MyProcPid; /* if PID = -1, that means the current session */
+
+	if(queryid < -1)
+		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                        errmsg("query_id cannot be less than -1")));
 
 	if(pid < 0)
-	{
 		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                        errmsg("PID cannot be negative")));
-		PG_RETURN_BOOL(false);
-	}
+                        errmsg("PID cannot be less than -1")));
 
-	if(!SignalTracing(0, pid))
-	{
+	if(!SignalTracing(0, pid, query_id))
 		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
                         errmsg("Backend with PID = %d not found", pid)));
-		PG_RETURN_BOOL(false);
-	}
-	
-	/* Unset all the variables like log_min_duration here */
-	SetConfigOption("log_statement", "none", PGC_SUSET, PGC_S_SESSION);
 
 	PG_RETURN_BOOL(true);
 }
@@ -2208,21 +2201,23 @@ Datum
 is_yb_pg_tracing_enabled(PG_FUNCTION_ARGS)
 {
 	int pid = PG_GETARG_INT32(0);
+	int query_id = DatumGetUInt64(PG_GETARG_DATUM(1));
 
-	if(pid <= 0)
-	{
+	if(pid == -1)
+		pid = MyProcPid; /* if PID = -1, that means the current session */
+
+	if(queryid < -1)
+		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                        errmsg("query_id cannot be less than -1")));
+
+	if(pid < 0)
 		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
                         errmsg("PID needs to be positive")));
-		PG_RETURN_BOOL(false);
-	}
 	
-	int result = CheckTracingEnabled(pid);
+	int result = IsTracingEnabled(pid);
 	if(result == -1)
-	{
 		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
                         errmsg("Backend with PID = %d not found", pid)));
-		PG_RETURN_BOOL(false);
-	}
 
 	PG_RETURN_BOOL(result);
 }
