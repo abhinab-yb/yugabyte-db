@@ -2430,7 +2430,7 @@ ExecuteSqlString(const char *sql)
      */
     oldcontext = MemoryContextSwitchTo(parsecontext);
     #if PG_VERSION_NUM >= 100000
-      querytree_list = pg_analyze_and_rewrite(parsetree, sql, NULL, 0,NULL);
+      querytree_list = pg_analyze_and_rewrite(parsetree, sql, NULL, 0,NULL, NULL);
     #else
       querytree_list = pg_analyze_and_rewrite(parsetree, sql, NULL, 0);
     #endif

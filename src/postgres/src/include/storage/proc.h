@@ -110,10 +110,6 @@ struct PGPROC
 	int			pgprocno;
 
 	pg_atomic_uint32 is_yb_tracing_enabled;
-	uint64 queries_to_be_traced[FLEXIBLE_ARRAY_MEMBER]; /* stores the query ids
-														 * of queries not to be
-														 * traced, need to swap it
-														 * with a hashmap later */
 
 	/* These fields are zero while a backend is still starting up: */
 	BackendId	backendId;		/* This backend's backend ID (if assigned) */
@@ -217,6 +213,10 @@ struct PGPROC
 	 * pg_buffercache extension locks all buffer partitions simultaneously.
 	 */
 	bool 		ybAnyLockAcquired;
+
+	/* List of queryids to be traced */
+	int 		numQueries;
+	int64 traceable_queries[FLEXIBLE_ARRAY_MEMBER];
 };
 
 /* NOTE: "typedef struct PGPROC PGPROC" appears in storage/lock.h. */

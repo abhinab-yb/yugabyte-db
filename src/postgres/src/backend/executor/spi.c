@@ -1942,7 +1942,8 @@ _SPI_prepare_plan(const char *src, SPIPlanPtr plan)
 											   src,
 											   plan->argtypes,
 											   plan->nargs,
-											   _SPI_current->queryEnv);
+											   _SPI_current->queryEnv,
+											   NULL);
 		}
 
 		/* Finish filling in the CachedPlanSource */
@@ -2151,7 +2152,8 @@ _SPI_execute_plan(SPIPlanPtr plan, ParamListInfo paramLI,
 												   src,
 												   plan->argtypes,
 												   plan->nargs,
-												   _SPI_current->queryEnv);
+												   _SPI_current->queryEnv,
+												   NULL);
 			}
 
 			/* Finish filling in the CachedPlanSource */

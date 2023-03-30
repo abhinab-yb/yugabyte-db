@@ -689,7 +689,7 @@ pg_parse_query(const char *query_string)
 List *
 pg_analyze_and_rewrite(RawStmt *parsetree, const char *query_string,
 					   Oid *paramTypes, int numParams,
-					   QueryEnvironment *queryEnv)
+					   QueryEnvironment *queryEnv, int64 *query_id)
 {
 	Query	   *query;
 	List	   *querytree_list;
@@ -714,6 +714,9 @@ pg_analyze_and_rewrite(RawStmt *parsetree, const char *query_string,
 	querytree_list = pg_rewrite_query(query);
 
 	TRACE_POSTGRESQL_QUERY_REWRITE_DONE(query_string);
+
+	if (query_id != NULL)
+		*query_id = (int64)query->queryId; /* type cast uint64 to int64 */
 
 	return querytree_list;
 }
@@ -1092,11 +1095,38 @@ exec_simple_query(const char *query_string)
 		 */
 		oldcontext = MemoryContextSwitchTo(MessageContext);
 
-		YBCStartQueryEvent("analyz_and_rewrite");
-		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
-												NULL, 0, NULL);
+		int64 query_id = -1;
 
-		YBCStopQueryEvent("analyz_and_rewrite");
+		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
+												NULL, 0, NULL, &query_id);
+
+		bool is_tracing_enabled = false; /* Store it locally, so we can turn it off later even if tracing was disabled just after this */
+		if(pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
+		{
+			YBCStartTraceForQuery(MyProc->pid, query_string);
+			is_tracing_enabled = 1;
+		}
+		else /* Check if the query_id was turned on specifically */
+		{
+			int traceable_index;
+			bool found = false;
+			LWLockAcquire(&MyProc->backendLock, LW_SHARED);
+			for (traceable_index = 0; traceable_index < MyProc->numQueries; traceable_index++)
+			{
+				if (MyProc->traceable_queries[traceable_index] == query_id)
+				{
+					found = true;
+					break;
+				}
+			}
+			LWLockRelease(&MyProc->backendLock);
+
+			if (found)
+			{
+				YBCStartTraceForQuery(MyProc->pid, query_string);
+				is_tracing_enabled = 1;
+			}
+		}
 
 		YBCStartQueryEvent("plan");
 		plantree_list = pg_plan_queries(querytree_list,
@@ -1181,6 +1211,12 @@ exec_simple_query(const char *query_string)
 						 completionTag);
 
 		YBCStopQueryEvent("execute");
+
+		if(is_tracing_enabled)
+		{
+			YBCStopTraceForQuery();
+		}
+
 		receiver->rDestroy(receiver);
 
 		PortalDrop(portal, false);
@@ -4641,23 +4677,12 @@ yb_exec_simple_query_impl(const void* query_string)
 static void
 yb_exec_simple_query(const char* query_string, MemoryContext exec_context)
 {
-
-	bool is_tracing_enabled = 0; /* Store it locally, so we can turn it off later even if tracing was disabled just after this */
-	if(pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
-	{
-		YBCStartTraceForQuery(MyProc->pid, query_string);
-		is_tracing_enabled = 1;
-	}
 	YBQueryRestartData restart_data  = {
 		.portal_name  = NULL,
 		.query_string = query_string,
 		.command_tag  = yb_parse_command_tag(query_string)
 	};
 	yb_exec_query_wrapper(exec_context, &restart_data, &yb_exec_simple_query_impl, query_string);
-	if(is_tracing_enabled)
-	{
-		YBCStopTraceForQuery();
-	}
 }
 
 typedef struct YBExecuteMessageFunctorContext

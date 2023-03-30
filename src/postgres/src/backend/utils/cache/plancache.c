@@ -711,7 +711,8 @@ RevalidateCachedQuery(CachedPlanSource *plansource,
 									   plansource->query_string,
 									   plansource->param_types,
 									   plansource->num_params,
-									   queryEnv);
+									   queryEnv,
+									   NULL);
 
 	/* Release snapshot if we got one */
 	if (snapshot_set)
