@@ -4169,8 +4169,8 @@ SignalTracingWithoutQueryId(uint32 signal, int pid)
 void
 AddOrRemoveQueryId(uint32 signal, int64 query_id, int pgprocno)
 {
-	int traceable_index;
 	PGPROC *proc = &allProcs[pgprocno];
+	int			traceable_index;
 
 	LWLockAcquire(&proc->backendLock, LW_EXCLUSIVE);
 	if (signal)
@@ -4195,8 +4195,7 @@ AddOrRemoveQueryId(uint32 signal, int64 query_id, int pgprocno)
 				memmove(&proc->traceable_queries[traceable_index], &proc->traceable_queries[traceable_index + 1],
 						(proc->numQueries - traceable_index - 1) * sizeof(uint64));
 				proc->numQueries--;
-				LWLockRelease(&proc->backendLock);
-				return;
+				break;
 			}
 		}
 	}
@@ -4208,11 +4207,12 @@ SignalTracingWithQueryId(uint32 signal, int pid, int64 query_id)
 {
 	ProcArrayStruct *arrayP = procArray;
 	int			index;
+	int			pgprocno;
 
 	LWLockAcquire(ProcArrayLock, LW_SHARED);
 	for (index = 0; index < arrayP->numProcs; index++)
 	{
-		int			pgprocno = arrayP->pgprocnos[index];
+		pgprocno = arrayP->pgprocnos[index];
 		volatile PGPROC *proc = &allProcs[pgprocno];
 
 		if (proc->pid == 0)
@@ -4236,9 +4236,9 @@ SignalTracingWithQueryId(uint32 signal, int pid, int64 query_id)
 
 /* Enable/Disable tracing for the proc with the given pid and query_id */
 bool
-SignalTracing(uint32 signal, int pid, int64 query_id)
+SignalTracing(uint32 signal, int pid, int64 query_id, bool is_query_id_null)
 {
-	return (query_id == -1 ? SignalTracingWithoutQueryId(signal, pid) : SignalTracingWithQueryId(signal, pid, query_id));
+	return (is_query_id_null ? SignalTracingWithoutQueryId(signal, pid) : SignalTracingWithQueryId(signal, pid, query_id));
 }
 
 int
@@ -4246,12 +4246,12 @@ IsTracingEnabledWithoutQueryId(int pid)
 {
 	ProcArrayStruct *arrayP = procArray;
 	int			index;
-	int         is_tracing_enabled = 1;
+	int			pgprocno;
 
 	LWLockAcquire(ProcArrayLock, LW_SHARED);
 	for (index = 0; index < arrayP->numProcs; index++)
 	{
-		int			pgprocno = arrayP->pgprocnos[index];
+		pgprocno = arrayP->pgprocnos[index];
 		volatile PGPROC *proc = &allProcs[pgprocno];
 
 		if (proc->pid == 0)
@@ -4261,13 +4261,14 @@ IsTracingEnabledWithoutQueryId(int pid)
 
 		if (proc->pid == pid)
 		{
-			is_tracing_enabled = pg_atomic_read_u32(&proc->is_yb_tracing_enabled);
+			int is_tracing_enabled = pg_atomic_read_u32(&proc->is_yb_tracing_enabled);
 			LWLockRelease(ProcArrayLock);
 			return is_tracing_enabled;
 		}
-		else if (pid == 0)
+		else if (pid == 0 && !pg_atomic_read_u32(&proc->is_yb_tracing_enabled))
 		{
-			is_tracing_enabled &= pg_atomic_read_u32(&proc->is_yb_tracing_enabled);
+			LWLockRelease(ProcArrayLock);
+			return 0;
 		}
 	}
 	LWLockRelease(ProcArrayLock);
@@ -4275,27 +4276,28 @@ IsTracingEnabledWithoutQueryId(int pid)
 	if (pid > 0)
 		return -1; /* Process was not found */
 
-	return is_tracing_enabled;
+	return 1;
 }
 
 bool
 IsTracingEnabledForQueryId(int64 query_id, int pgprocno)
 {
-	int traceable_index;
 	PGPROC *proc = &allProcs[pgprocno];
+	int 		traceable_index;
+	int         is_tracing_enabled = 0;
 
 	LWLockAcquire(&proc->backendLock, LW_SHARED);
 	for (traceable_index = 0; traceable_index < proc->numQueries; traceable_index++)
 	{
 		if (proc->traceable_queries[traceable_index] == query_id)
 		{
-			LWLockRelease(&proc->backendLock);
-			return true;
+			is_tracing_enabled = 1;
+			break;
 		}
 	}
 	LWLockRelease(&proc->backendLock);
 
-	return false;
+	return is_tracing_enabled;
 }
 
 int
@@ -4303,7 +4305,6 @@ IsTracingEnabledWithQueryId(int pid, int64 query_id)
 {
 	ProcArrayStruct *arrayP = procArray;
 	int			index;
-	int         is_tracing_enabled = 1;
 
 	LWLockAcquire(ProcArrayLock, LW_SHARED);
 	for (index = 0; index < arrayP->numProcs; index++)
@@ -4318,13 +4319,14 @@ IsTracingEnabledWithQueryId(int pid, int64 query_id)
 
 		if (proc->pid == pid)
 		{
-			is_tracing_enabled = IsTracingEnabledForQueryId(query_id, pgprocno);
+			int is_tracing_enabled = IsTracingEnabledForQueryId(query_id, pgprocno);
 			LWLockRelease(ProcArrayLock);
 			return is_tracing_enabled;
 		}
-		else if (pid == 0)
+		else if (pid == 0 && !IsTracingEnabledForQueryId(query_id, pgprocno))
 		{
-			is_tracing_enabled &= IsTracingEnabledForQueryId(query_id, pgprocno);
+			LWLockRelease(ProcArrayLock);
+			return 0;
 		}
 	}
 	LWLockRelease(ProcArrayLock);
@@ -4332,12 +4334,12 @@ IsTracingEnabledWithQueryId(int pid, int64 query_id)
 	if (pid > 0)
 		return -1; /* Process was not found */
 
-	return is_tracing_enabled;
+	return 1;
 }
 
-/* Check whether tracing is enabled for proc with given pid */
+/* Check whether tracing is enabled for proc with given pid and query_id */
 int
-IsTracingEnabled(int pid, int64 query_id)
+IsTracingEnabled(int pid, int64 query_id, bool is_query_id_null)
 {
-	return (query_id == -1 ? IsTracingEnabledWithoutQueryId(pid) : IsTracingEnabledWithQueryId(pid, query_id));
+	return (is_query_id_null ? IsTracingEnabledWithoutQueryId(pid) : IsTracingEnabledWithQueryId(pid, query_id));
 }

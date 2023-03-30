@@ -728,7 +728,6 @@ execute_sql_string(const char *sql, const char *filename)
 										   sql,
 										   NULL,
 										   0,
-										   NULL,
 										   NULL);
 		stmt_list = pg_plan_queries(stmt_list, CURSOR_OPT_PARALLEL_OK, NULL);
 
