@@ -23,7 +23,10 @@ SELECT yb_pg_enable_tracing(query_id => NULL, pid => (SELECT pg_backend_pid()));
 (1 row)
 
 SELECT yb_pg_enable_tracing(-100, query_id => NULL);
-ERROR:  pid cannot be less than -1
+ yb_pg_enable_tracing 
+----------------------
+ f
+(1 row)
 
 SELECT yb_pg_enable_tracing(0, NULL);
  yb_pg_enable_tracing 
@@ -31,12 +34,7 @@ SELECT yb_pg_enable_tracing(0, NULL);
  t
 (1 row)
 
-SELECT yb_pg_enable_tracing(query_id => NULL, -1);
-ERROR:  positional argument cannot follow named argument
-LINE 1: select yb_pg_enable_tracing(query_id => NULL, -1);
-                                                      ^
-
-SELECT yb_pg_disable_tracing(pid => -1, query_id => NULL);
+SELECT yb_pg_disable_tracing(-1, NULL);
  yb_pg_disable_tracing 
 -----------------------
  t

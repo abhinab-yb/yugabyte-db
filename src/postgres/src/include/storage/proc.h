@@ -215,7 +215,7 @@ struct PGPROC
 	bool 		ybAnyLockAcquired;
 
 	/* List of queryids to be traced */
-	int 		numQueries;
+	int 		numQueries; /* store this in is_yb_tracing_enabled? as 31 bits are wasted */
 	int64 traceable_queries[FLEXIBLE_ARRAY_MEMBER];
 };
 

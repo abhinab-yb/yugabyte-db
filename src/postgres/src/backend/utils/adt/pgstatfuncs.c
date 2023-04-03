@@ -2156,17 +2156,12 @@ yb_pg_enable_tracing(PG_FUNCTION_ARGS)
 	int64 query_id = is_query_id_null ? -1 : PG_GETARG_INT64(1);
 
 	if(pid == -1)
-		pid = MyProcPid; /* pid = -1 means the current session */
+		pid = MyProcPid;
 
-	if(pid < 0)
-		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                        errmsg("pid cannot be less than -1")));
+	if(pid >= 0 && SignalTracing(1, pid, query_id, is_query_id_null))
+		PG_RETURN_BOOL(true);
 
-	if(!SignalTracing(1, pid, query_id, is_query_id_null))
-		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                        errmsg("Backend with pid = %d not found", pid)));
-
-	PG_RETURN_BOOL(true);
+	PG_RETURN_BOOL(false);
 }
 
 Datum
@@ -2177,17 +2172,12 @@ yb_pg_disable_tracing(PG_FUNCTION_ARGS)
 	int64 query_id = is_query_id_null ? -1 : PG_GETARG_INT64(1);
 
 	if(pid == -1)
-		pid = MyProcPid; /* pid = -1 means the current session */
+		pid = MyProcPid;
 
-	if(pid < 0)
-		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                        errmsg("pid cannot be less than -1")));
+	if(pid >= 0 && SignalTracing(0, pid, query_id, is_query_id_null))
+		PG_RETURN_BOOL(true);
 
-	if(!SignalTracing(0, pid, query_id, is_query_id_null))
-		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                        errmsg("Backend with pid = %d not found", pid)));
-
-	PG_RETURN_BOOL(true);
+	PG_RETURN_BOOL(false);
 }
 
 /* Returns whether tracing is enabled for a particular pid or not */
@@ -2199,16 +2189,10 @@ is_yb_pg_tracing_enabled(PG_FUNCTION_ARGS)
 	int64 query_id = is_query_id_null ? -1 : PG_GETARG_INT64(1);
 
 	if(pid == -1)
-		pid = MyProcPid; /* pid = -1 means the current session */
-
-	if(pid < 0)
-		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                        errmsg("pid cannot be less than -1")));
+		pid = MyProcPid;
 	
-	int result = IsTracingEnabled(pid, query_id, is_query_id_null);
-	if(result == -1)
-		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                        errmsg("Backend with pid = %d not found", pid)));
+	if(pid >= 0 && IsTracingEnabled(pid, query_id, is_query_id_null))
+		PG_RETURN_BOOL(true);
 
-	PG_RETURN_BOOL(result);
+	PG_RETURN_BOOL(false);
 }

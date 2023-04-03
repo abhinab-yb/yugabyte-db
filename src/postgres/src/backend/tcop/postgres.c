@@ -108,11 +108,8 @@ int			max_stack_depth = 100;
 /* wait N seconds to allow attach from a debugger */
 int			PostAuthDelay = 0;
 
- /* is_tracing_enabled needed so that we can stop tracing if tracing was disabled just after starting the trace */
-bool		is_tracing_enabled = false;
+yb_trace	trace_vars;
 
-/* To store the query_id of the query string */
-int64 		query_id = -1;
 /* ----------------
  *		private variables
  * ----------------
@@ -217,7 +214,7 @@ static void log_disconnections(int code, Datum arg);
 static void enable_statement_timeout(void);
 static void disable_statement_timeout(void);
 
-
+static void InitYbTraceVars(void);
 /* ----------------------------------------------------------------
  *		routines to obtain user input
  * ----------------------------------------------------------------
@@ -720,7 +717,7 @@ pg_analyze_and_rewrite(RawStmt *parsetree, const char *query_string,
 
 	TRACE_POSTGRESQL_QUERY_REWRITE_DONE(query_string);
 
-	query_id = (int64)query->queryId; /* type cast uint64 to int64 */
+	trace_vars.query_id = (int64)query->queryId; /* type cast uint64 to int64 */
 
 	return querytree_list;
 }
@@ -1100,19 +1097,21 @@ exec_simple_query(const char *query_string)
 		oldcontext = MemoryContextSwitchTo(MessageContext);
 
 
-		YBCStartQueryEvent("analyz_and_rewrite");
+		if(IsYugaByteEnabled())
+			YBCStartQueryEvent("analyz_and_rewrite");
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
 												NULL, 0, NULL);
-		YBCStopQueryEvent("analyz_and_rewrite");
+		if(IsYugaByteEnabled())
+			YBCStopQueryEvent("analyz_and_rewrite");
 
-		if (!is_tracing_enabled) /* Check if tracing for this query was enabled */
+		if (IsYugaByteEnabled() && !trace_vars.is_tracing_enabled) /* Check if tracing for this query was enabled */
 		{
 			int traceable_index;
 			bool found = false;
 			LWLockAcquire(&MyProc->backendLock, LW_SHARED);
 			for (traceable_index = 0; traceable_index < MyProc->numQueries; traceable_index++)
 			{
-				if (MyProc->traceable_queries[traceable_index] == query_id)
+				if (MyProc->traceable_queries[traceable_index] == trace_vars.query_id)
 				{
 					found = true;
 					break;
@@ -1123,14 +1122,16 @@ exec_simple_query(const char *query_string)
 			if (found)
 			{
 				YBCStartTraceForQuery(MyProc->pid, query_string);
-				is_tracing_enabled = true;
+				trace_vars.is_tracing_enabled = true;
 			}
 		}
 
-		YBCStartQueryEvent("plan");
+		if(IsYugaByteEnabled())
+			YBCStartQueryEvent("plan");
 		plantree_list = pg_plan_queries(querytree_list,
 										CURSOR_OPT_PARALLEL_OK, NULL);
-		YBCStopQueryEvent("plan");
+		if(IsYugaByteEnabled())
+			YBCStopQueryEvent("plan");
 		/* Done with the snapshot used for parsing/planning */
 		if (snapshot_set)
 			PopActiveSnapshot();
@@ -1197,7 +1198,8 @@ exec_simple_query(const char *query_string)
 		 */
 		MemoryContextSwitchTo(oldcontext);
 
-		YBCStartQueryEvent("execute");
+		if(IsYugaByteEnabled())
+			YBCStartQueryEvent("execute");
 		/*
 		 * Run the portal to completion, and then drop it (and the receiver).
 		 */
@@ -1209,7 +1211,8 @@ exec_simple_query(const char *query_string)
 						 receiver,
 						 completionTag);
 
-		YBCStopQueryEvent("execute");
+		if(IsYugaByteEnabled())
+			YBCStopQueryEvent("execute");
 
 		receiver->rDestroy(receiver);
 
@@ -3761,8 +3764,6 @@ static void YBRefreshCache()
 		ereport(LOG,(errmsg("Refreshing catalog cache.")));
 	}
 
-	YBCStartQueryEvent("System catalog requests");
-
 	/*
 	 * Get the latest syscatalog version from the master.
 	 * Reset the cached version type if needed to force reading catalog version
@@ -3786,8 +3787,6 @@ static void YBRefreshCache()
 	yb_need_cache_refresh = false;
 
 	finish_xact_command();
-		
-	YBCStopQueryEvent("System catalog requests");
 }
 
 static bool YBTableSchemaVersionMismatchError(ErrorData *edata, char **table_id)
@@ -5118,6 +5117,9 @@ PostgresMain(int argc, char *argv[],
 	if (!ignore_till_sync)
 		send_ready_for_query = true;	/* initially, or after error */
 
+	/* Initialize tracing variables */
+	InitYbTraceVars();
+
 	/*
 	 * Non-error queries loop here.
 	 */
@@ -5263,7 +5265,7 @@ PostgresMain(int argc, char *argv[],
 			if (pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
 			{
 				YBCStartTraceForQuery(MyProc->pid, "query_string");
-				is_tracing_enabled = true;
+				trace_vars.is_tracing_enabled = true;
 			}
 			
 			yb_pgstat_set_has_catalog_version(true);
@@ -5309,6 +5311,7 @@ PostgresMain(int argc, char *argv[],
 					{
 						if (!am_walsender || !exec_replication_command(query_string))
 						{
+							trace_vars.statement_retries++;
 							if (yb_debug_log_internal_restarts)
 							{
 								yb_report_cache_version_restart(query_string, edata);
@@ -5731,10 +5734,10 @@ PostgresMain(int argc, char *argv[],
 						 errmsg("invalid frontend message type %d",
 								firstchar)));
 		}
-		if (IsYugaByteEnabled() && is_tracing_enabled)
+		if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
 		{
 			YBCStopTraceForQuery();
-			is_tracing_enabled = false;
+			trace_vars.is_tracing_enabled = false;
 		}
 	}							/* end of input-reading loop */
 }
@@ -6028,4 +6031,12 @@ const char* RedactPasswordIfExists(const char* queryStr) {
 	}
 
 	return queryStr;
+}
+
+static void
+InitYbTraceVars(void)
+{
+	trace_vars.is_tracing_enabled = false;
+	trace_vars.query_id = -1;
+	trace_vars.statement_retries = 0;
 }
