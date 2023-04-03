@@ -944,6 +944,7 @@ void PgSession::CleanupTracer() {
     trace_file_handle_.reset();
     trace_file_handle_ = nullptr;
   }
+  this->query_tracer_ = nullptr;
 }
 
 template<class Generator>

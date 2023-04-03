@@ -271,6 +271,8 @@ InitProcGlobal(void)
 		/* Initialize lockGroupMembers list. */
 		dlist_init(&procs[i].lockGroupMembers);
 
+		procs[i].traceableQueries = (int64 *) ShmemAlloc(10 * sizeof(int64));
+
 		/*
 		 * Initialize the atomic variables, otherwise, it won't be safe to
 		 * access them for backends that aren't currently in use.
@@ -378,6 +380,7 @@ InitProcess(void)
 	MyPgXact->xid = InvalidTransactionId;
 	MyPgXact->xmin = InvalidTransactionId;
 	MyProc->pid = MyProcPid;
+	MyProc->numQueries = 0;
 	/* backendId, databaseId and roleId will be filled in later */
 	MyProc->backendId = InvalidBackendId;
 	MyProc->databaseId = InvalidOid;
@@ -1906,10 +1909,4 @@ BecomeLockGroupMember(PGPROC *leader, int pid)
 	LWLockRelease(leader_lwlock);
 
 	return ok;
-}
-
-bool
-CheckTracing(int pid, int64 query_id)
-{
-	return IsTracingEnabled(pid, query_id, false);
 }

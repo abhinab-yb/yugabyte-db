@@ -213,6 +213,10 @@ struct PGPROC
 	 * pg_buffercache extension locks all buffer partitions simultaneously.
 	 */
 	bool 		ybAnyLockAcquired;
+
+	/* List of queryids to be traced */
+	int 		numQueries; /* store this in is_yb_tracing_enabled? as 31 bits are wasted */
+	int64* 		traceableQueries;
 };
 
 /* NOTE: "typedef struct PGPROC PGPROC" appears in storage/lock.h. */
@@ -343,7 +347,5 @@ extern PGPROC *AuxiliaryPidGetProc(int pid);
 
 extern void BecomeLockGroupLeader(void);
 extern bool BecomeLockGroupMember(PGPROC *leader, int pid);
-
-extern bool CheckTracing(int pid, int64 query_id);
 
 #endif							/* PROC_H */

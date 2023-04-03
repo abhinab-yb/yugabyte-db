@@ -1104,11 +1104,26 @@ exec_simple_query(const char *query_string)
 		if(IsYugaByteEnabled())
 			YBCStopQueryEvent("analyz_and_rewrite");
 
-		if (IsYugaByteEnabled() && !trace_vars.is_tracing_enabled && 
-			CheckTracing(MyProc->pid, trace_vars.query_id)) /* Check if tracing for this query was enabled */
+		if (IsYugaByteEnabled() && !trace_vars.is_tracing_enabled) /* Check if tracing for this query was enabled */
 		{
-			YBCStartTraceForQuery(MyProc->pid, query_string);
-			trace_vars.is_tracing_enabled = true;
+			int traceable_index;
+			bool found = false;
+			LWLockAcquire(&MyProc->backendLock, LW_SHARED);
+			for (traceable_index = 0; traceable_index < MyProc->numQueries; traceable_index++)
+			{
+				if (MyProc->traceableQueries[traceable_index] == trace_vars.query_id)
+				{
+					found = true;
+					break;
+				}
+			}
+			LWLockRelease(&MyProc->backendLock);
+
+			if (found)
+			{
+				YBCStartTraceForQuery(MyProc->pid, query_string);
+				trace_vars.is_tracing_enabled = true;
+			}
 		}
 
 		if(IsYugaByteEnabled())
@@ -5252,7 +5267,7 @@ PostgresMain(int argc, char *argv[],
 				YBCStartTraceForQuery(MyProc->pid, "query_string");
 				trace_vars.is_tracing_enabled = true;
 			}
-			
+
 			yb_pgstat_set_has_catalog_version(true);
 			YBCPgResetCatalogReadTime();
 			YBCheckSharedCatalogCacheVersion();
