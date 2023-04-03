@@ -215,6 +215,7 @@ static void enable_statement_timeout(void);
 static void disable_statement_timeout(void);
 
 static void ResetYbTraceVars(void);
+
 /* ----------------------------------------------------------------
  *		routines to obtain user input
  * ----------------------------------------------------------------
@@ -1102,7 +1103,7 @@ exec_simple_query(const char *query_string)
 			trace_vars.is_tracing_enabled = true;
 		}
 
-		if( IsYugaByteEnabled()) /* Remove this? as tracing is enabled for query and not session, we cannot trace it*/
+		if( IsYugaByteEnabled()) /* Remove this? if tracing is enabled for query and not session, we cannot trace it*/
 			YBCStartQueryEvent("analyz_and_rewrite");
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
 												NULL, 0, NULL);
