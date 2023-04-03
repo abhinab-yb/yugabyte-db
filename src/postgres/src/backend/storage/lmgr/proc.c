@@ -431,8 +431,6 @@ InitProcess(void)
 
 	MyProc->ybAnyLockAcquired = false;
 
-	MyProc->numQueries = 0;
-
 	/*
 	 * Acquire ownership of the PGPROC's latch, so that we can use WaitLatch
 	 * on it.  That allows us to repoint the process latch, which so far
@@ -1908,4 +1906,10 @@ BecomeLockGroupMember(PGPROC *leader, int pid)
 	LWLockRelease(leader_lwlock);
 
 	return ok;
+}
+
+bool
+CheckTracing(int pid, int64 query_id)
+{
+	return IsTracingEnabled(pid, query_id, false);
 }

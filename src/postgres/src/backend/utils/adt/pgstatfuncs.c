@@ -2151,15 +2151,16 @@ yb_pg_stat_retrieve_concurrent_index_progress()
 Datum
 yb_pg_enable_tracing(PG_FUNCTION_ARGS)
 {
-	int pid = PG_GETARG_INT32(0);
+	int pid = PG_ARGISNULL(0) ? MyProcPid : PG_GETARG_INT32(0);
 	bool is_query_id_null = PG_ARGISNULL(1);
 	int64 query_id = is_query_id_null ? -1 : PG_GETARG_INT64(1);
 
-	if(pid == -1)
-		pid = MyProcPid;
-
 	if(pid >= 0 && SignalTracing(1, pid, query_id, is_query_id_null))
 		PG_RETURN_BOOL(true);
+
+	ereport(WARNING,
+				(ERRCODE_INVALID_PARAMETER_VALUE,
+				 errmsg("backend with the specified pid doesn't exist")));
 
 	PG_RETURN_BOOL(false);
 }
@@ -2167,30 +2168,28 @@ yb_pg_enable_tracing(PG_FUNCTION_ARGS)
 Datum
 yb_pg_disable_tracing(PG_FUNCTION_ARGS)
 {
-	int pid = PG_GETARG_INT32(0);
+	int pid = PG_ARGISNULL(0) ? MyProcPid : PG_GETARG_INT32(0);
 	bool is_query_id_null = PG_ARGISNULL(1);
 	int64 query_id = is_query_id_null ? -1 : PG_GETARG_INT64(1);
-
-	if(pid == -1)
-		pid = MyProcPid;
 
 	if(pid >= 0 && SignalTracing(0, pid, query_id, is_query_id_null))
 		PG_RETURN_BOOL(true);
 
+	// TODO: Make the warnings more fine tuned
+	ereport(WARNING,
+				(ERRCODE_INVALID_PARAMETER_VALUE,
+				 errmsg("backend with the specified pid doesn't exist or the query with specified id doesn't have tracing enabled")));
+
 	PG_RETURN_BOOL(false);
 }
 
-/* Returns whether tracing is enabled for a particular pid or not */
 Datum
 is_yb_pg_tracing_enabled(PG_FUNCTION_ARGS)
 {
-	int pid = PG_GETARG_INT32(0);
+	int pid = PG_ARGISNULL(0) ? MyProcPid : PG_GETARG_INT32(0);
 	bool is_query_id_null = PG_ARGISNULL(1);
 	int64 query_id = is_query_id_null ? -1 : PG_GETARG_INT64(1);
 
-	if(pid == -1)
-		pid = MyProcPid;
-	
 	if(pid >= 0 && IsTracingEnabled(pid, query_id, is_query_id_null))
 		PG_RETURN_BOOL(true);
 

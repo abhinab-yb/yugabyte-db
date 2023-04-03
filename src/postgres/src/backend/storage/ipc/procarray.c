@@ -65,11 +65,19 @@
 
 #include "pg_yb_utils.h"
 
+typedef struct PidQueryIdStruct
+{
+	int 		pid;
+	int64		query_id;
+} PidQueryIdStruct;
+
 /* Our shared memory area */
 typedef struct ProcArrayStruct
 {
 	int			numProcs;		/* number of valid procs entries */
 	int			maxProcs;		/* allocated size of procs array */
+	int 		numQueries;
+	int 		maxQueries;
 
 	/*
 	 * Known assigned XIDs handling
@@ -93,6 +101,8 @@ typedef struct ProcArrayStruct
 	TransactionId replication_slot_xmin;
 	/* oldest catalog xmin of any replication slot */
 	TransactionId replication_slot_catalog_xmin;
+
+	PidQueryIdStruct *traceableQueries;
 
 	/* indexes into allPgXact[], has PROCARRAY_MAXPROCS entries */
 	int			pgprocnos[FLEXIBLE_ARRAY_MEMBER];
@@ -240,6 +250,8 @@ CreateSharedProcArray(void)
 		 */
 		procArray->numProcs = 0;
 		procArray->maxProcs = PROCARRAY_MAXPROCS;
+		procArray->numQueries = 0;
+		procArray->maxQueries = 100;
 		procArray->maxKnownAssignedXids = TOTAL_MAX_CACHED_SUBXIDS;
 		procArray->numKnownAssignedXids = 0;
 		procArray->tailKnownAssignedXids = 0;
@@ -248,6 +260,7 @@ CreateSharedProcArray(void)
 		procArray->lastOverflowedXid = InvalidTransactionId;
 		procArray->replication_slot_xmin = InvalidTransactionId;
 		procArray->replication_slot_catalog_xmin = InvalidTransactionId;
+		procArray->traceableQueries = (PidQueryIdStruct *)palloc(sizeof(PidQueryIdStruct) * 100);
 	}
 
 	allProcs = ProcGlobal->allProcs;
@@ -4158,7 +4171,7 @@ SignalTracingWithoutQueryId(uint32 signal, int pid)
 
 			if (!signal)
 			{
-				/* Clear out the traceable_queries array */
+				arrayP->numQueries = 0; /* clear out traceableQueries */
 			}
 
 			if (pid != 0)
@@ -4171,17 +4184,16 @@ SignalTracingWithoutQueryId(uint32 signal, int pid)
 }
 
 bool
-AddQueryId(int64 query_id, int pgprocno)
+AddQueryId(int pid, int64 query_id)
 {
-	/* Problem with proc not being volatile? */
-	PGPROC *proc = &allProcs[pgprocno];
-	int			traceable_index;
+	ProcArrayStruct *arrayP = procArray;
+	int 		traceable_index;
 	bool 		is_tracing_toggled = true;
 
-	LWLockAcquire(&proc->backendLock, LW_EXCLUSIVE);
-	for (traceable_index = 0; traceable_index < proc->numQueries; traceable_index++)
+	for (traceable_index = 0; traceable_index < arrayP->numQueries; traceable_index++)
 	{
-		if (proc->traceable_queries[traceable_index] == query_id)
+		if (arrayP->traceableQueries[traceable_index].pid == pid &&
+			arrayP->traceableQueries[traceable_index].query_id == query_id)
 		{
 			is_tracing_toggled = false;
 			break;
@@ -4189,35 +4201,38 @@ AddQueryId(int64 query_id, int pgprocno)
 	}
 	if (is_tracing_toggled)
 	{
-		proc->traceable_queries[proc->numQueries] = query_id; /* add query_id (TODO: Check how FLEXIBLE_ARRAY_MEMBER works) */
-		proc->numQueries++;
+		if (arrayP->numQueries != arrayP->maxQueries)
+		{
+			arrayP->traceableQueries[arrayP->numQueries].pid = pid;
+			arrayP->traceableQueries[arrayP->numQueries].query_id = query_id;
+			arrayP->numQueries++;
+		}
+		else
+			return false;
 	}
-	LWLockRelease(&proc->backendLock);
 
-	return is_tracing_toggled;
+	return true;
 }
 
 bool
-RemoveQueryId(int64 query_id, int pgprocno)
+RemoveQueryId(int pid, int64 query_id)
 {
-	/* Problem with proc not being volatile? */
-	PGPROC *proc = &allProcs[pgprocno];
+	ProcArrayStruct *arrayP = procArray;
 	int			traceable_index;
 	bool 		is_tracing_toggled = false;
 
-	LWLockAcquire(&proc->backendLock, LW_EXCLUSIVE);
-	for (traceable_index = 0; traceable_index < proc->numQueries; traceable_index++)
+	for (traceable_index = 0; traceable_index < arrayP->numQueries; traceable_index++)
 	{
-		if (proc->traceable_queries[traceable_index] == query_id)
+		if (arrayP->traceableQueries[traceable_index].pid == pid &&
+			arrayP->traceableQueries[traceable_index].query_id == query_id)
 		{
-			memmove(&proc->traceable_queries[traceable_index], &proc->traceable_queries[traceable_index + 1],
-					(proc->numQueries - traceable_index - 1) * sizeof(uint64));
-			proc->numQueries--;
+			memmove(&arrayP->traceableQueries[traceable_index], &arrayP->traceableQueries[traceable_index + 1],
+					(arrayP->numQueries - traceable_index - 1) * sizeof(uint64));
+			arrayP->numQueries--;
 			is_tracing_toggled = true;
 			break;
 		}
 	}
-	LWLockRelease(&proc->backendLock);
 
 	return is_tracing_toggled;
 }
@@ -4228,7 +4243,14 @@ SignalTracingWithQueryId(uint32 signal, int pid, int64 query_id)
 	ProcArrayStruct *arrayP = procArray;
 	int			index;
 	int			pgprocno;
-	bool 		is_tracing_toggled = false;
+	bool 		is_tracing_toggled = signal ? true : false;
+	/* if pid is 0 and signal is 1
+	 * is_tracing_toggled will be true if all the processes have enough
+	 * space for adding the query_id, otherwise false
+	 * if pid is 0 and signal is 0
+	 * is_tracing_toggled will be true if any of the process can remove
+	 * the query_id, otherwise false
+	 */
 
 	LWLockAcquire(ProcArrayLock, LW_SHARED);
 	for (index = 0; index < arrayP->numProcs; index++)
@@ -4244,9 +4266,9 @@ SignalTracingWithQueryId(uint32 signal, int pid, int64 query_id)
 		if (pid == 0 || proc->pid == pid)
 		{
 			if (signal)
-				is_tracing_toggled |= AddQueryId(query_id, pgprocno);
+				is_tracing_toggled &= AddQueryId(pid, query_id);
 			else
-				is_tracing_toggled |= RemoveQueryId(query_id, pgprocno);
+				is_tracing_toggled |= RemoveQueryId(pid, query_id);
 			
 			if (pid != 0)
 				break;
@@ -4297,22 +4319,21 @@ IsTracingEnabledWithoutQueryId(int pid)
 }
 
 bool
-IsTracingEnabledForQueryId(int64 query_id, int pgprocno)
+IsTracingEnabledForQueryId(int pid, int64 query_id)
 {
-	PGPROC *proc = &allProcs[pgprocno];
+	ProcArrayStruct *arrayP = procArray;
 	int 		traceable_index;
-	bool         is_tracing_enabled = false;
+	bool		is_tracing_enabled = false;
 
-	LWLockAcquire(&proc->backendLock, LW_SHARED);
-	for (traceable_index = 0; traceable_index < proc->numQueries; traceable_index++)
+	for (traceable_index = 0; traceable_index < arrayP->numQueries; traceable_index++)
 	{
-		if (proc->traceable_queries[traceable_index] == query_id)
+		if (arrayP->traceableQueries[traceable_index].pid == pid &&
+			arrayP->traceableQueries[traceable_index].query_id == query_id)
 		{
 			is_tracing_enabled = true;
 			break;
 		}
 	}
-	LWLockRelease(&proc->backendLock);
 
 	return is_tracing_enabled;
 }
@@ -4337,7 +4358,7 @@ IsTracingEnabledWithQueryId(int pid, int64 query_id)
 
 		if (pid == 0 || proc->pid == pid)
 		{
-			is_tracing_enabled = IsTracingEnabledForQueryId(query_id, pgprocno);
+			is_tracing_enabled = IsTracingEnabledForQueryId(pid, query_id);
 
 			if (pid != 0 || !is_tracing_enabled)
 				break;
