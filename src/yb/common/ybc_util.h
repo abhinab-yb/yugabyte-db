@@ -71,6 +71,12 @@ extern int ysql_max_in_flight_ops;
 extern bool yb_binary_restore;
 
 /*
+ * Set to true when only for ANALYZE (EXPLAIN, DIST) and enables collection of RPC stats that may
+ * slow down regular query execution.
+ */
+extern bool yb_run_with_analyze_explain_dist;
+
+/*
  * xcluster consistency level
  */
 #define XCLUSTER_CONSISTENCY_TABLET 0

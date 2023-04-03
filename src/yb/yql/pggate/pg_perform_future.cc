@@ -18,6 +18,7 @@
 
 #include "yb/common/pgsql_error.h"
 
+#include "yb/common/ybc_util.h"
 #include "yb/util/flags.h"
 #include "yb/yql/pggate/pg_session.h"
 
@@ -78,6 +79,10 @@ Result<rpc::CallResponsePtr> PerformFuture::Get() {
 }
 
 Result<rpc::CallResponsePtr> PerformFuture::Get(MonoDelta* wait_time) {
+  if (!yb_run_with_analyze_explain_dist) {
+    return Get();
+  }
+
   if (PREDICT_FALSE(FLAGS_TEST_use_monotime_for_rpc_wait_time)) {
     auto start_time = MonoTime::Now();
     auto response = Get();

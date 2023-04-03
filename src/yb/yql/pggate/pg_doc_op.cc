@@ -19,6 +19,7 @@
 
 #include "yb/common/row_mark.h"
 
+#include "yb/common/ybc_util.h"
 #include "yb/gutil/casts.h"
 #include "yb/gutil/strings/escaping.h"
 

@@ -448,7 +448,8 @@ class PgApiImpl {
   Status StopOperationsBuffering();
   void ResetOperationsBuffering();
   Status FlushBufferedOperations();
-  void GetAndResetOperationFlushRpcStats(uint64_t* count, uint64_t* wait_time);
+  void GetAndResetOperationFlushRpcStats(uint64_t* count, uint64_t* wait_time,
+                                         uint64_t* catalog_count, uint64_t* catalog_wait_time);
 
   //------------------------------------------------------------------------------------------------
   // Insert.
@@ -600,6 +601,7 @@ class PgApiImpl {
   // RPC stats for EXPLAIN ANALYZE
   void GetAndResetReadRpcStats(PgStatement *handle, uint64_t* reads, uint64_t* read_wait,
                                uint64_t* tbl_reads, uint64_t* tbl_read_wait);
+  void GetAndResetNonbufferedWriteRpcStats(uint64_t* writes, uint64_t* write_wait);
 
   //------------------------------------------------------------------------------------------------
   // System Validation.
@@ -615,6 +617,8 @@ class PgApiImpl {
   // Metrics.
   std::unique_ptr<MetricRegistry> metric_registry_;
   scoped_refptr<MetricEntity> metric_entity_;
+  uint64_t write_rpc_count;
+  uint64_t write_rpc_wait_time;
 
   // Memory tracker.
   std::shared_ptr<MemTracker> mem_tracker_;

@@ -28,6 +28,7 @@
 #include "yb/common/ql_value.h"
 #include "yb/common/schema.h"
 
+#include "yb/common/ybc_util.h"
 #include "yb/docdb/doc_key.h"
 #include "yb/docdb/primitive_value.h"
 #include "yb/docdb/value_type.h"
@@ -118,6 +119,10 @@ class RowIdentifier {
     return table_id_;
   }
 
+  bool is_catalog_table() const {
+    return table_id_.IsCatalogTableId();
+  }
+
  private:
   friend bool operator==(const RowIdentifier& k1, const RowIdentifier& k2);
 
@@ -195,6 +200,15 @@ bool BufferableOperations::empty() const {
   return operations.empty();
 }
 
+bool BufferableOperations::HasCatalogChange() const {
+  for (auto rel : relations) {
+    if (rel.IsCatalogTableId()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 size_t BufferableOperations::size() const {
   return operations.size();
 }
@@ -241,11 +255,27 @@ class PgOperationBuffer::Impl {
     in_flight_ops_.clear();
   }
 
-  void GetAndResetRpcStats(uint64_t* count, uint64_t* wait_time) {
+  void AddRpc(bool catalog) {
+    if (catalog) {
+      ++catalog_rpc_count_;
+    } else {
+      ++rpc_count_;
+    }
+  }
+
+  void GetAndResetRpcStats(uint64_t* count,
+                           uint64_t* wait_time,
+                           uint64_t* catalog_count,
+                           uint64_t* catalog_wait_time) {
     *count = rpc_count_;
     rpc_count_ = 0;
     *wait_time = rpc_wait_time_.ToNanoseconds();
     rpc_wait_time_ = MonoDelta::FromNanoseconds(0);
+
+    *catalog_count = catalog_rpc_count_;
+    catalog_rpc_count_ = 0;
+    *catalog_wait_time = catalog_rpc_wait_time.ToNanoseconds();
+    catalog_rpc_wait_time = MonoDelta::FromNanoseconds(0);
   }
 
  private:
@@ -324,9 +354,27 @@ class PgOperationBuffer::Impl {
 
   Status EnsureCompleted(size_t count) {
     for(; count && !in_flight_ops_.empty(); --count) {
-      RETURN_NOT_OK(in_flight_ops_.front().future.Get(&rpc_wait_time_));
+      MonoDelta *wait_time = &rpc_wait_time_;
+
+      if (yb_run_with_analyze_explain_dist) {
+        bool contains_catalog_request = false;
+        for (auto key : in_flight_ops_.front().keys) {
+          if (key.is_catalog_table()) {
+            contains_catalog_request = true;
+            break;
+          }
+        }
+
+        if (contains_catalog_request) {
+          wait_time = &catalog_rpc_wait_time;
+          ++catalog_rpc_count_;
+        } else {
+          ++rpc_count_;
+        }
+      }
+
+      RETURN_NOT_OK(in_flight_ops_.front().future.Get(wait_time));
       in_flight_ops_.pop_front();
-      ++rpc_count_;
     }
     return Status::OK();
   }
@@ -414,6 +462,8 @@ class PgOperationBuffer::Impl {
   InFlightOps in_flight_ops_;
   uint64_t rpc_count_ = 0;
   MonoDelta rpc_wait_time_ = MonoDelta::FromNanoseconds(0);
+  uint64_t catalog_rpc_count_ = 0;
+  MonoDelta catalog_rpc_wait_time = MonoDelta::FromNanoseconds(0);
 };
 
 PgOperationBuffer::PgOperationBuffer(const Flusher& flusher,
@@ -445,8 +495,14 @@ void PgOperationBuffer::Clear() {
 }
 
 void PgOperationBuffer::GetAndResetRpcStats(uint64_t* count,
-                                            uint64_t* wait_time) {
-  impl_->GetAndResetRpcStats(count, wait_time);
+                                            uint64_t* wait_time,
+                                            uint64_t* catalog_count,
+                                            uint64_t* catalog_wait_time) {
+  impl_->GetAndResetRpcStats(count, wait_time, catalog_count, catalog_wait_time);
+}
+
+void PgOperationBuffer::AddWriteRpc(bool catalog) {
+  impl_->AddRpc(catalog);
 }
 
 } // namespace pggate

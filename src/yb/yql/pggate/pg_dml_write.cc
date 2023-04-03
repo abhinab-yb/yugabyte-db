@@ -93,6 +93,10 @@ Status PgDmlWrite::DeleteEmptyPrimaryBinds() {
   return Status::OK();
 }
 
+void PgDmlWrite::GetAndResetWriteRpcCounts(uint64_t *write_rpcs, uint64_t *write_rpc_wait) {
+  doc_op_->GetAndResetReadRpcStats(write_rpcs, write_rpc_wait);
+}
+
 Status PgDmlWrite::Exec(bool force_non_bufferable) {
 
   // Delete allocated binds that are not associated with a value.

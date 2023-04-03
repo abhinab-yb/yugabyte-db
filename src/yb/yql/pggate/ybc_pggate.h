@@ -417,7 +417,9 @@ YBCStatus YBCPgStopOperationsBuffering();
 void YBCPgResetOperationsBuffering();
 YBCStatus YBCPgFlushBufferedOperations();
 void YBCPgGetAndResetOperationFlushRpcStats(uint64_t* count,
-                                            uint64_t* wait_time);
+                                            uint64_t* wait_time,
+                                            uint64_t* catalog_count,
+                                            uint64_t* catalog_wait_time);
 
 YBCStatus YBCPgNewSample(const YBCPgOid database_oid,
                          const YBCPgOid table_oid,
@@ -492,6 +494,7 @@ YBCStatus YBCPgExecSelect(YBCPgStatement handle, const YBCPgExecParameters *exec
 // RPC stats for EXPLAIN ANALYZE
 void YBCGetAndResetReadRpcStats(YBCPgStatement handle, uint64_t* reads, uint64_t* read_wait,
                                 uint64_t* tbl_reads, uint64_t* tbl_read_wait);
+void YBCGetAndResetNonbufferedWriteRpcStats(uint64_t* writes, uint64_t* write_waits);
 
 // Transaction control -----------------------------------------------------------------------------
 YBCStatus YBCPgBeginTransaction();

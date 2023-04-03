@@ -44,6 +44,10 @@ struct PgObjectId {
     return database_oid != kPgInvalidOid && object_oid != kPgInvalidOid;
   }
 
+  bool IsCatalogTableId() const {
+    return object_oid < kPgFirstNormalObjectId;
+  }
+
   TableId GetYbTableId() const {
     return GetPgsqlTableId(database_oid, object_oid);
   }

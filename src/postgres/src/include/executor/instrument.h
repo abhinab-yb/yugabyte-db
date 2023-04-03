@@ -61,8 +61,6 @@ typedef struct Instrumentation
 	double		firsttuple;		/* Time for first tuple of this cycle */
 	double		tuplecount;		/* Tuples emitted so far this cycle */
 	BufferUsage bufusage_start; /* Buffer usage at start */
-	YbPgRpcStats yb_read_rpcs;	/* Index read RPC stats */
-	YbPgRpcStats yb_tbl_read_rpcs;	/* Table row fetch RPC stats */
 	/* Accumulated statistics across all completed cycles: */
 	double		startup;		/* Total startup time (in seconds) */
 	double		total;			/* Total total time (in seconds) */
@@ -72,6 +70,9 @@ typedef struct Instrumentation
 	double		nfiltered1;		/* # tuples removed by scanqual or joinqual */
 	double		nfiltered2;		/* # tuples removed by "other" quals */
 	BufferUsage bufusage;		/* Total buffer usage */
+
+	YbPgRpcStats yb_read_rpcs;	/* Index read RPC stats */
+	YbPgRpcStats yb_tbl_read_rpcs;	/* Table row fetch RPC stats */
 } Instrumentation;
 
 typedef struct WorkerInstrumentation

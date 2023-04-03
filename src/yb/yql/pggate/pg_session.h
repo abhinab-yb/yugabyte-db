@@ -311,7 +311,10 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
 
   Result<bool> CheckIfPitrActive();
 
-  void GetAndResetOperationFlushRpcStats(uint64_t* count, uint64_t* wait_time);
+  void GetAndResetOperationFlushRpcStats(uint64_t* count,
+                                         uint64_t* wait_time,
+                                         uint64_t* catalog_count,
+                                         uint64_t* catalog_wait_time);
 
  private:
   Result<PerformFuture> FlushOperations(
