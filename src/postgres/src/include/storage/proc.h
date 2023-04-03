@@ -216,6 +216,7 @@ struct PGPROC
 
 	/* List of queryids to be traced */
 	int 		numQueries; /* store this in is_yb_tracing_enabled? as 31 bits are wasted */
+	int 		maxQueries;
 	int64* 		traceableQueries;
 };
 

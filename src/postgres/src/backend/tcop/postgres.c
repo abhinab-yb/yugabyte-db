@@ -214,7 +214,7 @@ static void log_disconnections(int code, Datum arg);
 static void enable_statement_timeout(void);
 static void disable_statement_timeout(void);
 
-static void InitYbTraceVars(void);
+static void ResetYbTraceVars(void);
 /* ----------------------------------------------------------------
  *		routines to obtain user input
  * ----------------------------------------------------------------
@@ -1096,19 +1096,25 @@ exec_simple_query(const char *query_string)
 		 */
 		oldcontext = MemoryContextSwitchTo(MessageContext);
 
+		if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
+		{
+			YBCStartTraceForQuery(MyProc->pid, query_string);
+			trace_vars.is_tracing_enabled = true;
+		}
 
-		if(IsYugaByteEnabled())
+		if( IsYugaByteEnabled()) /* Remove this? as tracing is enabled for query and not session, we cannot trace it*/
 			YBCStartQueryEvent("analyz_and_rewrite");
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
 												NULL, 0, NULL);
-		if(IsYugaByteEnabled())
+		if( IsYugaByteEnabled())
 			YBCStopQueryEvent("analyz_and_rewrite");
 
-		if (IsYugaByteEnabled() && !trace_vars.is_tracing_enabled) /* Check if tracing for this query was enabled */
+		if (IsYugaByteEnabled() && !trace_vars.is_tracing_enabled)
 		{
 			int traceable_index;
 			bool found = false;
-			LWLockAcquire(&MyProc->backendLock, LW_SHARED);
+			volatile PGPROC *proc = MyProc;
+			LWLockAcquire((LWLock *)&proc->backendLock, LW_SHARED);
 			for (traceable_index = 0; traceable_index < MyProc->numQueries; traceable_index++)
 			{
 				if (MyProc->traceableQueries[traceable_index] == trace_vars.query_id)
@@ -1117,7 +1123,7 @@ exec_simple_query(const char *query_string)
 					break;
 				}
 			}
-			LWLockRelease(&MyProc->backendLock);
+			LWLockRelease((LWLock *)&proc->backendLock);
 
 			if (found)
 			{
@@ -5118,7 +5124,7 @@ PostgresMain(int argc, char *argv[],
 		send_ready_for_query = true;	/* initially, or after error */
 
 	/* Initialize tracing variables */
-	InitYbTraceVars();
+	ResetYbTraceVars();
 
 	/*
 	 * Non-error queries loop here.
@@ -5262,12 +5268,6 @@ PostgresMain(int argc, char *argv[],
 
 		if (IsYugaByteEnabled())
 		{
-			if (pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
-			{
-				YBCStartTraceForQuery(MyProc->pid, "query_string");
-				trace_vars.is_tracing_enabled = true;
-			}
-
 			yb_pgstat_set_has_catalog_version(true);
 			YBCPgResetCatalogReadTime();
 			YBCheckSharedCatalogCacheVersion();
@@ -5737,7 +5737,7 @@ PostgresMain(int argc, char *argv[],
 		if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
 		{
 			YBCStopTraceForQuery();
-			trace_vars.is_tracing_enabled = false;
+			ResetYbTraceVars();
 		}
 	}							/* end of input-reading loop */
 }
@@ -6034,7 +6034,7 @@ const char* RedactPasswordIfExists(const char* queryStr) {
 }
 
 static void
-InitYbTraceVars(void)
+ResetYbTraceVars(void)
 {
 	trace_vars.is_tracing_enabled = false;
 	trace_vars.query_id = -1;

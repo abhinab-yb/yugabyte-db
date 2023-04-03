@@ -271,7 +271,10 @@ InitProcGlobal(void)
 		/* Initialize lockGroupMembers list. */
 		dlist_init(&procs[i].lockGroupMembers);
 
-		procs[i].traceableQueries = (int64 *) ShmemAlloc(10 * sizeof(int64));
+		/* Initialize traceableQueries array */
+		procs[i].numQueries = 0;
+		procs[i].maxQueries = 10;
+		procs[i].traceableQueries = (int64 *) ShmemAlloc(procs[i].maxQueries * sizeof(int64));
 
 		/*
 		 * Initialize the atomic variables, otherwise, it won't be safe to
@@ -380,7 +383,6 @@ InitProcess(void)
 	MyPgXact->xid = InvalidTransactionId;
 	MyPgXact->xmin = InvalidTransactionId;
 	MyProc->pid = MyProcPid;
-	MyProc->numQueries = 0;
 	/* backendId, databaseId and roleId will be filled in later */
 	MyProc->backendId = InvalidBackendId;
 	MyProc->databaseId = InvalidOid;

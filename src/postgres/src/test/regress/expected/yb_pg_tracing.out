@@ -77,20 +77,21 @@ SELECT yb_pg_disable_tracing(query_id => NULL, pid => 0);
 -- Test to check invalid pid
 --
 SELECT yb_pg_enable_tracing(-100, query_id => NULL);
-WARNING:  backend with the specified pid doesn't exist
+WARNING:  Backend with the given pid doesn't exist
  yb_pg_enable_tracing 
 ----------------------
  f
 (1 row)
 
 SELECT yb_pg_disable_tracing(-1000, query_id => NULL);
-WARNING:  backend with the specified pid doesn't exist or the query with specified id doesn't have tracing enabled
+WARNING:  Backend with the given pid doesn't exist
  yb_pg_disable_tracing 
 -----------------------
  f
 (1 row)
 
 SELECT is_yb_pg_tracing_enabled(-10000, query_id => NULL);
+WARNING:  Backend with the given pid doesn't exist
  is_yb_pg_tracing_enabled 
 --------------------------
  f
@@ -106,9 +107,10 @@ SELECT yb_pg_enable_tracing(query_id => 12345);
 (1 row)
 
 SELECT yb_pg_enable_tracing(query_id => 12345);
+WARNING:  Query with the given id already had tracing enabled or the query tracing limit reached
  yb_pg_enable_tracing 
 ----------------------
- t
+ f
 (1 row)
 
 SELECT is_yb_pg_tracing_enabled(query_id => 12345);
@@ -139,7 +141,7 @@ SELECT is_yb_pg_tracing_enabled(query_id => 12346789);
 (1 row)
 
 SELECT yb_pg_disable_tracing(query_id => 12346789);
-WARNING:  backend with the specified pid doesn't exist or the query with specified id doesn't have tracing enabled
+WARNING:  Query with the given id didn't have tracing enabled in any of the backend(s)
  yb_pg_disable_tracing 
 -----------------------
  f
@@ -155,9 +157,10 @@ SELECT yb_pg_enable_tracing(0, query_id => 12345);
 (1 row)
 
 SELECT yb_pg_enable_tracing(0, query_id => 12345);
+WARNING:  Query with the given id already had tracing enabled or the query tracing limit reached
  yb_pg_enable_tracing 
 ----------------------
- t
+ f
 (1 row)
 
 SELECT is_yb_pg_tracing_enabled(0, query_id => 12345);

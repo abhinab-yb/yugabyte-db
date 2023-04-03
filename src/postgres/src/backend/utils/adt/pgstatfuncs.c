@@ -2155,12 +2155,26 @@ yb_pg_enable_tracing(PG_FUNCTION_ARGS)
 	bool is_query_id_null = PG_ARGISNULL(1);
 	int64 query_id = is_query_id_null ? -1 : PG_GETARG_INT64(1);
 
-	if(pid >= 0 && SignalTracing(1, pid, query_id, is_query_id_null))
-		PG_RETURN_BOOL(true);
+	if (pid < 0)
+	{
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Backend with the given pid doesn't exist")));
+		PG_RETURN_BOOL(false);
+	}
 
-	ereport(WARNING,
-				(ERRCODE_INVALID_PARAMETER_VALUE,
-				 errmsg("backend with the specified pid doesn't exist")));
+	int result = SignalTracing(1, pid, query_id, is_query_id_null);
+
+	if (result == -2)
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Query with the given id already had tracing enabled or the query tracing limit reached")));
+	else if (result == -1)
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Backend with the given pid doesn't exist")));
+	else if (result == 1)
+		PG_RETURN_BOOL(true);
 
 	PG_RETURN_BOOL(false);
 }
@@ -2172,13 +2186,26 @@ yb_pg_disable_tracing(PG_FUNCTION_ARGS)
 	bool is_query_id_null = PG_ARGISNULL(1);
 	int64 query_id = is_query_id_null ? -1 : PG_GETARG_INT64(1);
 
-	if(pid >= 0 && SignalTracing(0, pid, query_id, is_query_id_null))
-		PG_RETURN_BOOL(true);
+	if (pid < 0)
+	{
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Backend with the given pid doesn't exist")));
+		PG_RETURN_BOOL(false);
+	}
 
-	// TODO: Make the warnings more fine tuned
-	ereport(WARNING,
-				(ERRCODE_INVALID_PARAMETER_VALUE,
-				 errmsg("backend with the specified pid doesn't exist or the query with specified id doesn't have tracing enabled")));
+	int result = SignalTracing(0, pid, query_id, is_query_id_null);
+
+	if (result == -2)
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Query with the given id didn't have tracing enabled in any of the backend(s)")));
+	else if (result == -1)
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Backend with the given pid doesn't exist")));
+	else if (result == 1)
+		PG_RETURN_BOOL(true);
 
 	PG_RETURN_BOOL(false);
 }
@@ -2190,7 +2217,22 @@ is_yb_pg_tracing_enabled(PG_FUNCTION_ARGS)
 	bool is_query_id_null = PG_ARGISNULL(1);
 	int64 query_id = is_query_id_null ? -1 : PG_GETARG_INT64(1);
 
-	if(pid >= 0 && IsTracingEnabled(pid, query_id, is_query_id_null))
+	if (pid < 0)
+	{
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Backend with the given pid doesn't exist")));
+		PG_RETURN_BOOL(false);
+	}
+
+	int result = IsTracingEnabled(pid, query_id, is_query_id_null);
+
+	if (result == -1)
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Backend with the given pid doesn't exist")));
+
+	if (result == 1)
 		PG_RETURN_BOOL(true);
 
 	PG_RETURN_BOOL(false);
