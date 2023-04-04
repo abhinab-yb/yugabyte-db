@@ -1104,11 +1104,11 @@ exec_simple_query(const char *query_string)
 		}
 
 		if( IsYugaByteEnabled()) /* Remove this? if tracing is enabled for query and not session, we cannot trace it*/
-			YBCStartQueryEvent("analyz_and_rewrite");
+			YBCStartQueryEvent("analyze_and_rewrite");
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
 												NULL, 0, NULL);
 		if( IsYugaByteEnabled())
-			YBCStopQueryEvent("analyz_and_rewrite");
+			YBCStopQueryEvent("analyze_and_rewrite");
 
 		if (IsYugaByteEnabled() && !trace_vars.is_tracing_enabled)
 		{
@@ -5312,7 +5312,6 @@ PostgresMain(int argc, char *argv[],
 					{
 						if (!am_walsender || !exec_replication_command(query_string))
 						{
-							trace_vars.statement_retries++;
 							if (yb_debug_log_internal_restarts)
 							{
 								yb_report_cache_version_restart(query_string, edata);
@@ -6039,5 +6038,4 @@ ResetYbTraceVars(void)
 {
 	trace_vars.is_tracing_enabled = false;
 	trace_vars.query_id = -1;
-	trace_vars.statement_retries = 0;
 }

@@ -76,6 +76,9 @@ struct XidCache
  */
 #define INVALID_PGPROCNO		PG_INT32_MAX
 
+/* This is the maximum number of queries that can be traced from each backend */
+#define MAX_TRACEABLE_QUERIES	10
+
 /*
  * Each backend has a PGPROC struct in shared memory.  There is also a list of
  * currently-unused PGPROC structs that will be reallocated to new backends.
@@ -216,7 +219,6 @@ struct PGPROC
 
 	/* List of queryids to be traced */
 	int 		numQueries; /* store this in is_yb_tracing_enabled? as 31 bits are wasted */
-	int 		maxQueries;
 	int64* 		traceableQueries;
 };
 

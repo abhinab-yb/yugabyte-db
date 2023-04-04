@@ -168,7 +168,6 @@ typedef struct
 {
 	bool 		is_tracing_enabled;
 	int64		query_id;
-	int			statement_retries;
 } yb_trace;
 
 /*

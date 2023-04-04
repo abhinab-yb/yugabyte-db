@@ -133,6 +133,7 @@ SELECT is_yb_pg_tracing_enabled(query_id => 12345);
 
 --
 -- Test to disable a query id which was not enabled for current backend
+-- This will throw a warning
 --
 SELECT is_yb_pg_tracing_enabled(query_id => 12346789);
  is_yb_pg_tracing_enabled 
@@ -149,6 +150,7 @@ WARNING:  Query with the given id didn't have tracing enabled in any of the back
 
 --
 -- Test to enable and disable tracing for a query id for all backends
+-- This will throw a warning as the same query_id enabled twice
 --
 SELECT yb_pg_enable_tracing(0, query_id => 12345);
  yb_pg_enable_tracing 

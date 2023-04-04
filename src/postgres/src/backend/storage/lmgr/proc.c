@@ -273,8 +273,7 @@ InitProcGlobal(void)
 
 		/* Initialize traceableQueries array */
 		procs[i].numQueries = 0;
-		procs[i].maxQueries = 10;
-		procs[i].traceableQueries = (int64 *) ShmemAlloc(procs[i].maxQueries * sizeof(int64));
+		procs[i].traceableQueries = (int64 *) ShmemAlloc(MAX_TRACEABLE_QUERIES * sizeof(int64));
 
 		/*
 		 * Initialize the atomic variables, otherwise, it won't be safe to

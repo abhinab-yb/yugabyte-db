@@ -70,8 +70,6 @@ typedef struct ProcArrayStruct
 {
 	int			numProcs;		/* number of valid procs entries */
 	int			maxProcs;		/* allocated size of procs array */
-	int 		numQueries;
-	int 		maxQueries;
 
 	/*
 	 * Known assigned XIDs handling
@@ -242,8 +240,6 @@ CreateSharedProcArray(void)
 		 */
 		procArray->numProcs = 0;
 		procArray->maxProcs = PROCARRAY_MAXPROCS;
-		procArray->numQueries = 0;
-		procArray->maxQueries = 10;
 		procArray->maxKnownAssignedXids = TOTAL_MAX_CACHED_SUBXIDS;
 		procArray->numKnownAssignedXids = 0;
 		procArray->tailKnownAssignedXids = 0;
@@ -4140,7 +4136,7 @@ KnownAssignedXidsReset(void)
 int
 SignalTracingWithoutQueryId(uint32 signal, int pid)
 {
-	volatile ProcArrayStruct *arrayP = procArray;
+	ProcArrayStruct *arrayP = procArray;
 	int			index;
 	bool 		is_tracing_toggled = false;
 	bool 		backend_found = pid ? false : true;
@@ -4186,7 +4182,7 @@ SignalTracingWithoutQueryId(uint32 signal, int pid)
 bool
 AddQueryId(int64 query_id, int pgprocno)
 {
-	volatile PGPROC *proc = &allProcs[pgprocno];
+	PGPROC *proc = &allProcs[pgprocno];
 	int			traceable_index;
 	bool 		query_already_enabled = false;
 
@@ -4201,7 +4197,7 @@ AddQueryId(int64 query_id, int pgprocno)
 	}
 	if (!query_already_enabled)
 	{
-		if (proc->numQueries != proc->maxQueries)
+		if (proc->numQueries != MAX_TRACEABLE_QUERIES)
 		{
 			proc->traceableQueries[proc->numQueries] = query_id;
 			proc->numQueries++;
@@ -4215,7 +4211,7 @@ AddQueryId(int64 query_id, int pgprocno)
 bool
 RemoveQueryId(int64 query_id, int pgprocno)
 {
-	volatile PGPROC *proc = &allProcs[pgprocno];
+	PGPROC *proc = &allProcs[pgprocno];
 	int			traceable_index;
 	bool 		query_already_disabled = true;
 
@@ -4239,7 +4235,7 @@ RemoveQueryId(int64 query_id, int pgprocno)
 int
 SignalTracingWithQueryId(uint32 signal, int pid, int64 query_id)
 {
-	volatile ProcArrayStruct *arrayP = procArray;
+	ProcArrayStruct *arrayP = procArray;
 	int			index;
 	int			pgprocno;
 	bool 		backend_found = pid ? false : true;
@@ -4295,7 +4291,7 @@ SignalTracing(uint32 signal, int pid, int64 query_id, bool is_query_id_null)
 int
 IsTracingEnabledWithoutQueryId(int pid)
 {
-	volatile ProcArrayStruct *arrayP = procArray;
+	ProcArrayStruct *arrayP = procArray;
 	int			index;
 	int			pgprocno;
 	bool 		is_tracing_enabled = true;
@@ -4334,7 +4330,7 @@ IsTracingEnabledWithoutQueryId(int pid)
 int
 IsTracingEnabledForQueryId(int64 query_id, int pgprocno)
 {
-	volatile PGPROC *proc = &allProcs[pgprocno];
+	PGPROC *proc = &allProcs[pgprocno];
 	int 		traceable_index;
 	bool		is_tracing_enabled = false;
 
@@ -4355,7 +4351,7 @@ IsTracingEnabledForQueryId(int64 query_id, int pgprocno)
 int
 IsTracingEnabledWithQueryId(int pid, int64 query_id)
 {
-	volatile ProcArrayStruct *arrayP = procArray;
+	ProcArrayStruct *arrayP = procArray;
 	int			index;
 	bool 		is_tracing_enabled = false;
 	bool 		backend_found = pid ? false : true;
