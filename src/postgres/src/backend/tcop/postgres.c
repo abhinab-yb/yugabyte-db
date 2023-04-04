@@ -1116,9 +1116,9 @@ exec_simple_query(const char *query_string)
 			bool found = false;
 			volatile PGPROC *proc = MyProc;
 			LWLockAcquire((LWLock *)&proc->backendLock, LW_SHARED);
-			for (traceable_index = 0; traceable_index < MyProc->numQueries; traceable_index++)
+			for (traceable_index = 0; traceable_index < proc->numQueries; traceable_index++)
 			{
-				if (MyProc->traceableQueries[traceable_index] == trace_vars.query_id)
+				if (proc->traceableQueries[traceable_index] == trace_vars.query_id)
 				{
 					found = true;
 					break;
