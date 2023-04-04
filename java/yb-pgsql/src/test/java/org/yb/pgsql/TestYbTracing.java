@@ -20,11 +20,11 @@ import java.sql.Statement;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.yb.util.YBTestRunnerNonTsanOnly;
+import org.yb.YBTestRunner;
 
 import com.yugabyte.util.PSQLException;
 
-@RunWith(value=YBTestRunnerNonTsanOnly.class)
+@RunWith(value = YBTestRunner.class)
 public class TestYbTracing extends BasePgSQLTest {
     
   private int getPgBackendPid(Statement stmt) throws Exception {
