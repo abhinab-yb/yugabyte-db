@@ -164,12 +164,6 @@ typedef struct
 	char		va_data[FLEXIBLE_ARRAY_MEMBER]; /* Type-specific data */
 } varattrib_1b_e;
 
-typedef struct
-{
-	bool 		is_tracing_enabled;
-	int64		query_id;
-} yb_trace;
-
 /*
  * Bit layouts for varlena headers on big-endian machines:
  *

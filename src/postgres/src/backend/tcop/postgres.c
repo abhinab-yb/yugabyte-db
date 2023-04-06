@@ -108,7 +108,8 @@ int			max_stack_depth = 100;
 /* wait N seconds to allow attach from a debugger */
 int			PostAuthDelay = 0;
 
-yb_trace	trace_vars;
+yb_trace_vars trace_vars;
+yb_trace_counters trace_counters;
 
 /* ----------------
  *		private variables
@@ -213,8 +214,8 @@ static void drop_unnamed_stmt(void);
 static void log_disconnections(int code, Datum arg);
 static void enable_statement_timeout(void);
 static void disable_statement_timeout(void);
-
 static void ResetYbTraceVars(void);
+static void ResetYbCounters(void);
 
 /* ----------------------------------------------------------------
  *		routines to obtain user input
@@ -1114,17 +1115,16 @@ exec_simple_query(const char *query_string)
 		{
 			int traceable_index;
 			bool found = false;
-			volatile PGPROC *proc = MyProc;
-			LWLockAcquire((LWLock *)&proc->backendLock, LW_SHARED);
-			for (traceable_index = 0; traceable_index < proc->numQueries; traceable_index++)
+			LWLockAcquire(&MyProc->backendLock, LW_SHARED);
+			for (traceable_index = 0; traceable_index < MyProc->numQueries; traceable_index++)
 			{
-				if (proc->traceableQueries[traceable_index] == trace_vars.query_id)
+				if (MyProc->traceableQueries[traceable_index] == trace_vars.query_id)
 				{
 					found = true;
 					break;
 				}
 			}
-			LWLockRelease((LWLock *)&proc->backendLock);
+			LWLockRelease(&MyProc->backendLock);
 
 			if (found)
 			{
@@ -4670,6 +4670,7 @@ yb_exec_query_wrapper(MemoryContext exec_context,
 	bool retry = true;
 	for (int attempt = 0; retry; ++attempt)
 	{
+		trace_counters.statement_retries ++;
 		yb_exec_query_wrapper_one_attempt(
 			exec_context, restart_data, functor, functor_context, attempt, &retry);
 	}
@@ -5133,6 +5134,7 @@ PostgresMain(int argc, char *argv[],
 
 	/* Initialize tracing variables */
 	ResetYbTraceVars();
+	ResetYbCounters();
 
 	/*
 	 * Non-error queries loop here.
@@ -5743,9 +5745,10 @@ PostgresMain(int argc, char *argv[],
 		}
 		if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
 		{
-			YBCStopTraceForQuery();
+			YBCStopTraceForQuery(trace_counters);
 			ResetYbTraceVars();
 		}
+		ResetYbCounters();
 	}							/* end of input-reading loop */
 }
 
@@ -6045,4 +6048,18 @@ ResetYbTraceVars(void)
 {
 	trace_vars.is_tracing_enabled = false;
 	trace_vars.query_id = -1;
+}
+
+static void
+ResetYbCounters(void)
+{
+	trace_counters.statement_retries = -1;
+	trace_counters.catalog_read_requests = 0;
+	trace_counters.catalog_write_requests = 0;
+	trace_counters.catalog_execution_time = 0.0;
+	trace_counters.planning_catalog_requests = 0;
+	trace_counters.planning_catalog_execution_time = 0.0;
+	trace_counters.storage_read_requests = 0;
+	trace_counters.storage_write_requests = 0;
+	trace_counters.storage_execution_time = 0.0;
 }

@@ -86,6 +86,25 @@ extern bool yb_run_with_explain_analyze;
  * on hash keys issued to the same tablets.
  */
 extern bool yb_enable_hash_batch_in;
+/* Variable related to opentelemetry tracing */
+typedef struct
+{
+	bool 		is_tracing_enabled;
+	int64_t		query_id;
+} yb_trace_vars;
+
+typedef struct
+{
+	int 		statement_retries;
+	uint64_t 	catalog_read_requests;
+	uint64_t 	catalog_write_requests;
+	double 		catalog_execution_time;
+	uint64_t 	planning_catalog_requests;
+	double 		planning_catalog_execution_time;
+	uint64_t 	storage_read_requests;
+	uint64_t 	storage_write_requests;
+	double 		storage_execution_time;
+} yb_trace_counters;
 
 /*
  * xcluster consistency level

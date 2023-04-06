@@ -1560,7 +1560,12 @@ Status PgApiImpl::StartTraceForQuery(const char *query_string) {
   return pg_session_->StartTraceForQuery(query_string);
 }
 
-Status PgApiImpl::StopTraceForQuery() { return pg_session_->StopTraceForQuery(); }
+Status PgApiImpl::StopTraceForQuery(yb_trace_counters trace_counters) {
+  return pg_session_->StopTraceForQuery(trace_counters.statement_retries,
+                                        trace_counters.storage_read_requests,
+                                        trace_counters.storage_write_requests,
+                                        trace_counters.storage_execution_time);
+}
 
 Status PgApiImpl::StartQueryEvent(const char *event_name) {
   return pg_session_->StartQueryEvent(event_name);

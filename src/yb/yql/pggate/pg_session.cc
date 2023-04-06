@@ -455,15 +455,22 @@ Status PgSession::StartTraceForQuery(const char* query_string) {
           {opentelemetry::trace::SemanticConventions::kDbStatement, query_string}
       }
       );
-  this->spans_.push(span);
-  this->tokens_.push(opentelemetry::context::RuntimeContext::Attach(
+  this->spans_.push_back(span);
+  this->tokens_.push_back(opentelemetry::context::RuntimeContext::Attach(
       opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
   return Status::OK();
 }
 
-Status PgSession::StopTraceForQuery() {
-  nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.top();
+Status PgSession::StopTraceForQuery(int statement_retries,
+                                    uint64_t storage_read_requests,
+                                    uint64_t storage_write_requests,
+                                    double storage_execution_time) {
+  nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.back();
   span->SetStatus(opentelemetry::trace::StatusCode::kOk);
+  span->SetAttribute("Statement retries", statement_retries);
+  span->SetAttribute("Storage read requests", storage_read_requests);
+  span->SetAttribute("Storage write requests", storage_write_requests);
+  span->SetAttribute("Storage execution time", storage_execution_time);
   span->End();
   this->tokens_.pop();
   this->spans_.pop();
@@ -481,8 +488,8 @@ Status PgSession::StartQueryEvent(const char* event_name) {
           }
         }
       );
-    this->spans_.push(span);
-    this->tokens_.push(
+    this->spans_.push_back(span);
+    this->tokens_.push_back(
         opentelemetry::context::RuntimeContext::Attach(
             opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
   }
@@ -491,11 +498,11 @@ Status PgSession::StartQueryEvent(const char* event_name) {
 
 Status PgSession::StopQueryEvent(const char* event_name) {
   if(this->query_tracer_) {
-    nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.top();
+    nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.back();
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
     span->End();
-    this->tokens_.pop();
-    this->spans_.pop();
+    this->tokens_.pop_back();
+    this->spans_.pop_back();
   }
   return Status::OK();
 }

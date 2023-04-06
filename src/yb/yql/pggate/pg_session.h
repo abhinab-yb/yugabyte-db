@@ -433,8 +433,8 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   std::variant<TxnSerialNoPerformInfo> last_perform_on_txn_serial_no_;
 
   nostd::shared_ptr<opentelemetry::trace::Tracer> query_tracer_;
-  std::stack<nostd::shared_ptr<opentelemetry::trace::Span>> spans_;
-  std::stack<nostd::unique_ptr<opentelemetry::context::Token>> tokens_;
+  std::vector<nostd::shared_ptr<opentelemetry::trace::Span>> spans_;
+  std::vector<nostd::unique_ptr<opentelemetry::context::Token>> tokens_;
 
 };
 

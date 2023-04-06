@@ -1450,8 +1450,8 @@ YBCStatus YBCStartTraceForQuery(const char* query_string) {
   return ToYBCStatus(pgapi->StartTraceForQuery(query_string));
 }
 
-YBCStatus YBCStopTraceForQuery() {
-  return ToYBCStatus(pgapi->StopTraceForQuery());
+YBCStatus YBCStopTraceForQuery(yb_trace_counters trace_counters) {
+  return ToYBCStatus(pgapi->StopTraceForQuery(trace_counters));
 }
 
 YBCStatus YBCStartQueryEvent(const char* event_name) {

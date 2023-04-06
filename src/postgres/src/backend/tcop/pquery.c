@@ -63,7 +63,10 @@ static uint64 DoPortalRunFetch(Portal portal,
 				 long count,
 				 DestReceiver *dest);
 static void DoPortalRewind(Portal portal);
-
+static void GetRpcStats(PlanState *planstate);
+static void GetRpcStatsChildOne(PlanState **planstates, int nsubnodes);
+static void GetRpcStatsChildTwo(List *plans);
+static void GetRpcStatsChildThree(CustomScanState *css);
 
 /*
  * CreateQueryDesc
@@ -151,12 +154,18 @@ ProcessQuery(PlannedStmt *plan,
 {
 	QueryDesc  *queryDesc;
 
-	/*
-	 * Create the QueryDesc object
-	 */
 	queryDesc = CreateQueryDesc(plan, sourceText,
 								GetActiveSnapshot(), InvalidSnapshot,
-								dest, params, queryEnv, 0);
+								dest, params, queryEnv, (int)trace_vars.is_tracing_enabled);
+
+	/* 
+	 * Clear the stats by dummy read 
+	 */
+	if (trace_vars.is_tracing_enabled)
+	{
+		uint64_t count, wait_time;
+		YBGetAndResetOperationFlushRpcStats(&count, &wait_time);
+	}
 
 	/*
 	 * Call ExecutorStart to prepare the plan for execution
@@ -173,6 +182,25 @@ ProcessQuery(PlannedStmt *plan,
 	 * Run the plan to completion.
 	 */
 	ExecutorRun(queryDesc, ForwardScanDirection, 0L, true);
+
+	/* 
+	 * Retrive rpc stats if tracing is enabled
+	 */
+	if (trace_vars.is_tracing_enabled)
+	{
+		GetRpcStats(queryDesc->planstate);
+		double total_rpc_wait = 0.0;
+		uint64_t flush_count, flush_wait_time;
+		YBGetAndResetOperationFlushRpcStats(&flush_count, &flush_wait_time);
+
+		if (flush_count > 0)
+			total_rpc_wait += (double)flush_wait_time;
+		if (trace_counters.storage_read_requests > 0.0)
+			total_rpc_wait += trace_counters.storage_execution_time;
+
+		trace_counters.storage_write_requests = flush_count;
+		trace_counters.storage_execution_time = total_rpc_wait / 1000000.0;
+	}
 
 	/*
 	 * Build command completion status string, if caller wants one.
@@ -217,6 +245,7 @@ ProcessQuery(PlannedStmt *plan,
 	 * Now, we close down all the scans and free allocated resources.
 	 */
 	ExecutorFinish(queryDesc);
+
 	ExecutorEnd(queryDesc);
 
 	FreeQueryDesc(queryDesc);
@@ -516,7 +545,7 @@ PortalStart(Portal portal, ParamListInfo params,
 											None_Receiver,
 											params,
 											portal->queryEnv,
-											0);
+											(int)trace_vars.is_tracing_enabled);
 
 				/*
 				 * If it's a scrollable cursor, executor needs to support
@@ -954,11 +983,32 @@ PortalRunSelect(Portal portal,
 			nprocessed = RunFromStore(portal, direction, (uint64) count, dest);
 		else
 		{
+			if (trace_vars.is_tracing_enabled)
+			{
+				uint64_t count, wait_time;
+				YBGetAndResetOperationFlushRpcStats(&count, &wait_time);
+			}
 			PushActiveSnapshot(queryDesc->snapshot);
 			ExecutorRun(queryDesc, direction, (uint64) count,
 						portal->run_once);
 			nprocessed = queryDesc->estate->es_processed;
 			PopActiveSnapshot();
+
+			if (trace_vars.is_tracing_enabled)
+			{
+				GetRpcStats(queryDesc->planstate);
+				double total_rpc_wait = 0.0;
+				uint64_t flush_count, flush_wait_time;
+				YBGetAndResetOperationFlushRpcStats(&flush_count, &flush_wait_time);
+
+				if (flush_count > 0)
+					total_rpc_wait += (double)flush_wait_time;
+				if (trace_counters.storage_read_requests > 0.0)
+					total_rpc_wait += trace_counters.storage_execution_time;
+
+				trace_counters.storage_write_requests = flush_count;
+				trace_counters.storage_execution_time = total_rpc_wait / 1000000.0;
+			}
 		}
 
 		if (!ScanDirectionIsNoMovement(direction))
@@ -1756,4 +1806,110 @@ DoPortalRewind(Portal portal)
 	portal->atStart = true;
 	portal->atEnd = false;
 	portal->portalPos = 0;
+}
+
+static void
+GetRpcStats(PlanState *planstate)
+{
+	Plan	   *plan = planstate->plan;
+
+	trace_counters.storage_read_requests
+		+= (planstate->instrument->yb_read_rpcs.count
+			+ planstate->instrument->yb_tbl_read_rpcs.count);
+	trace_counters.storage_execution_time
+		+= (planstate->instrument->yb_read_rpcs.wait_time
+			+ planstate->instrument->yb_tbl_read_rpcs.wait_time);
+
+	/*
+	 * We have to forcibly clean up the instrumentation state because we
+	 * haven't done ExecutorEnd yet.  This is pretty grotty ...
+	 *
+	 * Note: contrib/auto_explain could cause instrumentation to be set up
+	 * even though we didn't ask for it here.  Be careful not to print any
+	 * instrumentation results the user didn't ask for.  But we do the
+	 * InstrEndLoop call anyway, if possible, to reduce the number of cases
+	 * auto_explain has to contend with.
+	 */
+	if (planstate->instrument)
+		InstrEndLoop(planstate->instrument);
+
+	/* initPlan-s */
+	if (planstate->initPlan)
+		GetRpcStatsChildTwo(planstate->initPlan);
+
+	/* lefttree */
+	if (outerPlanState(planstate))
+		GetRpcStats(outerPlanState(planstate));
+
+	/* righttree */
+	if (innerPlanState(planstate))
+		GetRpcStats(innerPlanState(planstate));
+
+	/* special child plans */
+	switch (nodeTag(plan))
+	{
+		case T_ModifyTable:
+			GetRpcStatsChildOne(((ModifyTableState *) planstate)->mt_plans,
+							   ((ModifyTableState *) planstate)->mt_nplans);
+			break;
+		case T_Append:
+			GetRpcStatsChildOne(((AppendState *) planstate)->appendplans,
+							   ((AppendState *) planstate)->as_nplans);
+			break;
+		case T_MergeAppend:
+			GetRpcStatsChildOne(((MergeAppendState *) planstate)->mergeplans,
+							   ((MergeAppendState *) planstate)->ms_nplans);
+			break;
+		case T_BitmapAnd:
+			GetRpcStatsChildOne(((BitmapAndState *) planstate)->bitmapplans,
+							   ((BitmapAndState *) planstate)->nplans);
+			break;
+		case T_BitmapOr:
+			GetRpcStatsChildOne(((BitmapOrState *) planstate)->bitmapplans,
+							   ((BitmapOrState *) planstate)->nplans);
+			break;
+		case T_SubqueryScan:
+			GetRpcStats(((SubqueryScanState *) planstate)->subplan);
+			break;
+		case T_CustomScan:
+			GetRpcStatsChildThree((CustomScanState *) planstate);
+			break;
+		default:
+			break;
+	}
+
+	/* subPlan-s */
+	if (planstate->subPlan)
+		GetRpcStatsChildTwo(planstate->subPlan);
+}
+
+static void
+GetRpcStatsChildOne(PlanState **planstates, int nsubnodes)
+{
+	int			j;
+
+	for (j = 0; j < nsubnodes; j++)
+		GetRpcStats(planstates[j]);
+}
+
+static void
+GetRpcStatsChildTwo(List *plans)
+{
+	ListCell   *lst;
+
+	foreach(lst, plans)
+	{
+		SubPlanState *sps = (SubPlanState *) lfirst(lst);
+
+		GetRpcStats(sps->planstate);
+	}
+}
+
+static void
+GetRpcStatsChildThree(CustomScanState *css)
+{
+	ListCell   *cell;
+
+	foreach(cell, css->custom_ps)
+		GetRpcStats((PlanState *) lfirst(cell));
 }
