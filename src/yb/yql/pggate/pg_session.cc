@@ -267,6 +267,7 @@ class PgSession::RunHelper {
     operations_.Add(std::move(op), table.id());
 
     if (!IsTransactional()) {
+      YBCStopQueryEvent("Applying operation");
       return Status::OK();
     }
 
@@ -756,6 +757,7 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
       txn_priority_requirement = kHighestPriority;
     }
 
+    /* Need to close the span here if it returns */
     RETURN_NOT_OK(pg_txn_manager_->CalculateIsolation(
         false /* read_only */, txn_priority_requirement));
   }
