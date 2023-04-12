@@ -108,8 +108,8 @@ int			max_stack_depth = 100;
 /* wait N seconds to allow attach from a debugger */
 int			PostAuthDelay = 0;
 
-yb_trace_vars trace_vars;
-yb_trace_counters trace_counters;
+// yb_trace_vars trace_vars;
+// yb_trace_counters trace_counters;
 
 /* ----------------
  *		private variables
@@ -4688,13 +4688,23 @@ yb_exec_simple_query_impl(const void* query_string)
  */
 static void
 yb_exec_simple_query(const char* query_string, MemoryContext exec_context)
-{
+{	
+	char *new_query_string = (char *)query_string;
+	if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
+	{
+		const char* explain_analyze = "EXPLAIN (ANALYZE, DIST) ";
+
+		new_query_string = (char *)malloc(strlen(query_string)+strlen(explain_analyze)+1);
+		strcpy(new_query_string, explain_analyze);
+		strcat(new_query_string, query_string);
+	}
+
 	YBQueryRestartData restart_data  = {
 		.portal_name  = NULL,
-		.query_string = query_string,
-		.command_tag  = yb_parse_command_tag(query_string)
+		.query_string = new_query_string,
+		.command_tag  = yb_parse_command_tag(new_query_string)
 	};
-	yb_exec_query_wrapper(exec_context, &restart_data, &yb_exec_simple_query_impl, query_string);
+	yb_exec_query_wrapper(exec_context, &restart_data, &yb_exec_simple_query_impl, new_query_string);
 }
 
 typedef struct YBExecuteMessageFunctorContext
@@ -6054,12 +6064,9 @@ static void
 ResetYbCounters(void)
 {
 	trace_counters.statement_retries = -1;
+	trace_counters.planning_catalog_requests = 0;
 	trace_counters.catalog_read_requests = 0;
 	trace_counters.catalog_write_requests = 0;
-	trace_counters.catalog_execution_time = 0.0;
-	trace_counters.planning_catalog_requests = 0;
-	trace_counters.planning_catalog_execution_time = 0.0;
-	trace_counters.storage_read_requests = 0;
+    trace_counters.storage_read_requests = 0;
 	trace_counters.storage_write_requests = 0;
-	trace_counters.storage_execution_time = 0.0;
 }

@@ -164,6 +164,11 @@ static void ExecParallelHashJoinPartitionOuter(HashJoinState *node);
 static pg_attribute_always_inline TupleTableSlot *
 ExecHashJoinImpl(PlanState *pstate, bool parallel)
 {
+	if (pstate->startSpan)
+	{
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate, (int *)pstate->lefttree, (int *)pstate->righttree);
+		pstate->startSpan = false;
+	}
 	HashJoinState *node = castNode(HashJoinState, pstate);
 	PlanState  *outerNode;
 	HashState  *hashNode;
@@ -778,6 +783,12 @@ ExecEndHashJoin(HashJoinState *node)
 	ExecClearTuple(node->js.ps.ps_ResultTupleSlot);
 	ExecClearTuple(node->hj_OuterTupleSlot);
 	ExecClearTuple(node->hj_HashTupleSlot);
+
+	if (!node->js.ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)&node->js.ps);
+		node->js.ps.startSpan = false;
+	}
 
 	/*
 	 * clean up subtrees

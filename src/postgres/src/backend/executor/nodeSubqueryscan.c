@@ -82,6 +82,11 @@ SubqueryRecheck(SubqueryScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecSubqueryScan(PlanState *pstate)
 {
+	if (pstate->startSpan)
+	{
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate, (int *)pstate->lefttree, (int *)pstate->righttree);
+		pstate->startSpan = false;
+	}
 	SubqueryScanState *node = castNode(SubqueryScanState, pstate);
 
 	return ExecScan(&node->ss,
@@ -166,6 +171,12 @@ ExecEndSubqueryScan(SubqueryScanState *node)
 	if (node->ss.ps.ps_ResultTupleSlot)
 		ExecClearTuple(node->ss.ps.ps_ResultTupleSlot);
 	ExecClearTuple(node->ss.ss_ScanTupleSlot);
+
+	if (!node->ss.ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)&node->ss.ps);
+		node->ss.ps.startSpan = false;
+	}
 
 	/*
 	 * close down subquery

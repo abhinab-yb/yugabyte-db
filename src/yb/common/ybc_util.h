@@ -81,6 +81,8 @@ extern bool yb_binary_restore;
  */
 extern bool yb_run_with_explain_analyze;
 
+extern bool yb_run_with_analyze_explain_dist;
+
 /*
  * GUC variable that enables batching RPCs of generated for IN queries
  * on hash keys issued to the same tablets.
@@ -93,18 +95,19 @@ typedef struct
 	int64_t		query_id;
 } yb_trace_vars;
 
+extern yb_trace_vars trace_vars;
+
 typedef struct
 {
 	int 		statement_retries;
-	uint64_t 	catalog_read_requests;
-	uint64_t 	catalog_write_requests;
-	double 		catalog_execution_time;
-	uint64_t 	planning_catalog_requests;
-	double 		planning_catalog_execution_time;
-	uint64_t 	storage_read_requests;
-	uint64_t 	storage_write_requests;
-	double 		storage_execution_time;
+	double      planning_catalog_requests;
+	double      catalog_read_requests;
+	uint64_t    catalog_write_requests;
+    uint64_t    storage_read_requests;
+	uint64_t    storage_write_requests;
 } yb_trace_counters;
+
+extern yb_trace_counters trace_counters;
 
 /*
  * xcluster consistency level

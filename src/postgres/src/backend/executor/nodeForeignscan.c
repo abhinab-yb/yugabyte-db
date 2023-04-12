@@ -121,6 +121,11 @@ ForeignRecheck(ForeignScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecForeignScan(PlanState *pstate)
 {
+	if (pstate->startSpan)
+	{
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate, (int *)pstate->lefttree, (int *)pstate->righttree);
+		pstate->startSpan = false;
+	}
 	ForeignScanState *node = castNode(ForeignScanState, pstate);
 
 	return ExecScan(&node->ss,
@@ -268,6 +273,12 @@ ExecEndForeignScan(ForeignScanState *node)
 	/* close the relation. */
 	if (node->ss.ss_currentRelation)
 		ExecCloseScanRelation(node->ss.ss_currentRelation);
+	
+	if (!node->ss.ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)&node->ss.ps);
+		node->ss.ps.startSpan = false;
+	}
 }
 
 /* ----------------------------------------------------------------

@@ -171,6 +171,8 @@ bool yb_enable_docdb_tracing = false;
 bool yb_read_from_followers = false;
 int32_t yb_follower_read_staleness_ms = 0;
 
+YbPgRpcStats *CatalogReadRpcStats = NULL;
+
 bool
 IsYugaByteEnabled()
 {
@@ -1741,8 +1743,8 @@ void YBFlushBufferedOperations() {
 	HandleYBStatus(YBCPgFlushBufferedOperations());
 }
 
-void YBGetAndResetOperationFlushRpcStats(uint64_t *count, uint64_t *wait_time) {
-	YBCPgGetAndResetOperationFlushRpcStats(count, wait_time);
+void YBGetAndResetOperationFlushRpcStats(uint64_t *count, uint64_t *wait_time, uint64_t* catalog_count, uint64_t* catalog_wait_time) {
+  YBCPgGetAndResetOperationFlushRpcStats(count, wait_time, catalog_count, catalog_wait_time);
 }
 
 bool YBEnableTracing() {
@@ -3115,15 +3117,41 @@ void YBCheckServerAccessIsAllowed() {
 						   "set to true")));
 }
 
-void YbUpdateReadRpcStats(YBCPgStatement handle,
-						  YbPgRpcStats *reads, YbPgRpcStats *tbl_reads) {
-	uint64_t read_count = 0, read_wait = 0, tbl_read_count = 0, tbl_read_wait = 0;
-	YBCGetAndResetReadRpcStats(handle, &read_count, &read_wait,
-							   &tbl_read_count, &tbl_read_wait);
-	reads->count += read_count;
-	reads->wait_time += read_wait;
-	tbl_reads->count += tbl_read_count;
-	tbl_reads->wait_time += tbl_read_wait;
+void YbUpdateNonbufferedWriteRpcStats(uint64_t *write_count, uint64_t *write_wait) {
+  YBCGetAndResetNonbufferedWriteRpcStats(write_count, write_wait);
+}
+
+void YbUpdateReadRpcStats(YBCPgStatement handle, YbPgRpcStats *reads,
+              YbPgRpcStats *tbl_reads) {
+  uint64_t read_count = 0, read_wait = 0, tbl_read_count = 0, tbl_read_wait = 0;
+
+  YBCGetAndResetReadRpcStats(handle, &read_count, &read_wait,
+                 &tbl_read_count, &tbl_read_wait);
+  reads->count += read_count;
+  reads->wait_time += read_wait;
+  tbl_reads->count += tbl_read_count;
+  tbl_reads->wait_time += tbl_read_wait;
+}
+
+void YbUpdateCatalogRpcStats(YBCPgStatement handle) {
+  if (CatalogReadRpcStats)
+    YbUpdateReadRpcStats(handle, CatalogReadRpcStats, CatalogReadRpcStats);
+}
+
+void YbCreateYbRpcStats()
+{
+  CatalogReadRpcStats = palloc0(sizeof(YbPgRpcStats));
+  CatalogReadRpcStats->count = 0;
+  CatalogReadRpcStats->wait_time = 0;
+}
+
+void YbDeleteCatalogRpcStats()
+{
+  if (CatalogReadRpcStats)
+  {
+    pfree(CatalogReadRpcStats);
+    CatalogReadRpcStats = NULL;
+  }
 }
 
 void YbSetCatalogCacheVersion(YBCPgStatement handle, uint64_t version)

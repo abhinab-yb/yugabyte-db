@@ -34,8 +34,8 @@ extern CommandDest whereToSendOutput;
 extern PGDLLIMPORT const char *debug_query_string;
 extern int	max_stack_depth;
 extern int	PostAuthDelay;
-extern yb_trace_vars trace_vars;
-extern yb_trace_counters trace_counters;
+// extern yb_trace_vars trace_vars;
+// extern yb_trace_counters trace_counters;
 
 /* GUC-configurable parameters */
 

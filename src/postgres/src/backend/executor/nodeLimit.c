@@ -43,6 +43,11 @@ static int64 compute_tuples_needed(LimitState *node);
 static TupleTableSlot *			/* return: a tuple or NULL */
 ExecLimit(PlanState *pstate)
 {
+	if (pstate->startSpan)
+	{
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate, (int *)pstate->lefttree, (int *)pstate->righttree);
+		pstate->startSpan = false;
+	}
 	LimitState *node = castNode(LimitState, pstate);
 	ScanDirection direction;
 	TupleTableSlot *slot;
@@ -423,6 +428,11 @@ void
 ExecEndLimit(LimitState *node)
 {
 	ExecFreeExprContext(&node->ps);
+	if (!node->ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)&node->ps);
+		node->ps.startSpan = false;
+	}
 	ExecEndNode(outerPlanState(node));
 }
 

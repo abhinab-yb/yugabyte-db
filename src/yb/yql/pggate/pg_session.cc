@@ -42,6 +42,7 @@
 #include "yb/common/row_mark.h"
 #include "yb/common/schema.h"
 #include "yb/common/transaction_error.h"
+#include "yb/common/ybc_util.h"
 
 #include "yb/gutil/casts.h"
 
@@ -270,6 +271,11 @@ class PgSession::RunHelper {
           (RowMarkNeedsHigherPriority(row_mark_type) ? kHigherPriorityRange : kLowerPriorityRange);
     read_only = read_only && !IsValidRowMarkType(row_mark_type);
 
+    if (!read_only && (trace_vars.is_tracing_enabled || yb_run_with_analyze_explain_dist)) {
+      // We only need to count an RPC for write requests, because reads get counted elsewhere.
+      buffer.AddWriteRpc(operations_.HasCatalogChange());
+    }
+
     return pg_session_.pg_txn_manager_->CalculateIsolation(read_only, txn_priority_requirement);
   }
 
@@ -455,54 +461,124 @@ Status PgSession::StartTraceForQuery(const char* query_string) {
           {opentelemetry::trace::SemanticConventions::kDbStatement, query_string}
       }
       );
-  this->spans_.push_back(span);
-  this->tokens_.push_back(opentelemetry::context::RuntimeContext::Attach(
-      opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
+  this->spans_.push_back({span, query_string});
+  this->span_context_.push_back(span->GetContext());
+  // this->tokens_.push_back(opentelemetry::context::RuntimeContext::Attach(
+  //     opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
   return Status::OK();
 }
 
-Status PgSession::StopTraceForQuery(int statement_retries,
-                                    uint64_t storage_read_requests,
-                                    uint64_t storage_write_requests,
-                                    double storage_execution_time) {
-  nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.back();
+Status PgSession::StopTraceForQuery(yb_trace_counters trace_counters) {
+  nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.back().first;
   span->SetStatus(opentelemetry::trace::StatusCode::kOk);
-  span->SetAttribute("Statement retries", statement_retries);
-  span->SetAttribute("Storage read requests", storage_read_requests);
-  span->SetAttribute("Storage write requests", storage_write_requests);
-  span->SetAttribute("Storage execution time", storage_execution_time);
+  span->SetAttribute("Statement Retries", trace_counters.statement_retries);
+  span->SetAttribute("Planning Catalog Requests", trace_counters.planning_catalog_requests);
+  // span->SetAttribute("Planning Catalog Execution time", trace_counters.catalog_rpc_wait_planning);
+  span->SetAttribute("Storage Read Requests", trace_counters.storage_read_requests);
+  span->SetAttribute("Storage Write Requests", trace_counters.storage_write_requests);
+  // span->SetAttribute("Storage Execution Time", trace_counters.total_rpc_wait);
+  span->SetAttribute("Catalog Read Requests", trace_counters.catalog_read_requests);
+  span->SetAttribute("Catalog Write Requests", trace_counters.catalog_write_requests);
+  // span->SetAttribute("Catalog Execution Time", trace_counters.total_catalog_rpc_wait);
   span->End();
-  this->tokens_.pop();
+  // this->tokens_.pop();
   this->spans_.pop();
   this->query_tracer_ = nullptr;
+  // this->tokens_.pop_back();
+  this->span_context_.pop_back();
   return Status::OK();
 }
 
 Status PgSession::StartQueryEvent(const char* event_name) {
-  if(this->query_tracer_) {
+  if (this->query_tracer_) {
+    opentelemetry::trace::StartSpanOptions options;
+    options.parent = this->span_context_.back();
     auto span = this->query_tracer_->StartSpan(
         event_name,
         {
           {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__}, {
             opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__
           }
-        }
+        },
+        options
       );
-    this->spans_.push_back(span);
-    this->tokens_.push_back(
-        opentelemetry::context::RuntimeContext::Attach(
-            opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
+    this->spans_.push_back({span, event_name});
+    this->span_context_.push_back(span->GetContext());
+    // this->tokens_.push_back(
+    //     opentelemetry::context::RuntimeContext::Attach(
+    //         opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
   }
   return Status::OK();
 }
 
 Status PgSession::StopQueryEvent(const char* event_name) {
-  if(this->query_tracer_) {
-    nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.back();
+  if (this->query_tracer_) {
+    nostd::shared_ptr<opentelemetry::trace::Span> span;
+    for (int index = (int)this->spans_.size() - 1; index >= 0; index--) {
+      if (this->spans_[index].second == std::string(event_name)) {
+        span = this->spans_[index].first;
+        this->spans_[index] = this->spans_.back();
+        this->span_context_[index] = this->span_context_.back();
+        this->spans_.pop_back();
+        this->span_context_.pop_back();
+        break;
+      }
+    }
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
     span->End();
-    this->tokens_.pop_back();
-    this->spans_.pop_back();
+  }
+  return Status::OK();
+}
+
+Status PgSession::StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree) {
+  if (this->query_tracer_) {
+    opentelemetry::trace::StartSpanOptions options;
+    if (this->planstate_span_context_.find(planstate_node) == this->planstate_span_context_.end()) {
+      options.parent = this->span_context_.back();
+    }
+    else {
+      options.parent = this->planstate_span_context_.at(planstate_node);
+    }
+    auto span = this->query_tracer_->StartSpan(
+        planstate_name,
+        {
+          {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__}, {
+            opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__
+          }
+        },
+        options
+      );
+    this->spans_.push_back({span, planstate_name});
+    this->span_context_.push_back(span->GetContext());
+    if (left_tree) {
+      this->planstate_span_context_.insert({left_tree, span->GetContext()});
+    }
+    if (right_tree) {
+      this->planstate_span_context_.insert({right_tree, span->GetContext()});
+    }
+  }
+  return Status::OK();
+}
+
+Status PgSession::StopPlanStateSpan(const char* planstate_name, int* planstate_node) {
+  if (this->query_tracer_) {
+    nostd::shared_ptr<opentelemetry::trace::Span> span;
+    for (int index = (int)this->spans_.size() - 1; index >= 0; index--) {
+      if (this->spans_[index].second == std::string(planstate_name)) {
+        span = this->spans_[index].first;
+        this->spans_[index] = this->spans_.back();
+        this->span_context_[index] = this->span_context_.back();
+        this->spans_.pop_back();
+        this->span_context_.pop_back();
+        break;
+      }
+    }
+    span->SetStatus(opentelemetry::trace::StatusCode::kOk);
+    span->End();
+    auto find_res_ = this->planstate_span_context_.find(planstate_node);
+    if (find_res_ != this->planstate_span_context_.end()) {
+      this->planstate_span_context_.erase(find_res_);
+    }
   }
   return Status::OK();
 }
@@ -635,8 +711,10 @@ void PgSession::DropBufferedOperations() {
 }
 
 void PgSession::GetAndResetOperationFlushRpcStats(uint64_t* count,
-                                                  uint64_t* wait_time) {
-  buffer_.GetAndResetRpcStats(count, wait_time);
+                                                  uint64_t* wait_time,
+                                                  uint64_t* catalog_count,
+                                                  uint64_t* catalog_wait_time) {
+  buffer_.GetAndResetRpcStats(count, wait_time, catalog_count, catalog_wait_time);
 }
 
 PgIsolationLevel PgSession::GetIsolationLevel() {

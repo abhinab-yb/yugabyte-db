@@ -913,8 +913,10 @@ YBCStatus YBCPgFlushBufferedOperations() {
 }
 
 void YBCPgGetAndResetOperationFlushRpcStats(uint64_t* count,
-                                            uint64_t* wait_time) {
-  pgapi->GetAndResetOperationFlushRpcStats(count, wait_time);
+                                            uint64_t* wait_time,
+                                            uint64_t* catalog_count,
+                                            uint64_t* catalog_wait_time) {
+  pgapi->GetAndResetOperationFlushRpcStats(count, wait_time, catalog_count, catalog_wait_time);
 }
 
 YBCStatus YBCPgDmlExecWriteOp(YBCPgStatement handle, int32_t *rows_affected_count) {
@@ -1436,6 +1438,10 @@ void YBCGetAndResetReadRpcStats(YBCPgStatement handle, uint64_t* reads, uint64_t
   pgapi->GetAndResetReadRpcStats(handle, reads, read_wait, tbl_reads, tbl_read_wait);
 }
 
+void YBCGetAndResetNonbufferedWriteRpcStats(uint64_t* writes, uint64_t* write_wait) {
+  pgapi->GetAndResetNonbufferedWriteRpcStats(writes, write_wait);
+}
+
 YBCStatus YBCInitTracer(int pid) {
   InitPgTracer(pid);
   return YBCStatusOK();
@@ -1460,6 +1466,13 @@ YBCStatus YBCStartQueryEvent(const char* event_name) {
 
 YBCStatus YBCStopQueryEvent(const char *event_name) {
   return ToYBCStatus(pgapi->StopQueryEvent(event_name));
+}
+
+YBCStatus YBCStartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree) {
+  return ToYBCStatus(pgapi->StartPlanStateSpan(planstate_name, planstate_node, left_tree, right_tree));
+}
+YBCStatus YBCStopPlanStateSpan(const char* planstate_name, int* planstate_node) {
+  return ToYBCStatus(pgapi->StopPlanStateSpan(planstate_name, planstate_node));
 }
 
 YBCStatus YBCGetIndexBackfillProgress(YBCPgOid* index_oids, YBCPgOid* database_oids,

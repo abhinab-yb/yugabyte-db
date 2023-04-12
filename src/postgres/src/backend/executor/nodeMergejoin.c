@@ -599,6 +599,11 @@ ExecMergeTupleDump(MergeJoinState *mergestate)
 static TupleTableSlot *
 ExecMergeJoin(PlanState *pstate)
 {
+	if (pstate->startSpan)
+	{
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate, (int *)pstate->lefttree, (int *)pstate->righttree);
+		pstate->startSpan = false;
+	}
 	MergeJoinState *node = castNode(MergeJoinState, pstate);
 	ExprState  *joinqual;
 	ExprState  *otherqual;
@@ -1641,6 +1646,12 @@ ExecEndMergeJoin(MergeJoinState *node)
 	 */
 	ExecClearTuple(node->js.ps.ps_ResultTupleSlot);
 	ExecClearTuple(node->mj_MarkedTupleSlot);
+
+	if (!node->js.ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)&node->js.ps);
+		node->js.ps.startSpan = false;
+	}
 
 	/*
 	 * shut down the subplans

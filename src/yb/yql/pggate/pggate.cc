@@ -200,8 +200,8 @@ class PrecastRequestSender {
     return PgDocResponse(std::make_unique<ResponseProvider>(provider_state_));
   }
 
-  Status TransmitCollected(PgSession* session) {
-    auto res = DoTransmitCollected(session);
+  Status TransmitCollected(PgSession* session, uint64_t *rpc_wait) {
+    auto res = DoTransmitCollected(session, rpc_wait);
     ops_.clear();
     provider_state_.reset();
     return res;
@@ -213,7 +213,7 @@ class PrecastRequestSender {
   }
 
  private:
-  Status DoTransmitCollected(PgSession* session) {
+  Status DoTransmitCollected(PgSession* session, uint64_t *rpc_wait) {
     auto i = ops_.begin();
     auto perform_future = VERIFY_RESULT(session->RunAsync(make_lw_function(
         [&i, end = ops_.end()] {
@@ -224,7 +224,9 @@ class PrecastRequestSender {
           auto& info = *i++;
           return TO{.operation = &info.operation, .table = info.table};
         }), HybridTime()));
-    *provider_state_ = VERIFY_RESULT(perform_future.Get());
+    MonoDelta wait_time = MonoDelta::FromNanoseconds(0);
+    *provider_state_ = VERIFY_RESULT(perform_future.Get(&wait_time));
+    *rpc_wait += wait_time.ToNanoseconds();
     return Status::OK();
   }
 
@@ -236,7 +238,8 @@ class PrecastRequestSender {
 Status FetchExistingYbctids(PgSession::ScopedRefPtr session,
                             PgOid database_id,
                             std::vector<TableYbctid>* ybctids,
-                            const std::unordered_set<PgOid>& region_local_tables) {
+                            const std::unordered_set<PgOid>& region_local_tables,
+                            uint64_t *rpc_wait) {
   // Group the items by the table ID.
   std::sort(ybctids->begin(), ybctids->end(), [](const auto& a, const auto& b) {
     return a.table_id < b.table_id;
@@ -276,7 +279,7 @@ Status FetchExistingYbctids(PgSession::ScopedRefPtr session,
     RETURN_NOT_OK(doc_op.Execute());
   }
 
-  RETURN_NOT_OK(precast_sender.TransmitCollected(session.get()));
+  RETURN_NOT_OK(precast_sender.TransmitCollected(session.get(), rpc_wait));
   // Disable further request collecting as in the vast majority of cases new requests will not be
   // initiated because requests for all ybctids has already been sent. But in case of dynamic
   // splitting new requests might be sent. They will be sent and processed as usual (i.e. request
@@ -1308,9 +1311,16 @@ Status PgApiImpl::DmlExecWriteOp(PgStatement *handle, int32_t *rows_affected_cou
     case StmtOp::STMT_TRUNCATE:
       {
         auto dml_write = down_cast<PgDmlWrite *>(handle);
-        RETURN_NOT_OK(dml_write->Exec(ForceNonBufferable(rows_affected_count != nullptr)));
+        bool force_non_bufferable = rows_affected_count != nullptr;
+        RETURN_NOT_OK(dml_write->Exec(ForceNonBufferable(force_non_bufferable)));
         if (rows_affected_count) {
           *rows_affected_count = dml_write->GetRowsAffectedCount();
+        }
+        if ((yb_run_with_analyze_explain_dist || trace_vars.is_tracing_enabled) && force_non_bufferable) {
+          uint64_t new_write_count, new_write_rpc_wait;
+          dml_write->GetAndResetWriteRpcCounts(&new_write_count, &new_write_rpc_wait);
+          write_rpc_count += new_write_count;
+          write_rpc_wait_time += new_write_rpc_wait;
         }
         return Status::OK();
       }
@@ -1561,10 +1571,7 @@ Status PgApiImpl::StartTraceForQuery(const char *query_string) {
 }
 
 Status PgApiImpl::StopTraceForQuery(yb_trace_counters trace_counters) {
-  return pg_session_->StopTraceForQuery(trace_counters.statement_retries,
-                                        trace_counters.storage_read_requests,
-                                        trace_counters.storage_write_requests,
-                                        trace_counters.storage_execution_time);
+  return pg_session_->StopTraceForQuery(trace_counters);
 }
 
 Status PgApiImpl::StartQueryEvent(const char *event_name) {
@@ -1573,6 +1580,14 @@ Status PgApiImpl::StartQueryEvent(const char *event_name) {
 
 Status PgApiImpl::StopQueryEvent(const char *event_name) {
   return pg_session_->StopQueryEvent(event_name);
+}
+
+Status PgApiImpl::StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree) {
+  return pg_session_->StartPlanStateSpan(planstate_name, planstate_node, left_tree, right_tree);
+}
+
+Status PgApiImpl::StopPlanStateSpan(const char* planstate_name, int* planstate_node) {
+  return pg_session_->StopPlanStateSpan(planstate_name, planstate_node);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -1752,9 +1767,19 @@ void PgApiImpl::GetAndResetReadRpcStats(PgStatement *handle,
                                                          tbl_reads, tbl_read_wait);
 }
 
+void PgApiImpl::GetAndResetNonbufferedWriteRpcStats(uint64_t* writes, uint64_t* write_wait) {
+  *writes = write_rpc_count;
+  *write_wait = write_rpc_wait_time;
+  write_rpc_count = 0;
+  write_rpc_wait_time = 0;
+}
+
 void PgApiImpl::GetAndResetOperationFlushRpcStats(uint64_t* count,
-                                                  uint64_t* wait_time) {
-  pg_session_->GetAndResetOperationFlushRpcStats(count, wait_time);
+                                                  uint64_t* wait_time,
+                                                  uint64_t* catalog_count,
+                                                  uint64_t* catalog_wait_time) {
+  pg_session_->GetAndResetOperationFlushRpcStats(count, wait_time,
+                                                 catalog_count, catalog_wait_time);
 }
 
 // Tuple Expression -----------------------------------------------------------------------------
@@ -1884,7 +1909,11 @@ Result<bool> PgApiImpl::ForeignKeyReferenceExists(
       LightweightTableYbctid(table_id, ybctid), make_lw_function(
           [this, database_id](std::vector<TableYbctid>* ybctids,
                               const std::unordered_set<PgOid>& region_local_tables) {
-            return FetchExistingYbctids(pg_session_, database_id, ybctids, region_local_tables);
+            return FetchExistingYbctids(pg_session_,
+                                        database_id,
+                                        ybctids,
+                                        region_local_tables,
+                                        &write_rpc_wait_time);
           }));
 }
 

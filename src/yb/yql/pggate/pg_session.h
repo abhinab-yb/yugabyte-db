@@ -29,6 +29,7 @@
 
 #include "yb/common/pg_types.h"
 #include "yb/common/transaction.h"
+#include "yb/common/ybc_util.h"
 
 #include "yb/gutil/ref_counted.h"
 
@@ -194,10 +195,13 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   //------------------------------------------------------------------------------------------------
 
   Status StartTraceForQuery(const char* query_string);
-  Status StopTraceForQuery();
+  Status StopTraceForQuery(yb_trace_counters trace_counters);
 
-  Status StartQueryEvent(const char*);
-  Status StopQueryEvent(const char*);
+  Status StartQueryEvent(const char* event_name);
+  Status StopQueryEvent(const char* event_name);
+
+  Status StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree);
+  Status StopPlanStateSpan(const char* planstate_name, int* planstate_node);
 
   //------------------------------------------------------------------------------------------------
   // Operations on Tablegroup.
@@ -362,7 +366,10 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
 
   Result<bool> CheckIfPitrActive();
 
-  void GetAndResetOperationFlushRpcStats(uint64_t* count, uint64_t* wait_time);
+  void GetAndResetOperationFlushRpcStats(uint64_t* count,
+                                         uint64_t* wait_time,
+                                         uint64_t* catalog_count,
+                                         uint64_t* catalog_wait_time);
 
  private:
   Result<PgTableDescPtr> DoLoadTable(const PgObjectId& table_id, bool fail_on_cache_hit);
@@ -433,8 +440,10 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   std::variant<TxnSerialNoPerformInfo> last_perform_on_txn_serial_no_;
 
   nostd::shared_ptr<opentelemetry::trace::Tracer> query_tracer_;
-  std::vector<nostd::shared_ptr<opentelemetry::trace::Span>> spans_;
+  std::vector<std::pair<nostd::shared_ptr<opentelemetry::trace::Span>, std::string>> spans_;
   std::vector<nostd::unique_ptr<opentelemetry::context::Token>> tokens_;
+  std::vector<opentelemetry::trace::SpanContext> span_context_;
+  std::map<int*, opentelemetry::trace::SpanContext> planstate_span_context_;
 
 };
 

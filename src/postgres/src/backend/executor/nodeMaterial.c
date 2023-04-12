@@ -38,6 +38,11 @@
 static TupleTableSlot *			/* result tuple from subplan */
 ExecMaterial(PlanState *pstate)
 {
+	if (pstate->startSpan)
+	{
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)pstate->plan->lefttree, (int *)pstate->plan->righttree);
+		pstate->startSpan = false;
+	}
 	MaterialState *node = castNode(MaterialState, pstate);
 	EState	   *estate;
 	ScanDirection dir;
@@ -252,6 +257,12 @@ ExecEndMaterial(MaterialState *node)
 	if (node->tuplestorestate != NULL)
 		tuplestore_end(node->tuplestorestate);
 	node->tuplestorestate = NULL;
+
+	if (!node->ss.ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->ss.ps.plan);
+		node->ss.ps.startSpan = false;
+	}
 
 	/*
 	 * shut down the subplan

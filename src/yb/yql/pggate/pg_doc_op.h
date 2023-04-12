@@ -311,10 +311,10 @@ class PgDocOp : public std::enable_shared_from_this<PgDocOp> {
   const PgTable& table() const { return table_; }
 
   // RPC stats for EXPLAIN ANALYZE
-  void GetAndResetReadRpcStats(uint64_t* read_rpc_count, uint64_t* read_rpc_wait_time) {
-    *read_rpc_count = read_rpc_count_;
+  void GetAndResetReadRpcStats(uint64_t* rpc_count, uint64_t* rpc_wait_time) {
+    *rpc_count = read_rpc_count_;
     read_rpc_count_ = 0;
-    *read_rpc_wait_time = read_rpc_wait_time_.ToNanoseconds();
+    *rpc_wait_time = read_rpc_wait_time_.ToNanoseconds();
     read_rpc_wait_time_ = MonoDelta::FromNanoseconds(0);
   }
 

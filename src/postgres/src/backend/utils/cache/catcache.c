@@ -50,7 +50,7 @@
 
 #include "pg_yb_utils.h"
 
- /* #define CACHEDEBUG */	/* turns DEBUG elogs on */
+#define CACHEDEBUG	/* turns DEBUG elogs on */
 
 /*
  * Given a hash value and the size of the hash table, find the bucket

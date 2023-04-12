@@ -342,6 +342,11 @@ IndexOnlyRecheck(IndexOnlyScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecIndexOnlyScan(PlanState *pstate)
 {
+	if (pstate->startSpan)
+	{
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate, (int *)pstate->lefttree, (int *)pstate->righttree);
+		pstate->startSpan = false;
+	}
 	IndexOnlyScanState *node = castNode(IndexOnlyScanState, pstate);
 
 	/*
@@ -457,6 +462,12 @@ ExecEndIndexOnlyScan(IndexOnlyScanState *node)
 	 * close the heap relation.
 	 */
 	ExecCloseScanRelation(relation);
+
+	if (!node->ss.ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)&node->ss.ps);
+		node->ss.ps.startSpan = false;
+	}
 }
 
 /* ----------------------------------------------------------------

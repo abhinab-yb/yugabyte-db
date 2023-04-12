@@ -71,6 +71,12 @@ ExecNestLoop(PlanState *pstate)
 	ExprContext *econtext;
 	ListCell   *lc;
 
+	if (pstate->startSpan)
+	{
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)pstate->lefttree->plan, (int *)pstate->righttree->plan);
+		pstate->startSpan = false;
+	}
+
 	CHECK_FOR_INTERRUPTS();
 
 	/*
@@ -381,6 +387,12 @@ ExecEndNestLoop(NestLoopState *node)
 
 	NL1_printf("ExecEndNestLoop: %s\n",
 			   "node processing ended");
+
+	if (!node->js.ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->js.ps.plan);
+		node->js.ps.startSpan = false;
+	}
 }
 
 /* ----------------------------------------------------------------

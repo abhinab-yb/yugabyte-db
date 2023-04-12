@@ -152,20 +152,27 @@ ProcessQuery(PlannedStmt *plan,
 			 char *completionTag,
 			 bool isSingleRowModifyTxn)
 {
+	// uint64_t flush_wait_time, catalog_flush_wait_time, catalog_write_wait, catalog_write_count, catalog_flush_count;
 	QueryDesc  *queryDesc;
 
 	queryDesc = CreateQueryDesc(plan, sourceText,
 								GetActiveSnapshot(), InvalidSnapshot,
-								dest, params, queryEnv, (int)trace_vars.is_tracing_enabled);
+								dest, params, queryEnv, 0);
 
-	/* 
-	 * Clear the stats by dummy read 
-	 */
-	if (trace_vars.is_tracing_enabled)
-	{
-		uint64_t count, wait_time;
-		YBGetAndResetOperationFlushRpcStats(&count, &wait_time);
-	}
+	// if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
+	// {
+	// 	YbCreateYbRpcStats();
+	// 	/* Get and reset any RPCs from the planning stage */
+	// 	trace_counters.catalog_rpc_count_planning = CatalogReadRpcStats->count;
+	// 	trace_counters.catalog_rpc_wait_planning = CatalogReadRpcStats->wait_time;
+	// 	CatalogReadRpcStats->wait_time = 0;
+	// 	CatalogReadRpcStats->count = 0;
+	// 	/* clear the stats by dummy read */
+
+	// 	uint64_t count, wait_time, catalog_count, catalog_wait_time;
+	// 	YBGetAndResetOperationFlushRpcStats(&count, &wait_time, &catalog_count, &catalog_wait_time);
+	// 	YbUpdateNonbufferedWriteRpcStats(&count, &wait_time);
+	// }
 
 	/*
 	 * Call ExecutorStart to prepare the plan for execution
@@ -186,22 +193,33 @@ ProcessQuery(PlannedStmt *plan,
 	/* 
 	 * Retrive rpc stats if tracing is enabled
 	 */
-	if (trace_vars.is_tracing_enabled)
-	{
-		GetRpcStats(queryDesc->planstate);
-		double total_rpc_wait = 0.0;
-		uint64_t flush_count, flush_wait_time;
-		YBGetAndResetOperationFlushRpcStats(&flush_count, &flush_wait_time);
+	// if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
+	// {
+	// 	GetRpcStats(queryDesc->planstate);
 
-		if (flush_count > 0)
-			total_rpc_wait += (double)flush_wait_time;
-		if (trace_counters.storage_read_requests > 0.0)
-			total_rpc_wait += trace_counters.storage_execution_time;
+	// 	YBFlushBufferedOperations();
+	// 	YbUpdateNonbufferedWriteRpcStats(&catalog_write_count, &catalog_write_wait);
+	// 	YBGetAndResetOperationFlushRpcStats(&trace_counters.flush_count, &flush_wait_time, &catalog_flush_count, &catalog_flush_wait_time);
+	// 	if (trace_counters.flush_count > 0)
+	// 		trace_counters.total_rpc_wait += (double) flush_wait_time;
 
-		trace_counters.storage_write_requests = flush_count;
-		trace_counters.storage_execution_time = total_rpc_wait / 1000000.0;
-	}
+	// 	if (catalog_flush_count > 0)
+	// 		trace_counters.total_catalog_rpc_wait += (double) catalog_flush_wait_time;
+	// 	if (CatalogReadRpcStats->wait_time > 0.0)
+	// 		trace_counters.total_catalog_rpc_wait += CatalogReadRpcStats->wait_time;
+	// 	if (catalog_write_count > 0)
+	// 		trace_counters.total_catalog_rpc_wait += (double) catalog_write_wait;
+	// 	trace_counters.catalog_read_requests = CatalogReadRpcStats->count;
+	// 	trace_counters.total_catalog_write_count = catalog_flush_count + catalog_write_count;
 
+	// 	trace_counters.catalog_rpc_wait_planning /= 1000000.0;
+	// 	trace_counters.total_catalog_rpc_wait /= 1000000.0;
+	// 	trace_counters.total_rpc_wait /= 1000000.0;
+
+	// 	YbDeleteCatalogRpcStats();
+	// }
+
+	
 	/*
 	 * Build command completion status string, if caller wants one.
 	 */
@@ -545,7 +563,7 @@ PortalStart(Portal portal, ParamListInfo params,
 											None_Receiver,
 											params,
 											portal->queryEnv,
-											(int)trace_vars.is_tracing_enabled);
+											0);
 
 				/*
 				 * If it's a scrollable cursor, executor needs to support
@@ -983,32 +1001,52 @@ PortalRunSelect(Portal portal,
 			nprocessed = RunFromStore(portal, direction, (uint64) count, dest);
 		else
 		{
-			if (trace_vars.is_tracing_enabled)
-			{
-				uint64_t count, wait_time;
-				YBGetAndResetOperationFlushRpcStats(&count, &wait_time);
-			}
+			// uint64_t flush_wait_time, catalog_flush_wait_time, catalog_write_wait, catalog_write_count, catalog_flush_count;
+			// if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
+			// {
+			// 	YbCreateYbRpcStats();
+			// 	/* Get and reset any RPCs from the planning stage */
+			// 	trace_counters.catalog_rpc_count_planning = CatalogReadRpcStats->count;
+			// 	trace_counters.catalog_rpc_wait_planning = CatalogReadRpcStats->wait_time;
+			// 	CatalogReadRpcStats->wait_time = 0;
+			// 	CatalogReadRpcStats->count = 0;
+			// 	/* clear the stats by dummy read */
+
+			// 	uint64_t count, wait_time, catalog_count, catalog_wait_time;
+			// 	YBGetAndResetOperationFlushRpcStats(&count, &wait_time, &catalog_count, &catalog_wait_time);
+			// 	YbUpdateNonbufferedWriteRpcStats(&count, &wait_time);
+			// }
 			PushActiveSnapshot(queryDesc->snapshot);
 			ExecutorRun(queryDesc, direction, (uint64) count,
 						portal->run_once);
 			nprocessed = queryDesc->estate->es_processed;
 			PopActiveSnapshot();
 
-			if (trace_vars.is_tracing_enabled)
-			{
-				GetRpcStats(queryDesc->planstate);
-				double total_rpc_wait = 0.0;
-				uint64_t flush_count, flush_wait_time;
-				YBGetAndResetOperationFlushRpcStats(&flush_count, &flush_wait_time);
+			// if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
+			// {
+			// 	GetRpcStats(queryDesc->planstate);
 
-				if (flush_count > 0)
-					total_rpc_wait += (double)flush_wait_time;
-				if (trace_counters.storage_read_requests > 0.0)
-					total_rpc_wait += trace_counters.storage_execution_time;
+			// 	YBFlushBufferedOperations();
+			// 	YbUpdateNonbufferedWriteRpcStats(&catalog_write_count, &catalog_write_wait);
+			// 	YBGetAndResetOperationFlushRpcStats(&trace_counters.flush_count, &flush_wait_time, &catalog_flush_count, &catalog_flush_wait_time);
+			// 	if (trace_counters.flush_count > 0)
+			// 		trace_counters.total_rpc_wait += (double) flush_wait_time;
 
-				trace_counters.storage_write_requests = flush_count;
-				trace_counters.storage_execution_time = total_rpc_wait / 1000000.0;
-			}
+			// 	if (catalog_flush_count > 0)
+			// 		trace_counters.total_catalog_rpc_wait += (double) catalog_flush_wait_time;
+			// 	if (CatalogReadRpcStats->wait_time > 0.0)
+			// 		trace_counters.total_catalog_rpc_wait += CatalogReadRpcStats->wait_time;
+			// 	if (catalog_write_count > 0)
+			// 		trace_counters.total_catalog_rpc_wait += (double) catalog_write_wait;
+			// 	trace_counters.catalog_read_requests = CatalogReadRpcStats->count;
+			// 	trace_counters.total_catalog_write_count = catalog_flush_count + catalog_write_count;
+
+			// 	trace_counters.catalog_rpc_wait_planning /= 1000000.0;
+			// 	trace_counters.total_catalog_rpc_wait /= 1000000.0;
+			// 	trace_counters.total_rpc_wait /= 1000000.0;
+
+			// 	YbDeleteCatalogRpcStats();
+			// }
 		}
 
 		if (!ScanDirectionIsNoMovement(direction))
@@ -1816,9 +1854,6 @@ GetRpcStats(PlanState *planstate)
 	trace_counters.storage_read_requests
 		+= (planstate->instrument->yb_read_rpcs.count
 			+ planstate->instrument->yb_tbl_read_rpcs.count);
-	trace_counters.storage_execution_time
-		+= (planstate->instrument->yb_read_rpcs.wait_time
-			+ planstate->instrument->yb_tbl_read_rpcs.wait_time);
 
 	/*
 	 * We have to forcibly clean up the instrumentation state because we

@@ -523,6 +523,10 @@ systable_endscan(SysScanDesc sysscan)
 {
 	if (IsYugaByteEnabled())
 	{
+		if ((yb_run_with_analyze_explain_dist || trace_vars.is_tracing_enabled) 
+				&& sysscan->ybscan && sysscan->ybscan->handle)
+      		YbUpdateCatalogRpcStats(sysscan->ybscan->handle);
+
 		return ybc_systable_endscan(sysscan);
 	}
 
@@ -643,6 +647,10 @@ systable_getnext_ordered(SysScanDesc sysscan, ScanDirection direction)
 void
 systable_endscan_ordered(SysScanDesc sysscan)
 {
+	if (IsYugaByteEnabled() && (yb_run_with_analyze_explain_dist || trace_vars.is_tracing_enabled) 
+			&& sysscan->ybscan && sysscan->ybscan->handle)
+	    YbUpdateCatalogRpcStats(sysscan->ybscan->handle);
+
 	Assert(sysscan->irel);
 	index_endscan(sysscan->iscan);
 	if (sysscan->snapshot)

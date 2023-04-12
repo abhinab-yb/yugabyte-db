@@ -103,6 +103,7 @@ static char *ExecBuildSlotValueDescription(Relation rel,
 							  int maxfieldlen);
 static void EvalPlanQualStart(EPQState *epqstate, EState *parentestate,
 				  Plan *planTree);
+static const char* GetNodeName(Plan *plan);
 
 /* end of local decls */
 
@@ -3362,4 +3363,96 @@ EvalPlanQualEnd(EPQState *epqstate)
 	epqstate->estate = NULL;
 	epqstate->planstate = NULL;
 	epqstate->origslot = NULL;
+}
+
+static const char*
+GetNodeName(Plan *plan)
+{
+	switch (nodeTag(plan))
+	{
+		case T_Result:
+			return "Result";
+		case T_ProjectSet:
+			return "ProjectSet";
+		case T_ModifyTable:
+			return "ModifyTable";
+		case T_Append:
+			return "Append";
+		case T_MergeAppend:
+			return "Merge Append";
+		case T_RecursiveUnion:
+			return "Recursive Union";
+		case T_BitmapAnd:
+			return "BitmapAnd";
+		case T_BitmapOr:
+			return "BitmapOr";
+		case T_NestLoop:
+			return "Nested Loop";
+		case T_YbBatchedNestLoop:
+			return "YB Batched Nested Loop";
+		case T_MergeJoin:
+			return "Merge Join";
+		case T_HashJoin:
+			return "Hash Join";
+		case T_SeqScan:
+			return "Seq Scan";
+		case T_YbSeqScan:
+			return "YB Seq Scan";
+		case T_SampleScan:
+			return "Sample Scan";
+		case T_Gather:
+			return "Gather";
+		case T_GatherMerge:
+			return "Gather Merge";
+		case T_IndexScan:
+			return "Index Scan";
+		case T_IndexOnlyScan:
+			return "Index Only Scan";
+		case T_BitmapIndexScan:
+			return "Bitmap Index Scan";
+		case T_BitmapHeapScan:
+			return "Bitmap Heap Scan";
+		case T_TidScan:
+			return "Tid Scan";
+		case T_SubqueryScan:
+			return "Subquery Scan";
+		case T_FunctionScan:
+			return "Function Scan";
+		case T_TableFuncScan:
+			return "Table Function Scan";
+		case T_ValuesScan:
+			return "Values Scan";
+		case T_CteScan:
+			return "CTE Scan";
+		case T_NamedTuplestoreScan:
+			return "Named Tuplestore Scan";
+		case T_WorkTableScan:
+			return "WorkTable Scan";
+		case T_ForeignScan:
+			return "Foreign Scan";
+		case T_CustomScan:
+			return "Custom Scan";
+		case T_Material:
+			return "Materialize";
+		case T_Sort:
+			return "Sort";
+		case T_Group:
+			return "Group";
+		case T_Agg:
+			return "Aggregate";
+		case T_WindowAgg:
+			return "WindowAgg";
+		case T_Unique:
+			return "Unique";
+		case T_SetOp:
+			return "SetOp";
+		case T_LockRows:
+			return "LockRows";
+		case T_Limit:
+			return "Limit";
+		case T_Hash:
+			return "Hash";
+		default:
+			return "???";
+	}
 }

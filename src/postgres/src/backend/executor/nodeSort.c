@@ -39,6 +39,11 @@
 static TupleTableSlot *
 ExecSort(PlanState *pstate)
 {
+	if (pstate->startSpan)
+	{
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate, (int *)pstate->lefttree, (int *)pstate->righttree);
+		pstate->startSpan = false;
+	}
 	SortState  *node = castNode(SortState, pstate);
 	EState	   *estate;
 	ScanDirection dir;
@@ -258,6 +263,12 @@ ExecEndSort(SortState *node)
 	if (node->tuplesortstate != NULL)
 		tuplesort_end((Tuplesortstate *) node->tuplesortstate);
 	node->tuplesortstate = NULL;
+
+	if (!node->ss.ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)&node->ss.ps);
+		node->ss.ps.startSpan = false;
+	}
 
 	/*
 	 * shut down the subplan

@@ -1036,6 +1036,11 @@ typedef struct PlanState
 	 * descriptor, without encoding knowledge about all executor nodes.
 	 */
 	TupleDesc	scandesc;
+ 
+	/*
+	 * To check if we should start a span.
+	 */
+	bool		startSpan;
 } PlanState;
 
 /* ----------------
@@ -1795,6 +1800,7 @@ typedef struct JoinState
 	bool		single_match;	/* True if we should skip to next outer tuple
 								 * after finding one inner match */
 	ExprState  *joinqual;		/* JOIN quals (in addition to ps.qual) */
+	bool 		startSpan;
 } JoinState;
 
 
