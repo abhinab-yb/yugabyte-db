@@ -4690,14 +4690,14 @@ static void
 yb_exec_simple_query(const char* query_string, MemoryContext exec_context)
 {	
 	char *new_query_string = (char *)query_string;
-	if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
-	{
-		const char* explain_analyze = "EXPLAIN (ANALYZE, DIST) ";
+	// if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
+	// {
+	// 	const char* explain_analyze = "EXPLAIN (ANALYZE, DIST) ";
 
-		new_query_string = (char *)malloc(strlen(query_string)+strlen(explain_analyze)+1);
-		strcpy(new_query_string, explain_analyze);
-		strcat(new_query_string, query_string);
-	}
+	// 	new_query_string = (char *)malloc(strlen(query_string)+strlen(explain_analyze)+1);
+	// 	strcpy(new_query_string, explain_analyze);
+	// 	strcat(new_query_string, query_string);
+	// }
 
 	YBQueryRestartData restart_data  = {
 		.portal_name  = NULL,

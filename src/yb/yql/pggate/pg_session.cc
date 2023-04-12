@@ -221,9 +221,12 @@ class PgSession::RunHelper {
         if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
           LOG(INFO) << "Buffering operation: " << op->ToString();
         }
-        return buffer.Add(table,
+        YBCStartQueryEvent("Buffering operation");
+        auto status = buffer.Add(table,
                           PgsqlWriteOpPtr(std::move(op), down_cast<PgsqlWriteOp*>(op.get())),
                           IsTransactional());
+        YBCStopQueryEvent("Buffering operation");
+        return status;
     }
     bool read_only = op->is_read();
     // Flush all buffered operations (if any) before performing non-bufferable operation
@@ -253,6 +256,8 @@ class PgSession::RunHelper {
       }
     }
 
+    YBCStartQueryEvent("Applying operation");
+
     if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
       LOG(INFO) << "Applying operation: " << op->ToString();
     }
@@ -276,7 +281,11 @@ class PgSession::RunHelper {
       buffer.AddWriteRpc(operations_.HasCatalogChange());
     }
 
-    return pg_session_.pg_txn_manager_->CalculateIsolation(read_only, txn_priority_requirement);
+    auto status = pg_session_.pg_txn_manager_->CalculateIsolation(read_only, txn_priority_requirement);
+
+    YBCStopQueryEvent("Applying operation");
+
+    return status;
   }
 
   Result<PerformFuture> Flush(std::optional<CacheOptions>&& cache_options) {
@@ -285,17 +294,23 @@ class PgSession::RunHelper {
       return PerformFuture();
     }
 
+    YBCStartQueryEvent("Flushing collected operations");
+
     if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
       LOG(INFO) << "Flushing collected operations, using session type: "
                 << ToString(session_type_) << " num ops: " << operations_.size();
     }
 
-    return pg_session_.Perform(
+    auto result = pg_session_.Perform(
         std::move(operations_),
         {.use_catalog_session = IsCatalog(),
          .cache_options = std::move(cache_options),
          .in_txn_limit = in_txn_limit_
         });
+
+    YBCStopQueryEvent("Flushing collected operations");
+
+    return result;
   }
 
  private:
@@ -482,7 +497,7 @@ Status PgSession::StopTraceForQuery(yb_trace_counters trace_counters) {
   // span->SetAttribute("Catalog Execution Time", trace_counters.total_catalog_rpc_wait);
   span->End();
   // this->tokens_.pop();
-  this->spans_.pop();
+  this->spans_.pop_back();
   this->query_tracer_ = nullptr;
   // this->tokens_.pop_back();
   this->span_context_.pop_back();
@@ -517,10 +532,8 @@ Status PgSession::StopQueryEvent(const char* event_name) {
     for (int index = (int)this->spans_.size() - 1; index >= 0; index--) {
       if (this->spans_[index].second == std::string(event_name)) {
         span = this->spans_[index].first;
-        this->spans_[index] = this->spans_.back();
-        this->span_context_[index] = this->span_context_.back();
-        this->spans_.pop_back();
-        this->span_context_.pop_back();
+        this->spans_.erase(this->spans_.begin() + index);
+        this->span_context_.erase(this->span_context_.begin() + index);
         break;
       }
     }
@@ -566,10 +579,8 @@ Status PgSession::StopPlanStateSpan(const char* planstate_name, int* planstate_n
     for (int index = (int)this->spans_.size() - 1; index >= 0; index--) {
       if (this->spans_[index].second == std::string(planstate_name)) {
         span = this->spans_[index].first;
-        this->spans_[index] = this->spans_.back();
-        this->span_context_[index] = this->span_context_.back();
-        this->spans_.pop_back();
-        this->span_context_.pop_back();
+        this->spans_.erase(this->spans_.begin() + index);
+        this->span_context_.erase(this->span_context_.begin() + index);
         break;
       }
     }
@@ -737,6 +748,8 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
               << " session (num ops: " << ops.size() << ")";
   }
 
+  YBCStartQueryEvent("Flushing buffered operations");
+
   if (transactional) {
     auto txn_priority_requirement = kLowerPriorityRange;
     if (GetIsolationLevel() == PgIsolationLevel::READ_COMMITTED) {
@@ -751,8 +764,13 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
   // very first (and all further) request as flushing is done asynchronously (i.e. YSQL may send
   // multiple bunch of operations in parallel). As a result PgClientService is unable to use read
   // time from remote t-server or generate its own.
-  return Perform(
+
+  auto result = Perform(
       std::move(ops), {.ensure_read_time_is_set = EnsureReadTimeIsSet(!transactional)});
+
+  YBCStopQueryEvent("Flushing buffered operations");
+
+  return result;
 }
 
 Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOptions&& ops_options) {

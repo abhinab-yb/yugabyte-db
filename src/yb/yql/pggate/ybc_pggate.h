@@ -531,7 +531,7 @@ void YBCGetAndResetNonbufferedWriteRpcStats(uint64_t* writes, uint64_t* write_wa
 
 // Trace Functions
 YBCStatus YBCStartTraceForQuery(const char* query_string);
-YBCStatus YBCStopTraceForQuery();
+YBCStatus YBCStopTraceForQuery(yb_trace_counters trace_counters);
 
 YBCStatus YBCStartQueryEvent(const char* event_name);
 YBCStatus YBCStopQueryEvent(const char* event_name);
