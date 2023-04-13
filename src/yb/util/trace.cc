@@ -245,8 +245,10 @@ struct TraceEntry {
   }
 };
 
-Trace::Trace() {
+Trace::Trace() : span_(new trace_api::DefaultSpan(trace_api::SpanContext::GetInvalid())) {
 }
+
+Trace::Trace(nostd::shared_ptr<trace_api::Span>& span) : span_(span) {}
 
 ThreadSafeObjectPool<ThreadSafeArena>& ArenaPool() {
   static ThreadSafeObjectPool<ThreadSafeArena> result([] {
@@ -367,6 +369,14 @@ void Trace::AddEntry(TraceEntry* entry) {
     trace_start_time_usec_ = GetCurrentMicrosFast(entry->timestamp);
   }
   entries_tail_ = entry;
+  if (this->span_->GetContext().IsValid()) {
+    this->span_->AddEvent(
+        "Trace Entry", {
+                           {"filepath", entry->file_path},
+                           {"lineno", entry->line_number},
+                           {"message", std::string(entry->message, entry->message_len)}
+    });
+  }
 }
 
 void Trace::Dump(std::ostream *out, bool include_time_deltas) const {

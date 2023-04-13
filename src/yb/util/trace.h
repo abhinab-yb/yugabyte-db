@@ -49,6 +49,7 @@
 #include "yb/util/locks.h"
 #include "yb/util/memory/arena_fwd.h"
 #include "yb/util/monotime.h"
+#include "yb/util/otel/trace.h"
 
 DECLARE_bool(use_monotime_for_traces);
 DECLARE_int32(tracing_level);
@@ -131,6 +132,7 @@ struct TraceEntry;
 class Trace : public RefCountedThreadSafe<Trace> {
  public:
   Trace();
+  Trace(nostd::shared_ptr<trace_api::Span>& span);
 
   // Logs a message into the trace buffer.
   //
@@ -260,6 +262,8 @@ class Trace : public RefCountedThreadSafe<Trace> {
   bool end_to_end_traces_requested_ = false;
 
   std::vector<scoped_refptr<Trace> > child_traces_;
+
+  nostd::shared_ptr<trace_api::Span> span_;
 
   DISALLOW_COPY_AND_ASSIGN(Trace);
 };

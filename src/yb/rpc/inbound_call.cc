@@ -101,13 +101,19 @@ void InboundCall::NotifyTransferred(const Status& status, Connection* conn) {
 }
 
 void InboundCall::EnsureTraceCreated() {
+  LOG_WITH_PREFIX_AND_FUNC(INFO) << "Will created trace with default span";
+  nostd::shared_ptr<trace_api::Span> span(new trace_api::DefaultSpan(trace_api::SpanContext::GetInvalid()));
+  this->EnsureTraceCreated(span);
+}
+
+void InboundCall::EnsureTraceCreated(nostd::shared_ptr<trace_api::Span>& span) {
   scoped_refptr<Trace> trace = nullptr;
   {
     std::lock_guard<simple_spinlock> lock(mutex_);
     if (trace_holder_) {
       return;
     }
-    trace = new Trace;
+    trace = new Trace(span);
     trace_holder_ = trace;
     trace_.store(trace.get(), std::memory_order_relaxed);
   }

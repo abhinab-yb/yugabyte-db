@@ -60,6 +60,7 @@
 #include "yb/util/ref_cnt_buffer.h"
 #include "yb/util/slice.h"
 #include "yb/util/status_fwd.h"
+#include "yb/util/otel/trace.h"
 
 namespace google {
 namespace protobuf {
@@ -216,7 +217,8 @@ class InboundCall : public RpcCall, public MPSCQueueEntry<InboundCall> {
 
   // For requests that have requested traces to be collected, we will ensure
   // that trace_ is not null and can be used for collecting the requested data.
-  void EnsureTraceCreated() EXCLUDES(mutex_);
+    void EnsureTraceCreated() EXCLUDES(mutex_);
+  void EnsureTraceCreated(nostd::shared_ptr<trace_api::Span>& span) EXCLUDES(mutex_);
 
  protected:
   ThreadPoolTask* BindTask(InboundCallHandler* handler, int64_t rpc_queue_limit);

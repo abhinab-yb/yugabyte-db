@@ -116,7 +116,17 @@ set(YRPC_LIBS
   snappy
   yb_util
   ${OPENSSL_CRYPTO_LIBRARY}
-  ${OPENSSL_SSL_LIBRARY})
+  ${OPENSSL_SSL_LIBRARY}
+  opentelemetry_exporter_ostream_span
+  opentelemetry_trace
+  opentelemetry_exporter_in_memory
+  opentelemetry_exporter_ostream_metrics
+  opentelemetry_exporter_otlp_http
+  opentelemetry_otlp_recordable
+  opentelemetry_common
+  opentelemetry_metrics
+  opentelemetry_resources
+  opentelemetry_version)
 
 ADD_YB_LIBRARY(yrpc
   SRCS ${YRPC_SRCS}

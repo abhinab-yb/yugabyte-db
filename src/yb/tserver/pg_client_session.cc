@@ -465,12 +465,12 @@ struct SharedExchangeQueryParams {
 
 struct SharedExchangeQuery : public SharedExchangeQueryParams, public PerformData {
   SharedExchange* exchange;
-
+  nostd::shared_ptr<trace_api::Span> span;
   CountDownLatch latch{1};
 
   SharedExchangeQuery(uint64_t session_id_, PgTableCache* table_cache_, SharedExchange* exchange_)
       : PerformData(session_id_, table_cache_, &exchange_req, &exchange_resp, &exchange_sidecars),
-        exchange(exchange_) {
+        exchange(exchange_), span(new trace_api::DefaultSpan(trace_api::SpanContext::GetInvalid())) {
   }
 
   Status Init(size_t size) {
@@ -945,7 +945,7 @@ Status PgClientSession::DoPerform(const DataPtr& data, CoarseTimePoint deadline,
 
   if (context) {
     if (options.trace_requested()) {
-      context->EnsureTraceCreated();
+      context->EnsureTraceCreated(data->span);
       if (transaction) {
         transaction->EnsureTraceCreated();
         context->trace()->AddChildTrace(transaction->trace());

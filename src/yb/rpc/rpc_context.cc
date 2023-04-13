@@ -221,7 +221,12 @@ Trace* RpcContext::trace() {
 }
 
 void RpcContext::EnsureTraceCreated() {
-  return call_->EnsureTraceCreated();
+  nostd::shared_ptr<trace_api::Span> span(new trace_api::DefaultSpan(trace_api::SpanContext::GetInvalid()));
+  this->EnsureTraceCreated(span);
+}
+
+void RpcContext::EnsureTraceCreated(nostd::shared_ptr<trace_api::Span>& span) {
+  return call_->EnsureTraceCreated(span);
 }
 
 void RpcContext::Panic(const char* filepath, int line_number, const string& message) {

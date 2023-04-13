@@ -46,6 +46,7 @@
 #include "yb/util/status_fwd.h"
 #include "yb/util/monotime.h"
 #include "yb/util/net/sockaddr.h"
+#include "yb/util/otel/trace.h"
 
 namespace google {
 namespace protobuf {
@@ -201,6 +202,7 @@ class RpcContext {
 
   // Ensure that this call has a trace associated with it.
   void EnsureTraceCreated();
+  void EnsureTraceCreated(nostd::shared_ptr<trace_api::Span>& span);
 
   // Send a response to the call. The service may call this method
   // before or after returning from the original handler method,
