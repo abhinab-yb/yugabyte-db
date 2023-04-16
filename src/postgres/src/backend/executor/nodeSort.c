@@ -41,7 +41,7 @@ ExecSort(PlanState *pstate)
 {
 	if (pstate->startSpan)
 	{
-		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate, (int *)pstate->lefttree, (int *)pstate->righttree);
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)(pstate->lefttree ? pstate->lefttree->plan : NULL), (int *)(pstate->righttree ? pstate->righttree->plan : NULL));
 		pstate->startSpan = false;
 	}
 	SortState  *node = castNode(SortState, pstate);
@@ -112,10 +112,10 @@ ExecSort(PlanState *pstate)
 			tuplesort_set_bound(tuplesortstate, node->bound);
 		node->tuplesortstate = (void *) tuplesortstate;
 
+		YBCStartQueryEvent(GetPlanNodeName(outerNode->plan));
 		/*
 		 * Scan the subplan and feed all the tuples to tuplesort.
 		 */
-
 		for (;;)
 		{
 			slot = ExecProcNode(outerNode);
@@ -125,11 +125,14 @@ ExecSort(PlanState *pstate)
 
 			tuplesort_puttupleslot(tuplesortstate, slot);
 		}
+		YBCStopQueryEvent(GetPlanNodeName(outerNode->plan));
 
 		/*
 		 * Complete the sort.
 		 */
+		YBCStartQueryEvent("Performing Sort");
 		tuplesort_performsort(tuplesortstate);
+		YBCStopQueryEvent("Performing Sort");
 
 		/*
 		 * restore to user specified direction
@@ -264,12 +267,6 @@ ExecEndSort(SortState *node)
 		tuplesort_end((Tuplesortstate *) node->tuplesortstate);
 	node->tuplesortstate = NULL;
 
-	if (!node->ss.ps.startSpan)
-	{
-		YBCStopPlanStateSpan(__FILE_NAME__, (int *)&node->ss.ps);
-		node->ss.ps.startSpan = false;
-	}
-
 	/*
 	 * shut down the subplan
 	 */
@@ -277,6 +274,12 @@ ExecEndSort(SortState *node)
 
 	SO1_printf("ExecEndSort: %s\n",
 			   "sort node shutdown");
+
+	if (!node->ss.ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->ss.ps.plan);
+		node->ss.ps.startSpan = true;
+	}
 }
 
 /* ----------------------------------------------------------------

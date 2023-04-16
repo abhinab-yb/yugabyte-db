@@ -2442,6 +2442,11 @@ tupconv_map_for_subplan(ModifyTableState *mtstate, int whichplan)
 static TupleTableSlot *
 ExecModifyTable(PlanState *pstate)
 {
+	if (pstate->startSpan)
+	{
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)(pstate->lefttree ? pstate->lefttree->plan : NULL), (int *)(pstate->righttree ? pstate->righttree->plan : NULL));
+		pstate->startSpan = false;
+	}
 	ModifyTableState *node = castNode(ModifyTableState, pstate);
 	PartitionTupleRouting *proute = node->mt_partition_tuple_routing;
 	EState	   *estate = node->ps.state;
@@ -2519,7 +2524,9 @@ ExecModifyTable(PlanState *pstate)
 		 */
 		ResetPerTupleExprContext(estate);
 
+		YBCStartQueryEvent(GetPlanNodeName(subplanstate->plan));
 		planSlot = ExecProcNode(subplanstate);
+		YBCStopQueryEvent(GetPlanNodeName(subplanstate->plan));
 
 		if (TupIsNull(planSlot))
 		{
@@ -2690,6 +2697,7 @@ ExecModifyTable(PlanState *pstate)
 		switch (operation)
 		{
 			case CMD_INSERT:
+				YBCStartQueryEvent("Insert");
 				if (!proute)
 				{
 					slot = ExecInsert(node, slot, planSlot,
@@ -2711,6 +2719,7 @@ ExecModifyTable(PlanState *pstate)
 					estate->es_result_relation_info = resultRelInfo;
 					estate->yb_es_is_single_row_modify_txn = prev_yb_is_single_row_modify_txn;
 				}
+				YBCStopQueryEvent("Insert");
 				break;
 			case CMD_UPDATE:
 				slot = ExecUpdate(node, tupleid, oldtuple, slot, planSlot,
@@ -3308,6 +3317,12 @@ ExecEndModifyTable(ModifyTableState *node)
 	 */
 	for (i = 0; i < node->mt_nplans; i++)
 		ExecEndNode(node->mt_plans[i]);
+
+	if (!node->ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->ps.plan);
+		node->ps.startSpan = true;
+	}
 }
 
 void

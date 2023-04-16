@@ -221,11 +221,11 @@ class PgSession::RunHelper {
         if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
           LOG(INFO) << "Buffering operation: " << op->ToString();
         }
-        YBCStartQueryEvent("Buffering operation");
+        // YBCStartQueryEvent("Buffering operation");
         auto status = buffer.Add(table,
                           PgsqlWriteOpPtr(std::move(op), down_cast<PgsqlWriteOp*>(op.get())),
                           IsTransactional());
-        YBCStopQueryEvent("Buffering operation");
+        // YBCStopQueryEvent("Buffering operation");
         return status;
     }
     bool read_only = op->is_read();
@@ -256,7 +256,7 @@ class PgSession::RunHelper {
       }
     }
 
-    YBCStartQueryEvent("Applying operation");
+    // YBCStartQueryEvent("Applying operation");
 
     if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
       LOG(INFO) << "Applying operation: " << op->ToString();
@@ -267,7 +267,7 @@ class PgSession::RunHelper {
     operations_.Add(std::move(op), table.id());
 
     if (!IsTransactional()) {
-      YBCStopQueryEvent("Applying operation");
+      // YBCStopQueryEvent("Applying operation");
       return Status::OK();
     }
 
@@ -284,7 +284,7 @@ class PgSession::RunHelper {
 
     auto status = pg_session_.pg_txn_manager_->CalculateIsolation(read_only, txn_priority_requirement);
 
-    YBCStopQueryEvent("Applying operation");
+    // YBCStopQueryEvent("Applying operation");
 
     return status;
   }
@@ -295,7 +295,7 @@ class PgSession::RunHelper {
       return PerformFuture();
     }
 
-    YBCStartQueryEvent("Flushing collected operations");
+    // YBCStartQueryEvent("Flushing collected operations");
 
     if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
       LOG(INFO) << "Flushing collected operations, using session type: "
@@ -309,7 +309,7 @@ class PgSession::RunHelper {
          .in_txn_limit = in_txn_limit_
         });
 
-    YBCStopQueryEvent("Flushing collected operations");
+    // YBCStopQueryEvent("Flushing collected operations");
 
     return result;
   }
@@ -476,32 +476,67 @@ Status PgSession::StartTraceForQuery(const char* query_string) {
           {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__},
           {opentelemetry::trace::SemanticConventions::kDbStatement, query_string}
       }
-      );
-  this->spans_.push_back({span, query_string});
+    );
+  this->spans_.push_back({span, "Statement"});
   this->span_context_.push_back(span->GetContext());
   // this->tokens_.push_back(opentelemetry::context::RuntimeContext::Attach(
   //     opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
+  // FILE *fptr= fopen("/home/asaha/code/logs.txt", "a");
+  // fprintf(fptr, "starting trace... %s\n", query_string);
+  // fclose(fptr);
   return Status::OK();
 }
 
 Status PgSession::StopTraceForQuery(yb_trace_counters trace_counters) {
-  nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.back().first;
-  span->SetStatus(opentelemetry::trace::StatusCode::kOk);
-  span->SetAttribute("Statement Retries", trace_counters.statement_retries);
-  span->SetAttribute("Planning Catalog Requests", trace_counters.planning_catalog_requests);
-  // span->SetAttribute("Planning Catalog Execution time", trace_counters.catalog_rpc_wait_planning);
-  span->SetAttribute("Storage Read Requests", trace_counters.storage_read_requests);
-  span->SetAttribute("Storage Write Requests", trace_counters.storage_write_requests);
-  // span->SetAttribute("Storage Execution Time", trace_counters.total_rpc_wait);
-  span->SetAttribute("Catalog Read Requests", trace_counters.catalog_read_requests);
-  span->SetAttribute("Catalog Write Requests", trace_counters.catalog_write_requests);
-  // span->SetAttribute("Catalog Execution Time", trace_counters.total_catalog_rpc_wait);
-  span->End();
-  // this->tokens_.pop();
-  this->spans_.pop_back();
-  this->query_tracer_ = nullptr;
-  // this->tokens_.pop_back();
-  this->span_context_.pop_back();
+  if (this->query_tracer_) {
+    if (this->spans_.empty()) {
+      LOG(ERROR) << "EMPTY SPAN";
+    }
+    nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.back().first;
+    // this->spans_.pop_back();
+    // this->span_context_.pop_back();
+    for (int index = (int)this->spans_.size() - 1; index >= 0; index--) {
+      if (this->spans_[index].second == std::string("Statement")) {
+        span = this->spans_[index].first;
+        this->spans_.erase(this->spans_.begin() + index);
+        this->span_context_.erase(this->span_context_.begin() + index);
+        break;
+      }
+    }
+    if (span == nullptr) {
+      LOG(ERROR) << "Statement span missing";
+    }
+    span->SetStatus(opentelemetry::trace::StatusCode::kOk);
+    span->SetAttribute("Statement Retries", trace_counters.statement_retries);
+    span->SetAttribute("Planning Catalog Requests", trace_counters.planning_catalog_requests);
+    // span->SetAttribute("Planning Catalog Execution time", trace_counters.catalog_rpc_wait_planning);
+    span->SetAttribute("Storage Read Requests", trace_counters.storage_read_requests);
+    span->SetAttribute("Storage Write Requests", trace_counters.storage_write_requests);
+    // span->SetAttribute("Storage Execution Time", trace_counters.total_rpc_wait);
+    span->SetAttribute("Catalog Read Requests", trace_counters.catalog_read_requests);
+    span->SetAttribute("Catalog Write Requests", trace_counters.catalog_write_requests);
+    // span->SetAttribute("Catalog Execution Time", trace_counters.total_catalog_rpc_wait);
+    span->End();
+    this->query_tracer_ = nullptr;
+    // this->tokens_.pop_back();
+
+    if (!this->spans_.empty()) {
+      LOG(ERROR) << "Spans should be empty here";
+    }
+
+    while(!this->spans_.empty()) {
+      auto span = this->spans_.back().first;
+      span->End();
+      this->spans_.pop_back();
+    }
+
+    // FILE *fptr= fopen("/home/asaha/code/logs.txt", "a");
+    // fprintf(fptr, "ending trace...\n");
+    // fclose(fptr);
+
+
+    // LOG(INFO) << "Ending trace span";
+  }
   return Status::OK();
 }
 
@@ -523,13 +558,22 @@ Status PgSession::StartQueryEvent(const char* event_name) {
     // this->tokens_.push_back(
     //     opentelemetry::context::RuntimeContext::Attach(
     //         opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
+
+    // if (std::string(event_name) == "Materialize" || std::string(event_name) == "Function Scan" || std::string(event_name) == "Foreign Scan") {
+    //   LOG(INFO) << "[" << event_name;
+    // }
+    // FILE *fptr= fopen("/home/asaha/code/logs.txt", "a");
+    // fprintf(fptr, "starting query event... %s\n", event_name);
+    // fclose(fptr);
   }
   return Status::OK();
 }
 
 Status PgSession::StopQueryEvent(const char* event_name) {
   if (this->query_tracer_) {
-    nostd::shared_ptr<opentelemetry::trace::Span> span;
+    nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.back().first;
+    // this->spans_.pop_back();
+    // this->span_context_.pop_back();
     for (int index = (int)this->spans_.size() - 1; index >= 0; index--) {
       if (this->spans_[index].second == std::string(event_name)) {
         span = this->spans_[index].first;
@@ -540,6 +584,14 @@ Status PgSession::StopQueryEvent(const char* event_name) {
     }
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
     span->End();
+    // LOG(INFO) << "\t\t" << event_name << "]";
+    // LOG(INFO) << "Ending query span";
+    // if (std::string(event_name) == "Materialize" || std::string(event_name) == "Function Scan" || std::string(event_name) == "Foreign Scan") {
+    //   LOG(INFO) << "\t" << event_name << "]";
+    // }
+    // FILE *fptr= fopen("/home/asaha/code/logs.txt", "a");
+    // fprintf(fptr, "stopping query event... %s\n", event_name);
+    // fclose(fptr);
   }
   return Status::OK();
 }
@@ -570,6 +622,9 @@ Status PgSession::StartPlanStateSpan(const char* planstate_name, int* planstate_
     if (right_tree) {
       this->planstate_span_context_.insert({right_tree, span->GetContext()});
     }
+    // FILE *fptr= fopen("/home/asaha/code/logs.txt", "a");
+    // fprintf(fptr, "starting plan state span... %s : %p left : %p right : %p\n", planstate_name, planstate_node, left_tree, right_tree);
+    // fclose(fptr);
   }
   return Status::OK();
 }
@@ -585,13 +640,47 @@ Status PgSession::StopPlanStateSpan(const char* planstate_name, int* planstate_n
         break;
       }
     }
+    if (span == nullptr) {
+      LOG(ERROR) << "span shouldn't be null " << std::string(planstate_name);
+    }
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
     span->End();
     auto find_res_ = this->planstate_span_context_.find(planstate_node);
     if (find_res_ != this->planstate_span_context_.end()) {
       this->planstate_span_context_.erase(find_res_);
     }
+    // FILE *fptr= fopen("/home/asaha/code/logs.txt", "a");
+    // fprintf(fptr, "starting plan state span... %s : %p \n", planstate_name, planstate_node);
+    // fclose(fptr);
   }
+  return Status::OK();
+}
+
+
+Status PgSession::StartDebugSpan(const char* event_name, int* addr) {
+  if (this->query_tracer_) {
+    opentelemetry::trace::StartSpanOptions options;
+    options.parent = this->span_context_.back();
+    auto span = this->query_tracer_->StartSpan(
+        event_name,
+        {
+          {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__}, {
+            opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__
+          }
+        },
+        options
+      );
+    this->spans_.push_back({span, event_name});
+    this->span_context_.push_back(span->GetContext());
+    // this->tokens_.push_back(
+    //     opentelemetry::context::RuntimeContext::Attach(
+    //         opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
+    // LOG(INFO) << "[\t" << event_name;
+  }
+  return Status::OK();
+}
+
+Status PgSession::StopDebugSpan(const char* event_name, int* addr) {
   return Status::OK();
 }
 
@@ -749,7 +838,7 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
               << " session (num ops: " << ops.size() << ")";
   }
 
-  YBCStartQueryEvent("Flushing buffered operations");
+  // YBCStartQueryEvent("Flushing buffered operations");
 
   if (transactional) {
     auto txn_priority_requirement = kLowerPriorityRange;
@@ -757,9 +846,13 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
       txn_priority_requirement = kHighestPriority;
     }
 
-    /* Need to close the span here if it returns */
-    RETURN_NOT_OK(pg_txn_manager_->CalculateIsolation(
-        false /* read_only */, txn_priority_requirement));
+    auto status = pg_txn_manager_->CalculateIsolation(
+        false /* read_only */, txn_priority_requirement);
+
+    // if (!status.ok()) {
+    //   YBCStopQueryEvent("Flushing buffered operations");
+    // }
+    RETURN_NOT_OK(status);
   }
 
   // In case of flushing of non-transactional operations it is required to set read time with the
@@ -770,7 +863,7 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
   auto result = Perform(
       std::move(ops), {.ensure_read_time_is_set = EnsureReadTimeIsSet(!transactional)});
 
-  YBCStopQueryEvent("Flushing buffered operations");
+  // YBCStopQueryEvent("Flushing buffered operations");
 
   return result;
 }

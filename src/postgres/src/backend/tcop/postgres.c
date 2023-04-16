@@ -1218,7 +1218,7 @@ exec_simple_query(const char *query_string)
 						 receiver,
 						 completionTag);
 
-		if(IsYugaByteEnabled())
+		if(IsYugaByteEnabled()) /* Need to end execution after end executor phase */
 			YBCStopQueryEvent("execute");
 
 		receiver->rDestroy(receiver);

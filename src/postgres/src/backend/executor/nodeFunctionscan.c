@@ -267,7 +267,7 @@ ExecFunctionScan(PlanState *pstate)
 {
 	if (pstate->startSpan)
 	{
-		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)pstate->plan->lefttree, (int *)pstate->plan->righttree);
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)(pstate->lefttree ? pstate->lefttree->plan : NULL), (int *)(pstate->righttree ? pstate->righttree->plan : NULL));
 		pstate->startSpan = false;
 	}
 	FunctionScanState *node = castNode(FunctionScanState, pstate);
@@ -558,7 +558,7 @@ ExecEndFunctionScan(FunctionScanState *node)
 	if (!node->ss.ps.startSpan)
 	{
 		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->ss.ps.plan);
-		node->ss.ps.startSpan = false;
+		node->ss.ps.startSpan = true;
 	}
 }
 

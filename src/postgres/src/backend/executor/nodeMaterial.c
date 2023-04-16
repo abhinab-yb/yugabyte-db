@@ -40,7 +40,7 @@ ExecMaterial(PlanState *pstate)
 {
 	if (pstate->startSpan)
 	{
-		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)pstate->plan->lefttree, (int *)pstate->plan->righttree);
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)(pstate->lefttree ? pstate->lefttree->plan : NULL), (int *)(pstate->righttree ? pstate->righttree->plan : NULL));
 		pstate->startSpan = false;
 	}
 	MaterialState *node = castNode(MaterialState, pstate);
@@ -136,7 +136,9 @@ ExecMaterial(PlanState *pstate)
 		 * which direction the subplan will go.
 		 */
 		outerNode = outerPlanState(node);
+		YBCStartQueryEvent(GetPlanNodeName(outerNode->plan));
 		outerslot = ExecProcNode(outerNode);
+		YBCStopQueryEvent(GetPlanNodeName(outerNode->plan));
 		if (TupIsNull(outerslot))
 		{
 			node->eof_underlying = true;
@@ -258,16 +260,16 @@ ExecEndMaterial(MaterialState *node)
 		tuplestore_end(node->tuplestorestate);
 	node->tuplestorestate = NULL;
 
-	if (!node->ss.ps.startSpan)
-	{
-		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->ss.ps.plan);
-		node->ss.ps.startSpan = false;
-	}
-
 	/*
 	 * shut down the subplan
 	 */
 	ExecEndNode(outerPlanState(node));
+
+	if (!node->ss.ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->ss.ps.plan);
+		node->ss.ps.startSpan = true;
+	}
 }
 
 /* ----------------------------------------------------------------

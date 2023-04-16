@@ -73,7 +73,7 @@ ExecNestLoop(PlanState *pstate)
 
 	if (pstate->startSpan)
 	{
-		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)pstate->lefttree->plan, (int *)pstate->righttree->plan);
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)(pstate->lefttree ? pstate->lefttree->plan : NULL), (int *)(pstate->righttree ? pstate->righttree->plan : NULL));
 		pstate->startSpan = false;
 	}
 
@@ -112,7 +112,9 @@ ExecNestLoop(PlanState *pstate)
 		if (node->nl_NeedNewOuter)
 		{
 			ENL1_printf("getting new outer tuple");
+			YBCStartQueryEvent(GetPlanNodeName(outerPlan->plan));
 			outerTupleSlot = ExecProcNode(outerPlan);
+			YBCStopQueryEvent(GetPlanNodeName(outerPlan->plan));
 
 			/*
 			 * if there are no more outer tuples, then the join is complete..
@@ -163,7 +165,9 @@ ExecNestLoop(PlanState *pstate)
 		 */
 		ENL1_printf("getting new inner tuple");
 
+		YBCStartQueryEvent(GetPlanNodeName(innerPlan->plan));
 		innerTupleSlot = ExecProcNode(innerPlan);
+		YBCStopQueryEvent(GetPlanNodeName(innerPlan->plan));
 		econtext->ecxt_innertuple = innerTupleSlot;
 
 		if (TupIsNull(innerTupleSlot))
@@ -195,7 +199,8 @@ ExecNestLoop(PlanState *pstate)
 					 */
 					ENL1_printf("qualification succeeded, projecting tuple");
 
-					return ExecProject(node->js.ps.ps_ProjInfo);
+					TupleTableSlot *slot = ExecProject(node->js.ps.ps_ProjInfo);
+					return slot;
 				}
 				else
 					InstrCountFiltered2(node, 1);
@@ -391,7 +396,7 @@ ExecEndNestLoop(NestLoopState *node)
 	if (!node->js.ps.startSpan)
 	{
 		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->js.ps.plan);
-		node->js.ps.startSpan = false;
+		node->js.ps.startSpan = true;
 	}
 }
 

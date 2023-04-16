@@ -865,4 +865,6 @@ void GetStatusMsgAndArgumentsByCode(
 	} while (0)
 #endif
 
+extern const char* GetPlanNodeName(Plan *plan);
+
 #endif /* PG_YB_UTILS_H */

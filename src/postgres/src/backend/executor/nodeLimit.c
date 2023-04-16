@@ -45,7 +45,7 @@ ExecLimit(PlanState *pstate)
 {
 	if (pstate->startSpan)
 	{
-		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate, (int *)pstate->lefttree, (int *)pstate->righttree);
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)(pstate->lefttree ? pstate->lefttree->plan : NULL), (int *)(pstate->righttree ? pstate->righttree->plan : NULL));
 		pstate->startSpan = false;
 	}
 	LimitState *node = castNode(LimitState, pstate);
@@ -115,6 +115,7 @@ ExecLimit(PlanState *pstate)
 				return NULL;
 			}
 
+			YBCStartQueryEvent(GetPlanNodeName(outerPlan->plan));
 			/*
 			 * Fetch rows from subplan until we reach position > offset.
 			 */
@@ -128,12 +129,14 @@ ExecLimit(PlanState *pstate)
 					 * any output at all.
 					 */
 					node->lstate = LIMIT_EMPTY;
+					YBCStopQueryEvent(GetPlanNodeName(outerPlan->plan));
 					return NULL;
 				}
 				node->subSlot = slot;
 				if (++node->position > node->offset)
 					break;
 			}
+			YBCStopQueryEvent(GetPlanNodeName(outerPlan->plan));
 
 			/*
 			 * Okay, we have the first tuple of the window.
@@ -176,7 +179,9 @@ ExecLimit(PlanState *pstate)
 				/*
 				 * Get next tuple from subplan, if any.
 				 */
+				YBCStartQueryEvent(GetPlanNodeName(outerPlan->plan));
 				slot = ExecProcNode(outerPlan);
+				YBCStopQueryEvent(GetPlanNodeName(outerPlan->plan));
 				if (TupIsNull(slot))
 				{
 					node->lstate = LIMIT_SUBPLANEOF;
@@ -200,7 +205,9 @@ ExecLimit(PlanState *pstate)
 				/*
 				 * Get previous tuple from subplan; there should be one!
 				 */
+				YBCStartQueryEvent(GetPlanNodeName(outerPlan->plan));
 				slot = ExecProcNode(outerPlan);
+				YBCStopQueryEvent(GetPlanNodeName(outerPlan->plan));
 				if (TupIsNull(slot))
 					elog(ERROR, "LIMIT subplan failed to run backwards");
 				node->subSlot = slot;
@@ -216,7 +223,9 @@ ExecLimit(PlanState *pstate)
 			 * Backing up from subplan EOF, so re-fetch previous tuple; there
 			 * should be one!  Note previous tuple must be in window.
 			 */
+			YBCStartQueryEvent(GetPlanNodeName(outerPlan->plan));
 			slot = ExecProcNode(outerPlan);
+			YBCStopQueryEvent(GetPlanNodeName(outerPlan->plan));
 			if (TupIsNull(slot))
 				elog(ERROR, "LIMIT subplan failed to run backwards");
 			node->subSlot = slot;
@@ -428,12 +437,12 @@ void
 ExecEndLimit(LimitState *node)
 {
 	ExecFreeExprContext(&node->ps);
+	ExecEndNode(outerPlanState(node));
 	if (!node->ps.startSpan)
 	{
-		YBCStopPlanStateSpan(__FILE_NAME__, (int *)&node->ps);
-		node->ps.startSpan = false;
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->ps.plan);
+		node->ps.startSpan = true;
 	}
-	ExecEndNode(outerPlanState(node));
 }
 
 

@@ -123,7 +123,7 @@ ExecForeignScan(PlanState *pstate)
 {
 	if (pstate->startSpan)
 	{
-		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate, (int *)pstate->lefttree, (int *)pstate->righttree);
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)(pstate->lefttree ? pstate->lefttree->plan : NULL), (int *)(pstate->righttree ? pstate->righttree->plan : NULL));
 		pstate->startSpan = false;
 	}
 	ForeignScanState *node = castNode(ForeignScanState, pstate);
@@ -276,8 +276,8 @@ ExecEndForeignScan(ForeignScanState *node)
 	
 	if (!node->ss.ps.startSpan)
 	{
-		YBCStopPlanStateSpan(__FILE_NAME__, (int *)&node->ss.ps);
-		node->ss.ps.startSpan = false;
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->ss.ps.plan);
+		node->ss.ps.startSpan = true;
 	}
 }
 

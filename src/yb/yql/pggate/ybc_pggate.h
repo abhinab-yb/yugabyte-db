@@ -539,6 +539,12 @@ YBCStatus YBCStopQueryEvent(const char* event_name);
 YBCStatus YBCStartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree);
 YBCStatus YBCStopPlanStateSpan(const char* planstate_name, int* planstate_node);
 
+YBCStatus YBCStartNodeSpan(const char* node_name, int* node_addr);
+YBCStatus YBCStopNodeSpan(const char* node_name, int* node_addr);
+
+YBCStatus YBCStartDebugSpan(const char* event_name, int* addr);
+YBCStatus YBCStopDebugSpan(const char* event_name, int* addr);
+
 // Transaction control -----------------------------------------------------------------------------
 YBCStatus YBCPgBeginTransaction();
 YBCStatus YBCPgRecreateTransaction();
