@@ -1689,9 +1689,12 @@ get_func_rows(Oid funcid)
 Oid
 get_relname_relid(const char *relname, Oid relnamespace)
 {
-	return GetSysCacheOid2(RELNAMENSP,
+	YBCStartQueryEvent("Get Catalog Cache");
+	Oid oid = GetSysCacheOid2(RELNAMENSP,
 						   PointerGetDatum(relname),
 						   ObjectIdGetDatum(relnamespace));
+	YBCStopQueryEvent("Get Catalog Cache");
+	return oid;
 }
 
 #ifdef NOT_USED
