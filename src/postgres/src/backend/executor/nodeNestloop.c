@@ -60,11 +60,7 @@
 static TupleTableSlot *
 ExecNestLoop(PlanState *pstate)
 {
-	if (pstate->startSpan)
-	{
-		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)(pstate->lefttree ? pstate->lefttree->plan : NULL), (int *)(pstate->righttree ? pstate->righttree->plan : NULL));
-		pstate->startSpan = false;
-	}
+	StartSpanIfNotActive(pstate->plan);
 	NestLoopState *node = castNode(NestLoopState, pstate);
 	NestLoop   *nl;
 	PlanState  *innerPlan;
@@ -387,11 +383,7 @@ ExecEndNestLoop(NestLoopState *node)
 	NL1_printf("ExecEndNestLoop: %s\n",
 			   "node processing ended");
 
-	if (!node->js.ps.startSpan)
-	{
-		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->js.ps.plan);
-		node->js.ps.startSpan = true;
-	}
+	StopSpanIfActive(node->js.ps.plan);
 }
 
 /* ----------------------------------------------------------------

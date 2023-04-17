@@ -265,11 +265,7 @@ FunctionRecheck(FunctionScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecFunctionScan(PlanState *pstate)
 {
-	if (pstate->startSpan)
-	{
-		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)(pstate->lefttree ? pstate->lefttree->plan : NULL), (int *)(pstate->righttree ? pstate->righttree->plan : NULL));
-		pstate->startSpan = false;
-	}
+	StartSpanIfNotActive(pstate->plan);
 	FunctionScanState *node = castNode(FunctionScanState, pstate);
 
 	return ExecScan(&node->ss,
@@ -555,11 +551,7 @@ ExecEndFunctionScan(FunctionScanState *node)
 		}
 	}
 
-	if (!node->ss.ps.startSpan)
-	{
-		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->ss.ps.plan);
-		node->ss.ps.startSpan = true;
-	}
+	StopSpanIfActive(node->ss.ps.plan);
 }
 
 /* ----------------------------------------------------------------

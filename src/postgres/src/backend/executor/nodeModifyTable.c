@@ -2442,11 +2442,7 @@ tupconv_map_for_subplan(ModifyTableState *mtstate, int whichplan)
 static TupleTableSlot *
 ExecModifyTable(PlanState *pstate)
 {
-	if (pstate->startSpan)
-	{
-		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)(pstate->lefttree ? pstate->lefttree->plan : NULL), (int *)(pstate->righttree ? pstate->righttree->plan : NULL));
-		pstate->startSpan = false;
-	}
+	StartSpanIfNotActive(pstate->plan);
 	ModifyTableState *node = castNode(ModifyTableState, pstate);
 	PartitionTupleRouting *proute = node->mt_partition_tuple_routing;
 	EState	   *estate = node->ps.state;
@@ -3314,11 +3310,7 @@ ExecEndModifyTable(ModifyTableState *node)
 	for (i = 0; i < node->mt_nplans; i++)
 		ExecEndNode(node->mt_plans[i]);
 
-	if (!node->ps.startSpan)
-	{
-		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->ps.plan);
-		node->ps.startSpan = true;
-	}
+	StopSpanIfActive(node->ps.plan);
 }
 
 void

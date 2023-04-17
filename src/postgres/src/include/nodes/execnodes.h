@@ -1036,10 +1036,7 @@ typedef struct PlanState
 	 * descriptor, without encoding knowledge about all executor nodes.
 	 */
 	TupleDesc	scandesc;
-		
-	/*
-	 * To check if we should start a span during execution
-	 */
+
 	bool		startSpan;
 } PlanState;
 

@@ -874,4 +874,22 @@ void GetStatusMsgAndArgumentsByCode(
 	} while (0)
 #endif
 
+extern const char* GetPlanNodeName(Plan *plan);
+
+#define StartSpanIfNotActive(plan) \
+  do { \
+    if (plan->startSpan) { \
+		YBCStartPlanStateSpan(GetPlanNodeName(plan), (int *)plan, (int *)plan->lefttree, (int *)plan->righttree); \
+		plan->startSpan = false; \
+	} \
+  } while (0)
+
+#define StopSpanIfActive(plan) \
+  do { \
+    if (!plan->startSpan && trace_vars.is_tracing_enabled) { \
+		YBCStopPlanStateSpan(GetPlanNodeName(plan), (int *)plan); \
+		plan->startSpan = true; \
+	} \
+  } while (0)
+
 #endif /* PG_YB_UTILS_H */
