@@ -221,11 +221,11 @@ class PgSession::RunHelper {
         if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
           LOG(INFO) << "Buffering operation: " << op->ToString();
         }
-        // YBCStartQueryEvent("Buffering operation");
+        YBCStartQueryEvent("Buffering operation");
         auto status = buffer.Add(table,
                           PgsqlWriteOpPtr(std::move(op), down_cast<PgsqlWriteOp*>(op.get())),
                           IsTransactional());
-        // YBCStopQueryEvent("Buffering operation");
+        YBCStopQueryEvent("Buffering operation");
         return status;
     }
     bool read_only = op->is_read();
@@ -256,7 +256,7 @@ class PgSession::RunHelper {
       }
     }
 
-    // YBCStartQueryEvent("Applying operation");
+    YBCStartQueryEvent("Applying operation");
 
     if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
       LOG(INFO) << "Applying operation: " << op->ToString();
@@ -267,7 +267,7 @@ class PgSession::RunHelper {
     operations_.Add(std::move(op), table.id());
 
     if (!IsTransactional()) {
-      // YBCStopQueryEvent("Applying operation");
+      YBCStopQueryEvent("Applying operation");
       return Status::OK();
     }
 
@@ -284,7 +284,7 @@ class PgSession::RunHelper {
 
     auto status = pg_session_.pg_txn_manager_->CalculateIsolation(read_only, txn_priority_requirement);
 
-    // YBCStopQueryEvent("Applying operation");
+    YBCStopQueryEvent("Applying operation");
 
     return status;
   }
@@ -295,7 +295,7 @@ class PgSession::RunHelper {
       return PerformFuture();
     }
 
-    // YBCStartQueryEvent("Flushing collected operations");
+    YBCStartQueryEvent("Flushing collected operations");
 
     if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
       LOG(INFO) << "Flushing collected operations, using session type: "
@@ -309,7 +309,7 @@ class PgSession::RunHelper {
          .in_txn_limit = in_txn_limit_
         });
 
-    // YBCStopQueryEvent("Flushing collected operations");
+    YBCStopQueryEvent("Flushing collected operations");
 
     return result;
   }
@@ -479,11 +479,6 @@ Status PgSession::StartTraceForQuery(const char* query_string) {
     );
   this->spans_.push_back({span, "Statement"});
   this->span_context_.push_back(span->GetContext());
-  // this->tokens_.push_back(opentelemetry::context::RuntimeContext::Attach(
-  //     opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
-  // FILE *fptr= fopen("/home/asaha/code/logs.txt", "a");
-  // fprintf(fptr, "starting trace... %s\n", query_string);
-  // fclose(fptr);
   return Status::OK();
 }
 
@@ -776,7 +771,7 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
               << " session (num ops: " << ops.size() << ")";
   }
 
-  // YBCStartQueryEvent("Flushing buffered operations");
+  YBCStartQueryEvent("Flushing buffered operations");
 
   if (transactional) {
     auto txn_priority_requirement = kLowerPriorityRange;
@@ -787,9 +782,9 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
     auto status = pg_txn_manager_->CalculateIsolation(
         false /* read_only */, txn_priority_requirement);
 
-    // if (!status.ok()) {
-    //   YBCStopQueryEvent("Flushing buffered operations");
-    // }
+    if (!status.ok()) {
+      YBCStopQueryEvent("Flushing buffered operations");
+    }
     RETURN_NOT_OK(status);
   }
 
@@ -801,7 +796,7 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
   auto result = Perform(
       std::move(ops), {.ensure_read_time_is_set = EnsureReadTimeIsSet(!transactional)});
 
-  // YBCStopQueryEvent("Flushing buffered operations");
+  YBCStopQueryEvent("Flushing buffered operations");
 
   return result;
 }

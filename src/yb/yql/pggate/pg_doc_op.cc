@@ -301,13 +301,10 @@ Status PgDocOp::SendRequest(ForceNonBufferable force_non_bufferable) {
 
 Status PgDocOp::SendRequestImpl(ForceNonBufferable force_non_bufferable) {
   // Populate collected information into protobuf requests before sending to DocDB.
-  // YBCStartQueryEvent("Creating DocDB Request");
+  YBCStartQueryEvent("Creating DocDB Request");
   auto status = CreateRequests();
-  // if (!status.ok()) {
-    // YBCStopQueryEvent("Creating DocDB Request");
-  // }
+  YBCStopQueryEvent("Creating DocDB Request");
   RETURN_NOT_OK(status);
-  // YBCStopQueryEvent("Creating DocDB Request");
 
   // Currently, send and receive individual request of a batch is not yet supported
   // - Among statements, only queries by BASE-YBCTIDs need to be sent and received in batches
