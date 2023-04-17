@@ -108,8 +108,6 @@ int			max_stack_depth = 100;
 /* wait N seconds to allow attach from a debugger */
 int			PostAuthDelay = 0;
 
-yb_trace	trace_vars;
-
 /* ----------------
  *		private variables
  * ----------------
@@ -1115,17 +1113,16 @@ exec_simple_query(const char *query_string)
 		{
 			int traceable_index;
 			bool found = false;
-			volatile PGPROC *proc = MyProc;
-			LWLockAcquire((LWLock *)&proc->backendLock, LW_SHARED);
-			for (traceable_index = 0; traceable_index < proc->numQueries; traceable_index++)
+			LWLockAcquire(&MyProc->backendLock, LW_SHARED);
+			for (traceable_index = 0; traceable_index < MyProc->numQueries; traceable_index++)
 			{
-				if (proc->traceableQueries[traceable_index] == trace_vars.query_id)
+				if (MyProc->traceableQueries[traceable_index] == trace_vars.query_id)
 				{
 					found = true;
 					break;
 				}
 			}
-			LWLockRelease((LWLock *)&proc->backendLock);
+			LWLockRelease(&MyProc->backendLock);
 
 			if (found)
 			{
@@ -4671,6 +4668,7 @@ yb_exec_query_wrapper(MemoryContext exec_context,
 	bool retry = true;
 	for (int attempt = 0; retry; ++attempt)
 	{
+		trace_counters.statement_retries++;
 		yb_exec_query_wrapper_one_attempt(
 			exec_context, restart_data, functor, functor_context, attempt, &retry);
 	}
@@ -4689,12 +4687,21 @@ yb_exec_simple_query_impl(const void* query_string)
 static void
 yb_exec_simple_query(const char* query_string, MemoryContext exec_context)
 {
+	char *new_query_string = (char *)query_string;
+	if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
+	{
+		const char* explain_analyze = "EXPLAIN (ANALYZE, DIST) ";
+
+		new_query_string = (char *)malloc(strlen(query_string)+strlen(explain_analyze)+1);
+		strcpy(new_query_string, explain_analyze);
+		strcat(new_query_string, query_string);
+	}
 	YBQueryRestartData restart_data  = {
 		.portal_name  = NULL,
 		.query_string = query_string,
-		.command_tag  = yb_parse_command_tag(query_string)
+		.command_tag  = yb_parse_command_tag(new_query_string)
 	};
-	yb_exec_query_wrapper(exec_context, &restart_data, &yb_exec_simple_query_impl, query_string);
+	yb_exec_query_wrapper(exec_context, &restart_data, &yb_exec_simple_query_impl, new_query_string);
 }
 
 typedef struct YBExecuteMessageFunctorContext
@@ -5745,7 +5752,7 @@ PostgresMain(int argc, char *argv[],
 		}
 		if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
 		{
-			YBCStopTraceForQuerytrace_counters);
+			YBCStopTraceForQuery(trace_counters);
 			ResetYbTraceVars();
 		}
 		ResetYbCounters();
