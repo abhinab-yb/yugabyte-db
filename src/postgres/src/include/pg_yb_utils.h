@@ -61,6 +61,18 @@
  * reduce frequency and/or duration of cache refreshes.
  */
 
+/*
+ * Stores any catalog accesses that occur during query planning or execution
+ * for use in EXPLAIN (ANALYZE, DIST). Generally, accesses happen only during
+ * query planning to validate the query and collect metadata.
+ *
+ * Queries on partitioned tables may result in a metadata access, since we need
+ * the metadata to determine which partition table should hold the new rows.
+ * Another example of a metadata access during execution is CREATE TABLE AS,
+ * which is the only DDL supported by EXPLAIN.
+ */
+extern YbPgRpcStats *CatalogReadRpcStats;
+
 #define YB_CATCACHE_VERSION_UNINITIALIZED (0)
 
 /*
@@ -559,7 +571,9 @@ extern void YBEndOperationsBuffering();
 extern void YBResetOperationsBuffering();
 extern void YBFlushBufferedOperations();
 extern void YBGetAndResetOperationFlushRpcStats(uint64_t *count,
-												uint64_t *wait_time);
+												uint64_t *wait_time,
+												uint64_t* catalog_count,
+												uint64_t* catalog_wait_time);
 
 bool YBEnableTracing();
 bool YBReadFromFollowersEnabled();
@@ -719,6 +733,12 @@ extern void assign_yb_xcluster_consistency_level(const char *newval,
  */
 void YbUpdateReadRpcStats(YBCPgStatement handle,
 						  YbPgRpcStats *reads, YbPgRpcStats *tbl_reads);
+void YbUpdateNonbufferedWriteRpcStats(uint64_t *writes, uint64_t *write_wait);
+
+void YbUpdateCatalogRpcStats(YBCPgStatement handle);
+
+void YbCreateYbRpcStats();
+void YbDeleteCatalogRpcStats();
 
 /*
  * If the tserver gflag --ysql_disable_server_file_access is set to

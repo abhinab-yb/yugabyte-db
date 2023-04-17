@@ -135,7 +135,7 @@ class PgDocResult {
 //
 // (3) SendRequest:
 //     PgSession API requires contiguous array of operators. For this reason, before sending the
-//     pgsql_ops_ is soreted to place active ops first, and all inactive ops are place at the end.
+//     pgsql_ops_ is sorted to place active ops first, and all inactive ops are place at the end.
 //     For example,
 //        PgSession::RunAsync(pgsql_ops_.data(), active_op_count)
 //
@@ -311,10 +311,10 @@ class PgDocOp : public std::enable_shared_from_this<PgDocOp> {
   const PgTable& table() const { return table_; }
 
   // RPC stats for EXPLAIN ANALYZE
-  void GetAndResetReadRpcStats(uint64_t* read_rpc_count, uint64_t* read_rpc_wait_time) {
-    *read_rpc_count = read_rpc_count_;
+  void GetAndResetReadRpcStats(uint64_t* rpc_count, uint64_t* rpc_wait_time) {
+    *rpc_count = read_rpc_count_;
     read_rpc_count_ = 0;
-    *read_rpc_wait_time = read_rpc_wait_time_.ToNanoseconds();
+    *rpc_wait_time = read_rpc_wait_time_.ToNanoseconds();
     read_rpc_wait_time_ = MonoDelta::FromNanoseconds(0);
   }
 

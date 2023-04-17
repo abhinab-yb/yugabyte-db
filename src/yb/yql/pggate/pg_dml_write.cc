@@ -93,8 +93,11 @@ Status PgDmlWrite::DeleteEmptyPrimaryBinds() {
   return Status::OK();
 }
 
-Status PgDmlWrite::Exec(ForceNonBufferable force_non_bufferable) {
+void PgDmlWrite::GetAndResetWriteRpcCounts(uint64_t *write_rpcs, uint64_t *write_rpc_wait) {
+  doc_op_->GetAndResetReadRpcStats(write_rpcs, write_rpc_wait);
+}
 
+Status PgDmlWrite::Exec(ForceNonBufferable force_non_bufferable) {
   // Delete allocated binds that are not associated with a value.
   // YBClient interface enforce us to allocate binds for primary key columns in their indexing
   // order, so we have to allocate these binds before associating them with values. When the values

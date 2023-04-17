@@ -56,6 +56,7 @@ bool yb_binary_restore = false;
 bool yb_pushdown_strict_inequality = true;
 
 bool yb_run_with_explain_analyze = false;
+bool yb_run_with_analyze_explain_dist = false;
 
 // If this is set in the user's session to a positive value, it will supersede the gflag
 // ysql_session_max_batch_size.

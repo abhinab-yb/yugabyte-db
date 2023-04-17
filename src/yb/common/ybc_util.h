@@ -87,6 +87,11 @@ extern bool yb_run_with_explain_analyze;
  */
 extern bool yb_enable_hash_batch_in;
 
+ /* Set to true when only for ANALYZE (EXPLAIN, DIST) and enables collection of RPC stats that may
+ * slow down regular query execution.
+ */
+extern bool yb_run_with_analyze_explain_dist;
+
 /*
  * xcluster consistency level
  */

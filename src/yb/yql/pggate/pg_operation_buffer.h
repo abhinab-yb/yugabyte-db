@@ -41,6 +41,7 @@ struct BufferableOperations {
   void Swap(BufferableOperations* rhs);
   void Clear();
   void Reserve(size_t capacity);
+  bool HasCatalogChange() const;
   bool empty() const;
   size_t size() const;
 };
@@ -57,7 +58,9 @@ class PgOperationBuffer {
       const PgTableDesc& table, const PgsqlOp& op, bool transactional);
   size_t Size() const;
   void Clear();
-  void GetAndResetRpcStats(uint64_t* count, uint64_t* wait_time);
+  void GetAndResetRpcStats(
+      uint64_t* count, uint64_t* wait_time, uint64_t* catalog_count, uint64_t* catalog_wait_time);
+  void AddWriteRpc(bool catalog);
 
  private:
   class Impl;

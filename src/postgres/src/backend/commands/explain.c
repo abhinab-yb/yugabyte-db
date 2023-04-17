@@ -375,6 +375,12 @@ ExplainOneQuery(Query *query, int cursorOptions,
 
 		INSTR_TIME_SET_CURRENT(planstart);
 
+		if (IsYugaByteEnabled() && es->rpc)
+		{
+			YbCreateYbRpcStats();
+			yb_run_with_analyze_explain_dist = true;
+		}
+
 		/* plan the query */
 		plan = pg_plan_query(query, cursorOptions, params);
 
@@ -384,6 +390,9 @@ ExplainOneQuery(Query *query, int cursorOptions,
 		/* run it (if needed) and produce output */
 		ExplainOnePlan(plan, into, es, queryString, params, queryEnv,
 					   &planduration);
+
+		if (IsYugaByteEnabled() && es->rpc)
+			YbDeleteCatalogRpcStats();
 	}
 }
 
@@ -485,6 +494,15 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 	int			eflags;
 	int			instrument_option = 0;
 
+	double		catalog_rpc_count_planning = 0.0;
+	double		catalog_rpc_wait_planning = 0.0;
+	double		total_rpc_wait = 0.0;
+	double		total_catalog_rpc_wait = 0.0;
+	double		catalog_read_requests = 0.0;
+	uint64_t	flush_count;
+	uint64_t	total_catalog_write_count;
+
+
 	Assert(plannedstmt->commandType != CMD_UTILITY);
 
 	if (es->analyze && es->timing)
@@ -540,6 +558,7 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 	if (es->analyze)
 	{
 		ScanDirection dir;
+		uint64_t flush_wait_time, catalog_flush_wait_time, catalog_write_wait, catalog_write_count, catalog_flush_count;
 
 		/* EXPLAIN ANALYZE CREATE TABLE AS WITH NO DATA is weird */
 		if (into && into->skipData)
@@ -547,11 +566,18 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 		else
 			dir = ForwardScanDirection;
 
-		/* clear the stats by dummy read */
-		if (es->rpc)
+		if (IsYugaByteEnabled() && es->rpc)
 		{
-			uint64_t count, wait_time;
-			YBGetAndResetOperationFlushRpcStats(&count, &wait_time);
+			/* Get and reset any RPCs from the planning stage */
+			catalog_rpc_count_planning = CatalogReadRpcStats->count;
+			catalog_rpc_wait_planning = CatalogReadRpcStats->wait_time;
+			CatalogReadRpcStats->wait_time = 0;
+			CatalogReadRpcStats->count = 0;
+			/* clear the stats by dummy read */
+
+			uint64_t count, wait_time, catalog_count, catalog_wait_time;
+			YBGetAndResetOperationFlushRpcStats(&count, &wait_time, &catalog_count, &catalog_wait_time);
+			YbUpdateNonbufferedWriteRpcStats(&count, &wait_time);
 		}
 
 		/* run the plan */
@@ -559,6 +585,24 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 
 		/* take a snapshot on the max PG memory consumption */
 		peakMem = PgMemTracker.stmt_max_mem_bytes;
+
+		if (IsYugaByteEnabled() && es->rpc)
+		{
+			YBFlushBufferedOperations();
+			YbUpdateNonbufferedWriteRpcStats(&catalog_write_count, &catalog_write_wait);
+			YBGetAndResetOperationFlushRpcStats(&flush_count, &flush_wait_time, &catalog_flush_count, &catalog_flush_wait_time);
+			if (flush_count > 0)
+				total_rpc_wait += (double) flush_wait_time;
+
+			if (catalog_flush_count > 0)
+				total_catalog_rpc_wait += (double) catalog_flush_wait_time;
+			if (CatalogReadRpcStats->wait_time > 0.0)
+				total_catalog_rpc_wait += CatalogReadRpcStats->wait_time;
+			if (catalog_write_count > 0)
+				total_catalog_rpc_wait += (double) catalog_write_wait;
+			catalog_read_requests = CatalogReadRpcStats->count;
+			total_catalog_write_count = catalog_flush_count + catalog_write_count;
+		}
 
 		/* run cleanup too */
 		ExecutorFinish(queryDesc);
@@ -577,6 +621,13 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 		double		plantime = INSTR_TIME_GET_DOUBLE(*planduration);
 
 		ExplainPropertyFloat("Planning Time", "ms", 1000.0 * plantime, 3, es);
+		if (IsYugaByteEnabled() && es->rpc)
+		{
+			ExplainPropertyFloat("Planning Catalog Requests", NULL,
+								 catalog_rpc_count_planning, 0, es);
+			ExplainPropertyFloat("Planning Catalog Execution Time", "ms",
+								 catalog_rpc_wait_planning / 1000000.0, 3, es);
+		}
 	}
 
 	/* Print info about runtime of triggers */
@@ -620,25 +671,28 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 	{
 		ExplainPropertyFloat("Execution Time", "ms", 1000.0 * totaltime, 3,
 							 es);
-		if (es->rpc)
-		{
-			double total_rpc_wait = 0.0;
-			uint64_t flush_count, flush_wait_time;
-			YBGetAndResetOperationFlushRpcStats(&flush_count, &flush_wait_time);
-			if (flush_count > 0)
-				total_rpc_wait += (double)flush_wait_time;
-			if (es->yb_total_read_rpc_count > 0.0)
-				total_rpc_wait += es->yb_total_read_rpc_wait;
-
-			ExplainPropertyFloat("Storage Read Requests", NULL,
-								 es->yb_total_read_rpc_count, 0, es);
-			ExplainPropertyInteger("Storage Write Requests", NULL, flush_count, es);
-			ExplainPropertyFloat("Storage Execution Time", "ms",
-								 total_rpc_wait / 1000000.0, 3, es);
-		}
-
 		if (IsYugaByteEnabled())
+		{
+			if (es->rpc)
+			{
+				if (es->yb_total_read_rpc_count > 0.0)
+					total_rpc_wait += es->yb_total_read_rpc_wait;
+
+				ExplainPropertyFloat("Storage Read Requests", NULL,
+									es->yb_total_read_rpc_count, 0, es);
+				ExplainPropertyInteger("Storage Write Requests", NULL, flush_count, es);
+				ExplainPropertyFloat("Storage Execution Time", "ms",
+									total_rpc_wait / 1000000.0, 3, es);
+				ExplainPropertyFloat("Catalog Read Requests", NULL,
+									catalog_read_requests, 0, es);
+				ExplainPropertyFloat("Catalog Write Requests", NULL,
+									total_catalog_write_count, 0, es);
+				ExplainPropertyFloat("Catalog Execution Time", "ms",
+									total_catalog_rpc_wait / 1000000.0, 3, es);
+			}
+
 			appendPgMemInfo(es, peakMem);
+		}
 	}
 
 	ExplainCloseGroup("Query", NULL, true, es);

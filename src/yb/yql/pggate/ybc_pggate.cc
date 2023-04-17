@@ -913,8 +913,10 @@ YBCStatus YBCPgFlushBufferedOperations() {
 }
 
 void YBCPgGetAndResetOperationFlushRpcStats(uint64_t* count,
-                                            uint64_t* wait_time) {
-  pgapi->GetAndResetOperationFlushRpcStats(count, wait_time);
+                                            uint64_t* wait_time,
+                                            uint64_t* catalog_count,
+                                            uint64_t* catalog_wait_time) {
+  pgapi->GetAndResetOperationFlushRpcStats(count, wait_time, catalog_count, catalog_wait_time);
 }
 
 YBCStatus YBCPgDmlExecWriteOp(YBCPgStatement handle, int32_t *rows_affected_count) {
@@ -1470,6 +1472,10 @@ YBCStatus YBCGetIndexBackfillProgress(YBCPgOid* index_oids, YBCPgOid* database_o
     index_ids.emplace_back(PgObjectId(database_oids[i], index_oids[i]));
   }
   return ToYBCStatus(pgapi->GetIndexBackfillProgress(index_ids, backfill_statuses));
+}
+
+void YBCGetAndResetNonbufferedWriteRpcStats(uint64_t* writes, uint64_t* write_wait) {
+  pgapi->GetAndResetNonbufferedWriteRpcStats(writes, write_wait);
 }
 
 //------------------------------------------------------------------------------------------------

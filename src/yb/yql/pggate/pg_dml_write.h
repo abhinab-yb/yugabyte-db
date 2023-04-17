@@ -52,6 +52,8 @@ class PgDmlWrite : public PgDml {
 
   Status SetWriteTime(const HybridTime& write_time);
 
+  void GetAndResetWriteRpcCounts(uint64_t *write_rpcs, uint64_t *write_rpc_wait);
+
  protected:
   // Constructor.
   PgDmlWrite(PgSession::ScopedRefPtr pg_session,
