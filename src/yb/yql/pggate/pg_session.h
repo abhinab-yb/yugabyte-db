@@ -29,6 +29,7 @@
 
 #include "yb/common/pg_types.h"
 #include "yb/common/transaction.h"
+#include "yb/common/ybc_util.h"
 
 #include "yb/gutil/ref_counted.h"
 
@@ -39,7 +40,6 @@
 #include "yb/util/lw_function.h"
 #include "yb/util/oid_generator.h"
 #include "yb/util/result.h"
-
 #include "yb/yql/pggate/pg_client.h"
 #include "yb/yql/pggate/pg_gate_fwd.h"
 #include "yb/yql/pggate/pg_operation_buffer.h"
@@ -194,7 +194,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   //------------------------------------------------------------------------------------------------
 
   Status StartTraceForQuery(const char* query_string);
-  Status StopTraceForQuery();
+  Status StopTraceForQuery(yb_trace_counters trace_counters);
 
   Status StartQueryEvent(const char*);
   Status StopQueryEvent(const char*);
@@ -436,9 +436,9 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   std::variant<TxnSerialNoPerformInfo> last_perform_on_txn_serial_no_;
 
   nostd::shared_ptr<opentelemetry::trace::Tracer> query_tracer_;
-  std::stack<nostd::shared_ptr<opentelemetry::trace::Span>> spans_;
-  std::stack<nostd::unique_ptr<opentelemetry::context::Token>> tokens_;
-
+  std::vector<std::pair<nostd::shared_ptr<opentelemetry::trace::Span>, std::string>> spans_;
+  std::vector<opentelemetry::trace::SpanContext> span_context_;
+  std::map<int*, opentelemetry::trace::SpanContext> planstate_span_context_;
 };
 
 }  // namespace pggate
