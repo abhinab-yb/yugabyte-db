@@ -627,6 +627,7 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 								 catalog_rpc_count_planning, 0, es);
 			ExplainPropertyFloat("Planning Catalog Execution Time", "ms",
 								 catalog_rpc_wait_planning / 1000000.0, 3, es);
+			trace_counters.planning_catalog_requests = catalog_rpc_count_planning;
 		}
 	}
 
@@ -689,6 +690,10 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 									total_catalog_write_count, 0, es);
 				ExplainPropertyFloat("Catalog Execution Time", "ms",
 									total_catalog_rpc_wait / 1000000.0, 3, es);
+				trace_counters.storage_read_requests = es->yb_total_read_rpc_count;
+				trace_counters.storage_write_requests = flush_count;
+				trace_counters.catalog_read_requests = catalog_read_requests;
+				trace_counters.catalog_write_requests = total_catalog_write_count;
 			}
 
 			appendPgMemInfo(es, peakMem);

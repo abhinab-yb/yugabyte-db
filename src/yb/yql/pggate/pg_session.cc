@@ -42,6 +42,7 @@
 #include "yb/common/row_mark.h"
 #include "yb/common/schema.h"
 #include "yb/common/transaction_error.h"
+#include "yb/common/ybc_util.h"
 
 #include "yb/gutil/casts.h"
 
@@ -492,8 +493,65 @@ Status PgSession::StartQueryEvent(const char* event_name) {
 }
 
 Status PgSession::StopQueryEvent(const char* event_name) {
-  if(this->query_tracer_) {
-    nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.top();
+  if (this->query_tracer_) {
+    nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.back().first;
+    for (int index = (int)this->spans_.size() - 1; index >= 0; index--) {
+      if (this->spans_[index].second == std::string(event_name)) {
+        span = this->spans_[index].first;
+        this->spans_.erase(this->spans_.begin() + index);
+        this->span_context_.erase(this->span_context_.begin() + index);
+        break;
+      }
+    }
+    span->SetStatus(opentelemetry::trace::StatusCode::kOk);
+    span->End();
+  }
+  return Status::OK();
+}
+
+Status PgSession::StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree) {
+  if (this->query_tracer_) {
+    opentelemetry::trace::StartSpanOptions options;
+    if (this->planstate_span_context_.find(planstate_node) == this->planstate_span_context_.end()) {
+      options.parent = this->span_context_.back();
+    }
+    else {
+      options.parent = this->planstate_span_context_.at(planstate_node);
+    }
+    auto span = this->query_tracer_->StartSpan(
+        planstate_name,
+        {
+          {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__},
+          {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__}
+        },
+        options
+      );
+    this->spans_.push_back({span, planstate_name});
+    this->span_context_.push_back(span->GetContext());
+    if (left_tree) {
+      this->planstate_span_context_.insert({left_tree, span->GetContext()});
+    }
+    if (right_tree) {
+      this->planstate_span_context_.insert({right_tree, span->GetContext()});
+    }
+  }
+  return Status::OK();
+}
+
+Status PgSession::StopPlanStateSpan(const char* planstate_name, int* planstate_node) {
+  if (this->query_tracer_) {
+    nostd::shared_ptr<opentelemetry::trace::Span> span;
+    for (int index = (int)this->spans_.size() - 1; index >= 0; index--) {
+      if (this->spans_[index].second == std::string(planstate_name)) {
+        span = this->spans_[index].first;
+        this->spans_.erase(this->spans_.begin() + index);
+        this->span_context_.erase(this->span_context_.begin() + index);
+        break;
+      }
+    }
+    if (span == nullptr) {
+      LOG(ERROR) << "span shouldn't be null " << std::string(planstate_name);
+    }
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
     span->End();
     this->spans_.pop();
