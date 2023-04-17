@@ -27,6 +27,7 @@
 #include "yb/client/client_fwd.h"
 #include "yb/client/in_flight_op.h"
 
+#include "yb/util/otel/trace.h"
 #include "yb/util/status_fwd.h"
 
 namespace yb {
@@ -98,7 +99,7 @@ class YBTransaction : public std::enable_shared_from_this<YBTransaction> {
   ~YBTransaction();
 
   Trace *trace();
-  void EnsureTraceCreated();
+  void EnsureTraceCreated(nostd::shared_ptr<trace_api::Span> parent);
   void SetPriority(uint64_t priority);
 
   uint64_t GetPriority() const;

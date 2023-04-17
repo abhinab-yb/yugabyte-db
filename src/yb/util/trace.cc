@@ -248,7 +248,7 @@ struct TraceEntry {
 Trace::Trace() : span_(new trace_api::DefaultSpan(trace_api::SpanContext::GetInvalid())) {
 }
 
-Trace::Trace(nostd::shared_ptr<trace_api::Span>& span) : span_(span) {}
+Trace::Trace(nostd::shared_ptr<trace_api::Span> span) : span_(span) {}
 
 ThreadSafeObjectPool<ThreadSafeArena>& ArenaPool() {
   static ThreadSafeObjectPool<ThreadSafeArena> result([] {

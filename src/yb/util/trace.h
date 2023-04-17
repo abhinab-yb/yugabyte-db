@@ -132,7 +132,7 @@ struct TraceEntry;
 class Trace : public RefCountedThreadSafe<Trace> {
  public:
   Trace();
-  Trace(nostd::shared_ptr<trace_api::Span>& span);
+  Trace(nostd::shared_ptr<trace_api::Span> span);
 
   // Logs a message into the trace buffer.
   //
@@ -227,6 +227,9 @@ class Trace : public RefCountedThreadSafe<Trace> {
     end_to_end_traces_requested_ = flag;
   }
 
+  nostd::shared_ptr<trace_api::Span> GetSpan() {
+    return this->span_;
+  }
  private:
   friend class ScopedAdoptTrace;
   friend class RefCountedThreadSafe<Trace>;

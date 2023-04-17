@@ -947,7 +947,7 @@ Status PgClientSession::DoPerform(const DataPtr& data, CoarseTimePoint deadline,
     if (options.trace_requested()) {
       context->EnsureTraceCreated(data->span);
       if (transaction) {
-        transaction->EnsureTraceCreated();
+        transaction->EnsureTraceCreated(data->span);
         context->trace()->AddChildTrace(transaction->trace());
         transaction->trace()->set_must_print(true);
       } else {

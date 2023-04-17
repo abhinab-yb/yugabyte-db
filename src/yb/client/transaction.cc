@@ -280,7 +280,7 @@ class YBTransaction::Impl final : public internal::TxnBatcherIf {
     metadata_.priority = priority;
   }
 
-  void EnsureTraceCreated() {
+  void EnsureTraceCreated(nostd::shared_ptr<trace_api::Span> parent) {
     if (!trace_) {
       trace_ = new Trace;
       TRACE_TO(trace_, "Ensure Trace Created");
@@ -1371,6 +1371,9 @@ class YBTransaction::Impl final : public internal::TxnBatcherIf {
       // from the status tablet.
       DoAbortCleanup(transaction, CleanupType::kGraceful);
     }
+    if (trace_->GetSpan()->GetContext().IsValid()) {
+      trace_->GetSpan()->End();
+    }
   }
 
   void AbortDone(const Status& status,
@@ -2322,8 +2325,8 @@ Trace* YBTransaction::trace() {
   return impl_->trace();
 }
 
-void YBTransaction::EnsureTraceCreated() {
-  return impl_->EnsureTraceCreated();
+void YBTransaction::EnsureTraceCreated(nostd::shared_ptr<trace_api::Span> span) {
+  return impl_->EnsureTraceCreated(span);
 }
 
 void YBTransaction::SetActiveSubTransaction(SubTransactionId id) {
