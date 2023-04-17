@@ -545,10 +545,6 @@ class PgApiImpl {
   Status StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree);
   Status StopPlanStateSpan(const char* planstate_name, int* planstate_node);
 
-  Status StartDebugSpan(const char* event_name, int* addr);
-  Status StopDebugSpan(const char* event_name, int* addr);
-
-
   //------------------------------------------------------------------------------------------------
   // Analyze.
   Status NewSample(const PgObjectId& table_id,

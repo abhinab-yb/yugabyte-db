@@ -518,24 +518,14 @@ Status PgSession::StopTraceForQuery(yb_trace_counters trace_counters) {
     // span->SetAttribute("Catalog Execution Time", trace_counters.total_catalog_rpc_wait);
     span->End();
     this->query_tracer_ = nullptr;
-    // this->tokens_.pop_back();
-
     if (!this->spans_.empty()) {
       LOG(ERROR) << "Spans should be empty here";
     }
-
     while(!this->spans_.empty()) {
       auto span = this->spans_.back().first;
       span->End();
       this->spans_.pop_back();
     }
-
-    // FILE *fptr= fopen("/home/asaha/code/logs.txt", "a");
-    // fprintf(fptr, "ending trace...\n");
-    // fclose(fptr);
-
-
-    // LOG(INFO) << "Ending trace span";
   }
   return Status::OK();
 }
@@ -555,16 +545,6 @@ Status PgSession::StartQueryEvent(const char* event_name) {
       );
     this->spans_.push_back({span, event_name});
     this->span_context_.push_back(span->GetContext());
-    // this->tokens_.push_back(
-    //     opentelemetry::context::RuntimeContext::Attach(
-    //         opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
-
-    // if (std::string(event_name) == "Materialize" || std::string(event_name) == "Function Scan" || std::string(event_name) == "Foreign Scan") {
-    //   LOG(INFO) << "[" << event_name;
-    // }
-    // FILE *fptr= fopen("/home/asaha/code/logs.txt", "a");
-    // fprintf(fptr, "starting query event... %s\n", event_name);
-    // fclose(fptr);
   }
   return Status::OK();
 }
@@ -584,14 +564,6 @@ Status PgSession::StopQueryEvent(const char* event_name) {
     }
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
     span->End();
-    // LOG(INFO) << "\t\t" << event_name << "]";
-    // LOG(INFO) << "Ending query span";
-    // if (std::string(event_name) == "Materialize" || std::string(event_name) == "Function Scan" || std::string(event_name) == "Foreign Scan") {
-    //   LOG(INFO) << "\t" << event_name << "]";
-    // }
-    // FILE *fptr= fopen("/home/asaha/code/logs.txt", "a");
-    // fprintf(fptr, "stopping query event... %s\n", event_name);
-    // fclose(fptr);
   }
   return Status::OK();
 }
@@ -622,9 +594,6 @@ Status PgSession::StartPlanStateSpan(const char* planstate_name, int* planstate_
     if (right_tree) {
       this->planstate_span_context_.insert({right_tree, span->GetContext()});
     }
-    // FILE *fptr= fopen("/home/asaha/code/logs.txt", "a");
-    // fprintf(fptr, "starting plan state span... %s : %p left : %p right : %p\n", planstate_name, planstate_node, left_tree, right_tree);
-    // fclose(fptr);
   }
   return Status::OK();
 }
@@ -649,38 +618,7 @@ Status PgSession::StopPlanStateSpan(const char* planstate_name, int* planstate_n
     if (find_res_ != this->planstate_span_context_.end()) {
       this->planstate_span_context_.erase(find_res_);
     }
-    // FILE *fptr= fopen("/home/asaha/code/logs.txt", "a");
-    // fprintf(fptr, "starting plan state span... %s : %p \n", planstate_name, planstate_node);
-    // fclose(fptr);
   }
-  return Status::OK();
-}
-
-
-Status PgSession::StartDebugSpan(const char* event_name, int* addr) {
-  if (this->query_tracer_) {
-    opentelemetry::trace::StartSpanOptions options;
-    options.parent = this->span_context_.back();
-    auto span = this->query_tracer_->StartSpan(
-        event_name,
-        {
-          {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__}, {
-            opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__
-          }
-        },
-        options
-      );
-    this->spans_.push_back({span, event_name});
-    this->span_context_.push_back(span->GetContext());
-    // this->tokens_.push_back(
-    //     opentelemetry::context::RuntimeContext::Attach(
-    //         opentelemetry::context::RuntimeContext::GetCurrent().SetValue(opentelemetry::trace::kSpanKey, span)));
-    // LOG(INFO) << "[\t" << event_name;
-  }
-  return Status::OK();
-}
-
-Status PgSession::StopDebugSpan(const char* event_name, int* addr) {
   return Status::OK();
 }
 

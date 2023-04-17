@@ -203,9 +203,6 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   Status StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree);
   Status StopPlanStateSpan(const char* planstate_name, int* planstate_node);
 
-  Status StartDebugSpan(const char* event_name, int* addr);
-  Status StopDebugSpan(const char* event_name, int* addr);
-
   //------------------------------------------------------------------------------------------------
   // Operations on Tablegroup.
   //------------------------------------------------------------------------------------------------
@@ -444,7 +441,6 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
 
   nostd::shared_ptr<opentelemetry::trace::Tracer> query_tracer_;
   std::vector<std::pair<nostd::shared_ptr<opentelemetry::trace::Span>, std::string>> spans_;
-  std::vector<nostd::unique_ptr<opentelemetry::context::Token>> tokens_;
   std::vector<opentelemetry::trace::SpanContext> span_context_;
   std::map<int*, opentelemetry::trace::SpanContext> planstate_span_context_;
 

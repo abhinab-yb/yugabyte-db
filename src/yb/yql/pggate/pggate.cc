@@ -1590,14 +1590,6 @@ Status PgApiImpl::StopPlanStateSpan(const char* planstate_name, int* planstate_n
   return pg_session_->StopPlanStateSpan(planstate_name, planstate_node);
 }
 
-Status PgApiImpl::StartDebugSpan(const char* event_name, int* addr) {
-  return pg_session_->StartDebugSpan(event_name, addr);
-}
-
-Status PgApiImpl::StopDebugSpan(const char* event_name, int* addr) {
-  return pg_session_->StopDebugSpan(event_name, addr);
-}
-
 //--------------------------------------------------------------------------------------------------
 // Expressions.
 //--------------------------------------------------------------------------------------------------
