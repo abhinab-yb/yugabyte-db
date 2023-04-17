@@ -542,6 +542,9 @@ class PgApiImpl {
   Status StartQueryEvent(const char* event_name);
   Status StopQueryEvent(const char* event_name);
 
+  Status StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree);
+  Status StopPlanStateSpan(const char* planstate_name, int* planstate_node);
+
   //------------------------------------------------------------------------------------------------
   // Analyze.
   Status NewSample(const PgObjectId& table_id,

@@ -1464,6 +1464,13 @@ YBCStatus YBCStopQueryEvent(const char *event_name) {
   return ToYBCStatus(pgapi->StopQueryEvent(event_name));
 }
 
+YBCStatus YBCStartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree) {
+  return ToYBCStatus(pgapi->StartPlanStateSpan(planstate_name, planstate_node, left_tree, right_tree));
+}
+YBCStatus YBCStopPlanStateSpan(const char* planstate_name, int* planstate_node) {
+  return ToYBCStatus(pgapi->StopPlanStateSpan(planstate_name, planstate_node));
+}
+
 YBCStatus YBCGetIndexBackfillProgress(YBCPgOid* index_oids, YBCPgOid* database_oids,
                                       uint64_t** backfill_statuses,
                                       int num_indexes) {

@@ -406,6 +406,12 @@ ExecInitNode(Plan *node, EState *estate, int eflags)
 	if (estate->es_instrument)
 		result->instrument = InstrAlloc(1, estate->es_instrument);
 
+	/* Set up tracing for this node if required */
+	if (trace_vars.is_tracing_enabled)
+		result->startSpan = true;
+	else
+		result->startSpan = false;
+
 	return result;
 }
 

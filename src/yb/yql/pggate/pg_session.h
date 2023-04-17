@@ -199,6 +199,9 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   Status StartQueryEvent(const char*);
   Status StopQueryEvent(const char*);
 
+  Status StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree);
+  Status StopPlanStateSpan(const char* planstate_name, int* planstate_node);
+
   //------------------------------------------------------------------------------------------------
   // Operations on Tablegroup.
   //------------------------------------------------------------------------------------------------
