@@ -265,6 +265,11 @@ FunctionRecheck(FunctionScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecFunctionScan(PlanState *pstate)
 {
+	if (pstate->startSpan)
+	{
+		YBCStartPlanStateSpan(__FILE_NAME__, (int *)pstate->plan, (int *)(pstate->lefttree ? pstate->lefttree->plan : NULL), (int *)(pstate->righttree ? pstate->righttree->plan : NULL));
+		pstate->startSpan = false;
+	}
 	FunctionScanState *node = castNode(FunctionScanState, pstate);
 
 	return ExecScan(&node->ss,
@@ -548,6 +553,12 @@ ExecEndFunctionScan(FunctionScanState *node)
 			tuplestore_end(node->funcstates[i].tstore);
 			fs->tstore = NULL;
 		}
+	}
+
+	if (!node->ss.ps.startSpan)
+	{
+		YBCStopPlanStateSpan(__FILE_NAME__, (int *)node->ss.ps.plan);
+		node->ss.ps.startSpan = true;
 	}
 }
 
