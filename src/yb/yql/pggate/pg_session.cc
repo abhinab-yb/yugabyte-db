@@ -505,6 +505,7 @@ Status PgSession::StartQueryEvent(const char* event_name) {
         options
       );
     this->spans_.push_back({span, event_name});
+    this->span_context_.push_back(span->GetContext());
   }
   return Status::OK();
 }
