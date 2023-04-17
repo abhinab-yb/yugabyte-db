@@ -88,6 +88,8 @@
 #include "utils/memdebug.h"
 #include "utils/memutils.h"
 
+#include "yb/yql/pggate/ybc_pggate.h"
+
 /*
  * A TapeBlockTrailer is stored at the end of each BLCKSZ block.
  *
@@ -514,6 +516,7 @@ LogicalTapeSet *
 LogicalTapeSetCreate(int ntapes, TapeShare *shared, SharedFileSet *fileset,
 					 int worker)
 {
+	YBCStartQueryEvent("Creating Temp File");
 	LogicalTapeSet *lts;
 	LogicalTape *lt;
 	int			i;
@@ -578,6 +581,8 @@ LogicalTapeSetCreate(int ntapes, TapeShare *shared, SharedFileSet *fileset,
 	else
 		lts->pfile = BufFileCreateTemp(false);
 
+	YBCStopQueryEvent("Closing Temp File");
+
 	return lts;
 }
 
@@ -587,6 +592,8 @@ LogicalTapeSetCreate(int ntapes, TapeShare *shared, SharedFileSet *fileset,
 void
 LogicalTapeSetClose(LogicalTapeSet *lts)
 {
+	YBCStartQueryEvent("Closing Temp File");
+
 	LogicalTape *lt;
 	int			i;
 
@@ -599,6 +606,8 @@ LogicalTapeSetClose(LogicalTapeSet *lts)
 	}
 	pfree(lts->freeBlocks);
 	pfree(lts);
+
+	YBCStopQueryEvent("Closing Temp File");
 }
 
 /*
