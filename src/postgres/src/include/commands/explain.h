@@ -48,6 +48,8 @@ typedef struct ExplainState
 	Bitmapset  *printed_subplans;	/* ids of SubPlans we've printed */
 	double		yb_total_read_rpc_count;	/* total read RPC count */
 	double		yb_total_read_rpc_wait;	/* total read RPC wait time */
+	double		yb_catalog_read_rpc_count;	/* total catalog read RPC count */
+	double		yb_catalog_read_rpc_wait;	/* total catalog read RPC wait time */
 } ExplainState;
 
 /* Hook for plugins to get control in ExplainOneQuery() */

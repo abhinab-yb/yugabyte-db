@@ -220,9 +220,10 @@ class PgSession::RunHelper {
         if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
           LOG(INFO) << "Buffering operation: " << op->ToString();
         }
-        return buffer.Add(table,
+        auto res = buffer.Add(table,
                           PgsqlWriteOpPtr(std::move(op), down_cast<PgsqlWriteOp*>(op.get())),
                           IsTransactional());
+        return res;
     }
     bool read_only = op->is_read();
     // Flush all buffered operations (if any) before performing non-bufferable operation
@@ -270,7 +271,13 @@ class PgSession::RunHelper {
           (RowMarkNeedsHigherPriority(row_mark_type) ? kHigherPriorityRange : kLowerPriorityRange);
     read_only = read_only && !IsValidRowMarkType(row_mark_type);
 
-    return pg_session_.pg_txn_manager_->CalculateIsolation(read_only, txn_priority_requirement);
+    if (!read_only && yb_run_with_analyze_explain_dist) {
+      // We only need to count an RPC for write requests, because reads get counted elsewhere.
+      buffer.AddWriteRpc(operations_.HasCatalogChange());
+    }
+
+    return pg_session_.pg_txn_manager_->CalculateIsolation(
+        read_only, txn_priority_requirement);
   }
 
   Result<PerformFuture> Flush(std::optional<CacheOptions>&& cache_options) {
@@ -628,8 +635,10 @@ void PgSession::DropBufferedOperations() {
 }
 
 void PgSession::GetAndResetOperationFlushRpcStats(uint64_t* count,
-                                                  uint64_t* wait_time) {
-  buffer_.GetAndResetRpcStats(count, wait_time);
+                                                  uint64_t* wait_time,
+                                                  uint64_t* catalog_count,
+                                                  uint64_t* catalog_wait_time) {
+  buffer_.GetAndResetRpcStats(count, wait_time, catalog_count, catalog_wait_time);
 }
 
 PgIsolationLevel PgSession::GetIsolationLevel() {
@@ -778,7 +787,7 @@ void PgSession::ProcessPerformOnTxnSerialNo(
 }
 
 Result<bool> PgSession::ForeignKeyReferenceExists(const LightweightTableYbctid& key,
-                                                  const YbctidReader& reader) {
+                                                   const YbctidReader& reader) {
   if (fk_reference_cache_.find(key) != fk_reference_cache_.end()) {
     return true;
   }
