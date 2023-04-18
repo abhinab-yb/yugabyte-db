@@ -26,6 +26,7 @@
 #include "miscadmin.h"
 #include "utils/memutils.h"
 
+static uint32_t	span_key;
 
 /* ----------------------------------------------------------------
  *		ExecNestLoop(node)
@@ -60,7 +61,6 @@
 static TupleTableSlot *
 ExecNestLoop(PlanState *pstate)
 {
-	StartSpanIfNotActive(pstate->plan);
 	NestLoopState *node = castNode(NestLoopState, pstate);
 	NestLoop   *nl;
 	PlanState  *innerPlan;
@@ -73,6 +73,9 @@ ExecNestLoop(PlanState *pstate)
 	ListCell   *lc;
 
 	CHECK_FOR_INTERRUPTS();
+
+	StartSpanIfNotActive(pstate->plan, span_key);
+	YBCPushSpanKey(span_key);
 
 	/*
 	 * get information from the node
@@ -115,6 +118,7 @@ ExecNestLoop(PlanState *pstate)
 			if (TupIsNull(outerTupleSlot))
 			{
 				ENL1_printf("no outer tuple, ending join");
+				YBCPopSpanKey();
 				return NULL;
 			}
 
@@ -189,8 +193,9 @@ ExecNestLoop(PlanState *pstate)
 					 * ExecProject().
 					 */
 					ENL1_printf("qualification succeeded, projecting tuple");
-
-					return ExecProject(node->js.ps.ps_ProjInfo);
+					TupleTableSlot *slot = ExecProject(node->js.ps.ps_ProjInfo);
+					YBCPopSpanKey();
+					return slot;
 				}
 				else
 					InstrCountFiltered2(node, 1);
@@ -239,7 +244,9 @@ ExecNestLoop(PlanState *pstate)
 				 */
 				ENL1_printf("qualification succeeded, projecting tuple");
 
-				return ExecProject(node->js.ps.ps_ProjInfo);
+				TupleTableSlot *slot = ExecProject(node->js.ps.ps_ProjInfo);
+				YBCPopSpanKey();
+				return slot;
 			}
 			else
 				InstrCountFiltered2(node, 1);
@@ -254,6 +261,7 @@ ExecNestLoop(PlanState *pstate)
 
 		ENL1_printf("qualification failed, looping");
 	}
+	YBCPopSpanKey();
 }
 
 /* ----------------------------------------------------------------
@@ -383,7 +391,7 @@ ExecEndNestLoop(NestLoopState *node)
 	NL1_printf("ExecEndNestLoop: %s\n",
 			   "node processing ended");
 
-	StopSpanIfActive(node->js.ps.plan);
+	StopSpanIfActive(node->js.ps.plan, span_key);
 }
 
 /* ----------------------------------------------------------------

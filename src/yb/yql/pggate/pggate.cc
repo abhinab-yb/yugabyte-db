@@ -1578,18 +1578,17 @@ Status PgApiImpl::StartQueryEvent(const char *event_name) {
   return pg_session_->StartQueryEvent(event_name);
 }
 
-Status PgApiImpl::StopQueryEvent(const char *event_name) {
-  return pg_session_->StopQueryEvent(event_name);
+Status PgApiImpl::StopQueryEvent(const char *event_name, uint32_t span_key) {
+  return pg_session_->StopQueryEvent(event_name, span_key);
 }
 
-Status PgApiImpl::StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree) {
-  return pg_session_->StartPlanStateSpan(planstate_name, planstate_node, left_tree, right_tree);
+Status PgApiImpl::PushSpanKey(uint32_t span_key) {
+  return pg_session_->PushSpanKey(span_key);
 }
 
-Status PgApiImpl::StopPlanStateSpan(const char* planstate_name, int* planstate_node) {
-  return pg_session_->StopPlanStateSpan(planstate_name, planstate_node);
+Status PgApiImpl::PopSpanKey() {
+  return pg_session_->PopSpanKey();
 }
-
 //--------------------------------------------------------------------------------------------------
 // Expressions.
 //--------------------------------------------------------------------------------------------------

@@ -180,6 +180,11 @@ static StringInfoData row_description_buf;
 /* Flag to mark cache as invalid if discovered within a txn block. */
 static bool yb_need_cache_refresh = false;
 
+/* Trace variables to maintain span keys */
+static uint32_t analyze_span_key;
+static uint32_t planning_span_key;
+static uint32_t execute_span_key;
+
 /*
  * String constants used for redacting text after the password token in
  * CREATE/ALTER ROLE commands.
@@ -1099,15 +1104,23 @@ exec_simple_query(const char *query_string)
 		if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
 		{
 			YBCStartTraceForQuery(query_string);
+			YBCPushSpanKey(trace_vars.global_span_counter - 1);
 			trace_vars.is_tracing_enabled = true;
 		}
 
 		if( IsYugaByteEnabled()) /* Remove this? if tracing is enabled for query and not session, we cannot trace it*/
+		{
 			YBCStartQueryEvent("analyze_and_rewrite");
+			analyze_span_key = trace_vars.global_span_counter - 1;
+			YBCPushSpanKey(analyze_span_key);
+		}
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
 												NULL, 0, NULL);
 		if( IsYugaByteEnabled())
-			YBCStopQueryEvent("analyze_and_rewrite");
+		{
+			YBCPopSpanKey();
+			YBCStopQueryEvent("analyze_and_rewrite", analyze_span_key);
+		}
 
 		if (IsYugaByteEnabled() && !trace_vars.is_tracing_enabled)
 		{
@@ -1127,16 +1140,24 @@ exec_simple_query(const char *query_string)
 			if (found)
 			{
 				YBCStartTraceForQuery(query_string);
+				YBCPushSpanKey(trace_vars.global_span_counter - 1);
 				trace_vars.is_tracing_enabled = true;
 			}
 		}
 
 		if(IsYugaByteEnabled())
-			YBCStartQueryEvent("plan");
+		{
+			YBCStartQueryEvent("planning");
+			planning_span_key = trace_vars.global_span_counter - 1;
+			YBCPushSpanKey(planning_span_key);
+		}
 		plantree_list = pg_plan_queries(querytree_list,
 										CURSOR_OPT_PARALLEL_OK, NULL);
 		if(IsYugaByteEnabled())
-			YBCStopQueryEvent("plan");
+		{
+			YBCPopSpanKey();
+			YBCStopQueryEvent("planning", planning_span_key);
+		}
 		/* Done with the snapshot used for parsing/planning */
 		if (snapshot_set)
 			PopActiveSnapshot();
@@ -1204,7 +1225,11 @@ exec_simple_query(const char *query_string)
 		MemoryContextSwitchTo(oldcontext);
 
 		if(IsYugaByteEnabled())
+		{
 			YBCStartQueryEvent("execute");
+			execute_span_key = trace_vars.global_span_counter - 1;
+			YBCPushSpanKey(execute_span_key);
+		}
 		/*
 		 * Run the portal to completion, and then drop it (and the receiver).
 		 */
@@ -1217,7 +1242,10 @@ exec_simple_query(const char *query_string)
 						 completionTag);
 
 		if(IsYugaByteEnabled())
-			YBCStopQueryEvent("execute");
+		{
+			YBCPopSpanKey();
+			YBCStopQueryEvent("execute", execute_span_key);
+		}
 
 		receiver->rDestroy(receiver);
 
@@ -6055,6 +6083,7 @@ ResetYbTraceVars(void)
 {
 	trace_vars.is_tracing_enabled = false;
 	trace_vars.query_id = -1;
+	trace_vars.global_span_counter = 0;
 }
 
 static void

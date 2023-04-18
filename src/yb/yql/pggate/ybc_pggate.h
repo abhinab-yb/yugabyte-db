@@ -534,10 +534,10 @@ YBCStatus YBCStartTraceForQuery(const char* query_string);
 YBCStatus YBCStopTraceForQuery(yb_trace_counters trace_counters);
 
 YBCStatus YBCStartQueryEvent(const char* event_name);
-YBCStatus YBCStopQueryEvent(const char* event_name);
+YBCStatus YBCStopQueryEvent(const char* event_name, uint32_t span_key);
 
-YBCStatus YBCStartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree);
-YBCStatus YBCStopPlanStateSpan(const char* planstate_name, int* planstate_node);
+YBCStatus YBCPushSpanKey(uint32_t span_key);
+YBCStatus YBCPopSpanKey();
 
 // Transaction control -----------------------------------------------------------------------------
 YBCStatus YBCPgBeginTransaction();

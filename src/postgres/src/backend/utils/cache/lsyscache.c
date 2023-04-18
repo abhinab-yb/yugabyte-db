@@ -1690,10 +1690,13 @@ Oid
 get_relname_relid(const char *relname, Oid relnamespace)
 {
 	YBCStartQueryEvent("Get Catalog Cache");
+	uint32_t span_key = trace_vars.global_span_counter - 1;
+	YBCPushSpanKey(span_key);
 	Oid oid = GetSysCacheOid2(RELNAMENSP,
 						   PointerGetDatum(relname),
 						   ObjectIdGetDatum(relnamespace));
-	YBCStopQueryEvent("Get Catalog Cache");
+	YBCPopSpanKey();
+	YBCStopQueryEvent("Get Catalog Cache", span_key);
 	return oid;
 }
 

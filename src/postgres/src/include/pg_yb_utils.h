@@ -874,20 +874,24 @@ void GetStatusMsgAndArgumentsByCode(
 	} while (0)
 #endif
 
+//------------------------------------------------------------------------------
+// YB Trace variables, functions and macros.
+
 extern const char* GetPlanNodeName(Plan *plan);
 
-#define StartSpanIfNotActive(plan) \
+#define StartSpanIfNotActive(plan, span_key) \
   do { \
     if (plan->startSpan) { \
-		YBCStartPlanStateSpan(GetPlanNodeName(plan), (int *)plan, (int *)plan->lefttree, (int *)plan->righttree); \
+		YBCStartQueryEvent(GetPlanNodeName(plan)); \
+		span_key = trace_vars.global_span_counter - 1; \
 		plan->startSpan = false; \
 	} \
   } while (0)
 
-#define StopSpanIfActive(plan) \
+#define StopSpanIfActive(plan, span_key) \
   do { \
     if (!plan->startSpan && trace_vars.is_tracing_enabled) { \
-		YBCStopPlanStateSpan(GetPlanNodeName(plan), (int *)plan); \
+		YBCStopQueryEvent(GetPlanNodeName(plan), span_key); \
 		plan->startSpan = true; \
 	} \
   } while (0)

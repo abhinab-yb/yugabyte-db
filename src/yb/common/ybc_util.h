@@ -97,6 +97,7 @@ typedef struct
 {
 	bool 		is_tracing_enabled;
 	int64_t		query_id;
+    uint32_t	global_span_counter;
 } yb_trace_vars;
 
 extern yb_trace_vars trace_vars;

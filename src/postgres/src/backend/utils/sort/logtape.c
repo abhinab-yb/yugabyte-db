@@ -517,6 +517,8 @@ LogicalTapeSetCreate(int ntapes, TapeShare *shared, SharedFileSet *fileset,
 					 int worker)
 {
 	YBCStartQueryEvent("Creating Temp File");
+	uint32_t span_key = trace_vars.global_span_counter - 1;
+	YBCPushSpanKey(span_key);
 	LogicalTapeSet *lts;
 	LogicalTape *lt;
 	int			i;
@@ -581,7 +583,8 @@ LogicalTapeSetCreate(int ntapes, TapeShare *shared, SharedFileSet *fileset,
 	else
 		lts->pfile = BufFileCreateTemp(false);
 
-	YBCStopQueryEvent("Closing Temp File");
+	YBCPopSpanKey();
+	YBCStopQueryEvent("Closing Temp File", span_key);
 
 	return lts;
 }
@@ -593,6 +596,7 @@ void
 LogicalTapeSetClose(LogicalTapeSet *lts)
 {
 	YBCStartQueryEvent("Closing Temp File");
+	uint32_t span_key = trace_vars.global_span_counter - 1;
 
 	LogicalTape *lt;
 	int			i;
@@ -607,7 +611,8 @@ LogicalTapeSetClose(LogicalTapeSet *lts)
 	pfree(lts->freeBlocks);
 	pfree(lts);
 
-	YBCStopQueryEvent("Closing Temp File");
+	YBCPopSpanKey();
+	YBCStopQueryEvent("Closing Temp File", span_key);
 }
 
 /*

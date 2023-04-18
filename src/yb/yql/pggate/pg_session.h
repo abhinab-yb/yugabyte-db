@@ -196,11 +196,11 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   Status StartTraceForQuery(const char* query_string);
   Status StopTraceForQuery(yb_trace_counters trace_counters);
 
-  Status StartQueryEvent(const char*);
-  Status StopQueryEvent(const char*);
+  Status StartQueryEvent(const char* event_name);
+  Status StopQueryEvent(const char* event_name, uint32_t span_key);
 
-  Status StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree);
-  Status StopPlanStateSpan(const char* planstate_name, int* planstate_node);
+  Status PushSpanKey(uint32_t span_key);
+  Status PopSpanKey();
 
   //------------------------------------------------------------------------------------------------
   // Operations on Tablegroup.
@@ -439,9 +439,8 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   std::variant<TxnSerialNoPerformInfo> last_perform_on_txn_serial_no_;
 
   nostd::shared_ptr<opentelemetry::trace::Tracer> query_tracer_;
-  std::vector<std::pair<nostd::shared_ptr<opentelemetry::trace::Span>, std::string>> spans_;
-  std::vector<opentelemetry::trace::SpanContext> span_context_;
-  std::map<int*, opentelemetry::trace::SpanContext> planstate_span_context_;
+  std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> spans_;
+  std::stack<uint32_t> current_span_key_;
 };
 
 }  // namespace pggate

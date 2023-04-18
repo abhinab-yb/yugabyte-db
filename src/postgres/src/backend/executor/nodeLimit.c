@@ -29,6 +29,8 @@
 /*  YB includes. */
 #include "pg_yb_utils.h"
 
+static uint32_t	span_key;
+
 static void recompute_limits(LimitState *node);
 static int64 compute_tuples_needed(LimitState *node);
 
@@ -43,13 +45,15 @@ static int64 compute_tuples_needed(LimitState *node);
 static TupleTableSlot *			/* return: a tuple or NULL */
 ExecLimit(PlanState *pstate)
 {
-	StartSpanIfNotActive(pstate->plan);
 	LimitState *node = castNode(LimitState, pstate);
 	ScanDirection direction;
 	TupleTableSlot *slot;
 	PlanState  *outerPlan;
 
 	CHECK_FOR_INTERRUPTS();
+
+	StartSpanIfNotActive(pstate->plan, span_key);
+	YBCPushSpanKey(span_key);
 
 	/*
 	 * get information from the node
@@ -100,7 +104,10 @@ ExecLimit(PlanState *pstate)
 			 * If backwards scan, just return NULL without changing state.
 			 */
 			if (!ScanDirectionIsForward(direction))
+			{
+				YBCPopSpanKey();
 				return NULL;
+			}
 
 			/*
 			 * Check for empty window; if so, treat like empty subplan.
@@ -108,6 +115,7 @@ ExecLimit(PlanState *pstate)
 			if (node->count <= 0 && !node->noCount)
 			{
 				node->lstate = LIMIT_EMPTY;
+				YBCPopSpanKey();
 				return NULL;
 			}
 
@@ -124,6 +132,7 @@ ExecLimit(PlanState *pstate)
 					 * any output at all.
 					 */
 					node->lstate = LIMIT_EMPTY;
+					YBCPopSpanKey();
 					return NULL;
 				}
 				node->subSlot = slot;
@@ -143,6 +152,7 @@ ExecLimit(PlanState *pstate)
 			 * The subplan is known to return no tuples (or not more than
 			 * OFFSET tuples, in general).  So we return no tuples.
 			 */
+			YBCPopSpanKey();
 			return NULL;
 
 		case LIMIT_INWINDOW:
@@ -166,6 +176,7 @@ ExecLimit(PlanState *pstate)
 					if (!(node->ps.state->es_top_eflags & EXEC_FLAG_BACKWARD))
 						(void) ExecShutdownNode(outerPlan);
 
+					YBCPopSpanKey();
 					return NULL;
 				}
 
@@ -176,6 +187,7 @@ ExecLimit(PlanState *pstate)
 				if (TupIsNull(slot))
 				{
 					node->lstate = LIMIT_SUBPLANEOF;
+					YBCPopSpanKey();
 					return NULL;
 				}
 				node->subSlot = slot;
@@ -190,6 +202,7 @@ ExecLimit(PlanState *pstate)
 				if (node->position <= node->offset + 1)
 				{
 					node->lstate = LIMIT_WINDOWSTART;
+					YBCPopSpanKey();
 					return NULL;
 				}
 
@@ -206,7 +219,10 @@ ExecLimit(PlanState *pstate)
 
 		case LIMIT_SUBPLANEOF:
 			if (ScanDirectionIsForward(direction))
+			{
+				YBCPopSpanKey();
 				return NULL;
+			}
 
 			/*
 			 * Backing up from subplan EOF, so re-fetch previous tuple; there
@@ -222,7 +238,10 @@ ExecLimit(PlanState *pstate)
 
 		case LIMIT_WINDOWEND:
 			if (ScanDirectionIsForward(direction))
+			{
+				YBCPopSpanKey();
 				return NULL;
+			}
 
 			/*
 			 * Backing up from window end: simply re-return the last tuple
@@ -235,7 +254,10 @@ ExecLimit(PlanState *pstate)
 
 		case LIMIT_WINDOWSTART:
 			if (!ScanDirectionIsForward(direction))
+			{
+				YBCPopSpanKey();
 				return NULL;
+			}
 
 			/*
 			 * Advancing after having backed off window start: simply
@@ -256,6 +278,7 @@ ExecLimit(PlanState *pstate)
 	/* Return the current tuple */
 	Assert(!TupIsNull(slot));
 
+	YBCPopSpanKey();
 	return slot;
 }
 
@@ -425,7 +448,7 @@ ExecEndLimit(LimitState *node)
 {
 	ExecFreeExprContext(&node->ps);
 	ExecEndNode(outerPlanState(node));
-	StopSpanIfActive(node->ps.plan);
+	StopSpanIfActive(node->ps.plan, span_key);
 }
 
 

@@ -540,10 +540,10 @@ class PgApiImpl {
   Status StopTraceForQuery(yb_trace_counters trace_counters);
 
   Status StartQueryEvent(const char* event_name);
-  Status StopQueryEvent(const char* event_name);
+  Status StopQueryEvent(const char* event_name, uint32_t span_key);
 
-  Status StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree);
-  Status StopPlanStateSpan(const char* planstate_name, int* planstate_node);
+  Status PushSpanKey(uint32_t span_key);
+  Status PopSpanKey();
 
   //------------------------------------------------------------------------------------------------
   // Analyze.

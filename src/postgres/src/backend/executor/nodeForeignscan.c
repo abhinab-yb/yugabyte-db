@@ -30,6 +30,8 @@
 
 #include "pg_yb_utils.h"
 
+static uint32_t	span_key;
+
 static TupleTableSlot *ForeignNext(ForeignScanState *node);
 static bool ForeignRecheck(ForeignScanState *node, TupleTableSlot *slot);
 
@@ -121,12 +123,15 @@ ForeignRecheck(ForeignScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecForeignScan(PlanState *pstate)
 {
-	StartSpanIfNotActive(pstate->plan);
+	StartSpanIfNotActive(pstate->plan, span_key);
+	YBCPushSpanKey(span_key);
 	ForeignScanState *node = castNode(ForeignScanState, pstate);
 
-	return ExecScan(&node->ss,
+	TupleTableSlot *slot = ExecScan(&node->ss,
 					(ExecScanAccessMtd) ForeignNext,
 					(ExecScanRecheckMtd) ForeignRecheck);
+	YBCPopSpanKey();
+	return slot;
 }
 
 
@@ -270,7 +275,7 @@ ExecEndForeignScan(ForeignScanState *node)
 	if (node->ss.ss_currentRelation)
 		ExecCloseScanRelation(node->ss.ss_currentRelation);
 
-	StopSpanIfActive(node->ss.ps.plan);
+	StopSpanIfActive(node->ss.ps.plan, span_key);
 }
 
 /* ----------------------------------------------------------------

@@ -25,6 +25,8 @@
 #include "executor/nodeMaterial.h"
 #include "miscadmin.h"
 
+static uint32_t	span_key;
+
 /* ----------------------------------------------------------------
  *		ExecMaterial
  *
@@ -38,7 +40,6 @@
 static TupleTableSlot *			/* result tuple from subplan */
 ExecMaterial(PlanState *pstate)
 {
-	StartSpanIfNotActive(pstate->plan);
 	MaterialState *node = castNode(MaterialState, pstate);
 	EState	   *estate;
 	ScanDirection dir;
@@ -48,6 +49,9 @@ ExecMaterial(PlanState *pstate)
 	TupleTableSlot *slot;
 
 	CHECK_FOR_INTERRUPTS();
+
+	StartSpanIfNotActive(pstate->plan, span_key);
+	YBCPushSpanKey(span_key);
 
 	/*
 	 * get state info from node
@@ -97,7 +101,10 @@ ExecMaterial(PlanState *pstate)
 			 * fetch.
 			 */
 			if (!tuplestore_advance(tuplestorestate, forward))
+			{
+				YBCPopSpanKey();
 				return NULL;	/* the tuplestore must be empty */
+			}
 		}
 		eof_tuplestore = false;
 	}
@@ -109,7 +116,10 @@ ExecMaterial(PlanState *pstate)
 	if (!eof_tuplestore)
 	{
 		if (tuplestore_gettupleslot(tuplestorestate, forward, false, slot))
+		{
+			YBCPopSpanKey();
 			return slot;
+		}
 		if (forward)
 			eof_tuplestore = true;
 	}
@@ -136,6 +146,7 @@ ExecMaterial(PlanState *pstate)
 		if (TupIsNull(outerslot))
 		{
 			node->eof_underlying = true;
+			YBCPopSpanKey();
 			return NULL;
 		}
 
@@ -150,13 +161,16 @@ ExecMaterial(PlanState *pstate)
 		/*
 		 * We can just return the subplan's returned tuple, without copying.
 		 */
+		YBCPopSpanKey();
 		return outerslot;
 	}
 
 	/*
 	 * Nothing left ...
 	 */
-	return ExecClearTuple(slot);
+	TupleTableSlot *result_slot = ExecClearTuple(slot);
+	YBCPopSpanKey();
+	return result_slot;
 }
 
 /* ----------------------------------------------------------------
@@ -259,7 +273,7 @@ ExecEndMaterial(MaterialState *node)
 	 */
 	ExecEndNode(outerPlanState(node));
 
-	StopSpanIfActive(node->ss.ps.plan);
+	StopSpanIfActive(node->ss.ps.plan, span_key);
 }
 
 /* ----------------------------------------------------------------
