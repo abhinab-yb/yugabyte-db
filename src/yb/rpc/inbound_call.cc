@@ -101,8 +101,7 @@ void InboundCall::NotifyTransferred(const Status& status, Connection* conn) {
 }
 
 void InboundCall::EnsureTraceCreated() {
-  LOG_WITH_PREFIX_AND_FUNC(INFO) << "Will created trace with default span";
-  nostd::shared_ptr<trace_api::Span> span(new trace_api::DefaultSpan(trace_api::SpanContext::GetInvalid()));
+  nostd::shared_ptr<trace_api::Span> span(INVALID_SPAN);
   this->EnsureTraceCreated(span);
 }
 

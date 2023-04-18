@@ -470,7 +470,7 @@ struct SharedExchangeQuery : public SharedExchangeQueryParams, public PerformDat
 
   SharedExchangeQuery(uint64_t session_id_, PgTableCache* table_cache_, SharedExchange* exchange_)
       : PerformData(session_id_, table_cache_, &exchange_req, &exchange_resp, &exchange_sidecars),
-        exchange(exchange_), span(new trace_api::DefaultSpan(trace_api::SpanContext::GetInvalid())) {
+        exchange(exchange_), span(INVALID_SPAN) {
   }
 
   Status Init(size_t size) {

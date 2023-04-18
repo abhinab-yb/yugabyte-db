@@ -221,7 +221,7 @@ Trace* RpcContext::trace() {
 }
 
 void RpcContext::EnsureTraceCreated() {
-  nostd::shared_ptr<trace_api::Span> span(new trace_api::DefaultSpan(trace_api::SpanContext::GetInvalid()));
+  nostd::shared_ptr<trace_api::Span> span(INVALID_SPAN);
   this->EnsureTraceCreated(span);
 }
 
