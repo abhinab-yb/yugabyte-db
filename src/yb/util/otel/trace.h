@@ -39,18 +39,26 @@
 #include "opentelemetry/trace/provider.h"
 #include "opentelemetry/trace/span.h"
 
+namespace trace_api      = opentelemetry::trace;
+namespace nostd          = opentelemetry::nostd;
+
 namespace yb {
 
 static const size_t kTraceIdSize             = 32;
 static const size_t kSpanIdSize              = 16;
 
+#define INVALID_SPAN new trace_api::DefaultSpan(trace_api::SpanContext::GetInvalid())
+
 void InitPgTracer(int pid);
-void InitTserverTracer(const std::string& host_name);
+void InitTserverTracer(const std::string& host_name, const std::string& uuid);
 
 void CleanupTracer();
 
-opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> get_tracer(std::string tracer_name);
-opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> GetParentSpan(
-    const std::string& trace_id, const std::string& span_id);
+nostd::shared_ptr<trace_api::Tracer> get_tracer(std::string tracer_name);
+nostd::shared_ptr<trace_api::Span> StartSpanFromParentId(
+    const std::string& trace_id, const std::string& span_id, const std::string& span);
+nostd::shared_ptr<trace_api::Span> StartSpan(
+    const std::string& span_name,
+    const trace_api::SpanContext& parent_context);
 
 } //namespace
