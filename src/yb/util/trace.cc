@@ -105,7 +105,6 @@ void DumpChildren(
     *out << "Related trace:" << std::endl;
     *out << (child_trace ? child_trace->DumpToString(tracing_depth, include_time_deltas)
                          : "Not collected");
-    child_trace->EndSpan();
   }
 }
 
@@ -305,8 +304,7 @@ scoped_refptr<Trace> Trace::MaybeGetNewTrace() {
 
 scoped_refptr<Trace>  Trace::MaybeGetNewTraceForParent(Trace* parent) {
   if (parent) {
-    auto span = ::yb::StartSpan("Internal Trace", parent->GetSpan()->GetContext());
-    scoped_refptr<Trace> trace(new Trace(span));
+    scoped_refptr<Trace> trace(new Trace);
     parent->AddChildTrace(trace.get());
     return trace;
   }
