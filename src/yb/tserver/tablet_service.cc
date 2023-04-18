@@ -356,9 +356,7 @@ class WriteQueryCompletionCallback {
     if (!status.ok()) {
       LOG(INFO) << tablet_peer_->LogPrefix() << "Write failed: " << status;
       if (include_trace_ && trace_) {
-        if (trace_->GetSpan()->GetContext().IsValid()) {
-          trace_->GetSpan()->End();
-        }
+        trace_->EndSpan();
         response_->set_trace_buffer(trace_->DumpToString(true));
       }
       SetupErrorAndRespond(get_error(), status, context_.get());
@@ -379,9 +377,7 @@ class WriteQueryCompletionCallback {
     }
 
     if (include_trace_ && trace_) {
-      if (trace_->GetSpan()->GetContext().IsValid()) {
-        trace_->GetSpan()->End();
-      }
+      trace_->EndSpan();
       response_->set_trace_buffer(trace_->DumpToString(true));
     }
     response_->set_propagated_hybrid_time(clock_->Now().ToUint64());

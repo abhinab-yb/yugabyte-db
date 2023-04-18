@@ -245,10 +245,13 @@ struct TraceEntry {
   }
 };
 
-Trace::Trace() : span_(new trace_api::DefaultSpan(trace_api::SpanContext::GetInvalid())) {
+Trace::Trace() {
+  spans_.push(nostd::shared_ptr<trace_api::Span>(INVALID_SPAN));
 }
 
-Trace::Trace(nostd::shared_ptr<trace_api::Span> span) : span_(span) {}
+Trace::Trace(nostd::shared_ptr<trace_api::Span> span) {
+  spans_.push(span);
+}
 
 ThreadSafeObjectPool<ThreadSafeArena>& ArenaPool() {
   static ThreadSafeObjectPool<ThreadSafeArena> result([] {
@@ -369,8 +372,9 @@ void Trace::AddEntry(TraceEntry* entry) {
     trace_start_time_usec_ = GetCurrentMicrosFast(entry->timestamp);
   }
   entries_tail_ = entry;
-  if (this->span_->GetContext().IsValid()) {
-    this->span_->AddEvent(
+  auto current_span = GetSpan();
+  if (current_span->GetContext().IsValid()) {
+    current_span->AddEvent(
         "Trace Entry", {
                            {"filepath", entry->file_path},
                            {"lineno", entry->line_number},
@@ -436,6 +440,15 @@ void Trace::AddChildTrace(Trace* child_trace) {
 size_t Trace::DynamicMemoryUsage() const {
   auto arena = arena_.load();
   return arena ? arena->memory_footprint() : 0;
+}
+
+void Trace::StartSpan(const std::string& span_name){
+  spans_.push(::yb::StartSpan(span_name, spans_.top()->GetContext()));
+}
+
+void Trace::EndSpan() {
+  spans_.top()->End();
+  spans_.pop();
 }
 
 PlainTrace::PlainTrace() {

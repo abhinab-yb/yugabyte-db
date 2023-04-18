@@ -34,6 +34,7 @@
 #include <atomic>
 #include <functional>
 #include <iosfwd>
+#include <stack>
 #include <string>
 #include <vector>
 
@@ -227,9 +228,11 @@ class Trace : public RefCountedThreadSafe<Trace> {
     end_to_end_traces_requested_ = flag;
   }
 
-  nostd::shared_ptr<trace_api::Span> GetSpan() {
-    return this->span_;
-  }
+  // Functions to access spans
+  nostd::shared_ptr<trace_api::Span> GetSpan() { return this->spans_.top(); }
+  void StartSpan(const std::string& span_name);
+  void EndSpan();
+
  private:
   friend class ScopedAdoptTrace;
   friend class RefCountedThreadSafe<Trace>;
@@ -266,7 +269,7 @@ class Trace : public RefCountedThreadSafe<Trace> {
 
   std::vector<scoped_refptr<Trace> > child_traces_;
 
-  nostd::shared_ptr<trace_api::Span> span_;
+  std::stack<nostd::shared_ptr<trace_api::Span>> spans_;
 
   DISALLOW_COPY_AND_ASSIGN(Trace);
 };
