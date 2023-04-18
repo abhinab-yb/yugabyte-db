@@ -377,6 +377,10 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
     HybridTime in_txn_limit = {};
   };
 
+  void SetTraceContext(
+      TraceContext& trace_context,
+      const nostd::shared_ptr<trace_api::Span>& parent);
+
   Result<PerformFuture> Perform(BufferableOperations&& ops, PerformOptions&& options);
 
   void ProcessPerformOnTxnSerialNo(
@@ -434,7 +438,6 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
 
   nostd::shared_ptr<opentelemetry::trace::Tracer> query_tracer_;
   std::stack<nostd::shared_ptr<opentelemetry::trace::Span>> spans_;
-  std::stack<nostd::unique_ptr<opentelemetry::context::Token>> tokens_;
 
 };
 
