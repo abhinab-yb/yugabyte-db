@@ -356,6 +356,9 @@ class WriteQueryCompletionCallback {
     if (!status.ok()) {
       LOG(INFO) << tablet_peer_->LogPrefix() << "Write failed: " << status;
       if (include_trace_ && trace_) {
+        if (trace_->GetSpan()->GetContext().IsValid()) {
+          trace_->GetSpan()->End();
+        }
         response_->set_trace_buffer(trace_->DumpToString(true));
       }
       SetupErrorAndRespond(get_error(), status, context_.get());
@@ -376,6 +379,9 @@ class WriteQueryCompletionCallback {
     }
 
     if (include_trace_ && trace_) {
+      if (trace_->GetSpan()->GetContext().IsValid()) {
+        trace_->GetSpan()->End();
+      }
       response_->set_trace_buffer(trace_->DumpToString(true));
     }
     response_->set_propagated_hybrid_time(clock_->Now().ToUint64());
@@ -1919,7 +1925,11 @@ bool EmptyWriteBatch(const docdb::KeyValueWriteBatchPB& write_batch) {
 
 Status TabletServiceImpl::PerformWrite(
     const WriteRequestPB* req, WriteResponsePB* resp, rpc::RpcContext* context) {
-  if (req->include_trace()) {
+  if (req->has_trace_context()) {
+    auto span = CreateSpanFromParentId(
+        req->trace_context().trace_id(), req->trace_context().span_id(), "Write");
+    context->EnsureTraceCreated(span);
+  } else if (req->include_trace()) {
     context->EnsureTraceCreated();
   }
   ADOPT_TRACE(context->trace());

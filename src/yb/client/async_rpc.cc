@@ -120,6 +120,11 @@ bool IsTracingEnabled() {
   return FLAGS_collect_end_to_end_traces || (trace && trace->end_to_end_traces_requested());
 }
 
+bool IsOtelTracingEnabled() {
+  auto *trace = Trace::CurrentTrace();
+  return trace && trace->GetSpan()->GetContext().IsValid();
+}
+
 namespace {
 
 const char* const kRead = "Read";
@@ -375,6 +380,23 @@ AsyncRpcBase<Req, Resp>::AsyncRpcBase(
     : AsyncRpc(data, consistency_level) {
   req_.set_allocated_tablet_id(const_cast<std::string*>(&tablet_invoker_.tablet()->tablet_id()));
   req_.set_include_trace(IsTracingEnabled());
+  if (IsOtelTracingEnabled()) {
+    auto* trace = Trace::CurrentTrace();
+    opentelemetry::trace::SpanContext span_context = trace->GetSpan()->GetContext();
+    LOG(INFO) << "Trace available";
+    auto& trace_context = *req_.mutable_trace_context();
+    char trace_id[kTraceIdSize];
+    span_context.trace_id().ToLowerBase16(
+        nostd::span<char, 2 * opentelemetry::trace::TraceId::kSize>{trace_id, kTraceIdSize});
+    char span_id[kSpanIdSize];
+    span_context.span_id().ToLowerBase16(nostd::span<char, 2 * opentelemetry::trace::SpanId::kSize>{span_id, kSpanIdSize});
+
+    trace_context.set_trace_id(trace_id, kTraceIdSize);
+    trace_context.set_span_id(span_id, kSpanIdSize);
+    LOG(INFO) << "Set trace context. Trace ID: "
+              << std::string_view(trace_id, kTraceIdSize)
+              << ", Span ID:" << std::string_view(span_id, kSpanIdSize);
+  }
   const ConsistentReadPoint* read_point = batcher_->read_point();
   bool has_read_time = false;
   if (read_point) {

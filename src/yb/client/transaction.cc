@@ -280,9 +280,9 @@ class YBTransaction::Impl final : public internal::TxnBatcherIf {
     metadata_.priority = priority;
   }
 
-  void EnsureTraceCreated(nostd::shared_ptr<trace_api::Span> parent) {
+  void EnsureTraceCreated(nostd::shared_ptr<trace_api::Span> span) {
     if (!trace_) {
-      trace_ = new Trace;
+      trace_ = new Trace(span);
       TRACE_TO(trace_, "Ensure Trace Created");
     }
   }
@@ -1334,6 +1334,9 @@ class YBTransaction::Impl final : public internal::TxnBatcherIf {
                   const tserver::UpdateTransactionResponsePB& response,
                   const YBTransactionPtr& transaction) {
     TRACE_TO(trace_, __func__);
+    if (trace_->GetSpan()->GetContext().IsValid()) {
+      trace_->GetSpan()->End();
+    }
 
     auto old_status_tablet_state = old_status_tablet_state_.load(std::memory_order_acquire);
     if (old_status_tablet_state == OldTransactionState::kAborting) {
@@ -1370,9 +1373,6 @@ class YBTransaction::Impl final : public internal::TxnBatcherIf {
       // its APPLY records replicated in all participant tablets, and its status record removed
       // from the status tablet.
       DoAbortCleanup(transaction, CleanupType::kGraceful);
-    }
-    if (trace_->GetSpan()->GetContext().IsValid()) {
-      trace_->GetSpan()->End();
     }
   }
 

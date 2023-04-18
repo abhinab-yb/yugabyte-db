@@ -892,7 +892,7 @@ struct RpcPerformQuery : public PerformData {
 
   void SendResponse() override {
     context.RespondSuccess();
-    if (span)
+    if (span->GetContext().IsValid())
       span->End();
   }
 };
@@ -947,7 +947,8 @@ Status PgClientSession::DoPerform(const DataPtr& data, CoarseTimePoint deadline,
     if (options.trace_requested()) {
       context->EnsureTraceCreated(data->span);
       if (transaction) {
-        transaction->EnsureTraceCreated(data->span);
+        auto transaction_span = CreateSpan("transaction", data->span);
+        transaction->EnsureTraceCreated(transaction_span);
         context->trace()->AddChildTrace(transaction->trace());
         transaction->trace()->set_must_print(true);
       } else {
