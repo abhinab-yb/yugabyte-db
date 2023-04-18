@@ -1926,7 +1926,7 @@ bool EmptyWriteBatch(const docdb::KeyValueWriteBatchPB& write_batch) {
 Status TabletServiceImpl::PerformWrite(
     const WriteRequestPB* req, WriteResponsePB* resp, rpc::RpcContext* context) {
   if (req->has_trace_context()) {
-    auto span = CreateSpanFromParentId(
+    auto span = StartSpanFromParentId(
         req->trace_context().trace_id(), req->trace_context().span_id(), "Write");
     context->EnsureTraceCreated(span);
   } else if (req->include_trace()) {
