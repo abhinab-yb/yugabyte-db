@@ -1109,18 +1109,11 @@ exec_simple_query(const char *query_string)
 		}
 
 		if( IsYugaByteEnabled()) /* Remove this? if tracing is enabled for query and not session, we cannot trace it*/
-		{
-			YBCStartQueryEvent("analyze_and_rewrite");
-			analyze_span_key = trace_vars.global_span_counter - 1;
-			YBCPushSpanKey(analyze_span_key);
-		}
+			StartEventSpan("analyze_and_rewrite", analyze_span_key);
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
 												NULL, 0, NULL);
 		if( IsYugaByteEnabled())
-		{
-			YBCPopSpanKey();
-			YBCStopQueryEvent("analyze_and_rewrite", analyze_span_key);
-		}
+			EndEventSpan(analyze_span_key);
 
 		if (IsYugaByteEnabled() && !trace_vars.is_tracing_enabled)
 		{
@@ -1146,18 +1139,12 @@ exec_simple_query(const char *query_string)
 		}
 
 		if(IsYugaByteEnabled())
-		{
-			YBCStartQueryEvent("planning");
-			planning_span_key = trace_vars.global_span_counter - 1;
-			YBCPushSpanKey(planning_span_key);
-		}
+			StartEventSpan("planning", planning_span_key);
 		plantree_list = pg_plan_queries(querytree_list,
 										CURSOR_OPT_PARALLEL_OK, NULL);
 		if(IsYugaByteEnabled())
-		{
-			YBCPopSpanKey();
-			YBCStopQueryEvent("planning", planning_span_key);
-		}
+			EndEventSpan(planning_span_key);
+
 		/* Done with the snapshot used for parsing/planning */
 		if (snapshot_set)
 			PopActiveSnapshot();
@@ -1225,11 +1212,7 @@ exec_simple_query(const char *query_string)
 		MemoryContextSwitchTo(oldcontext);
 
 		if(IsYugaByteEnabled())
-		{
-			YBCStartQueryEvent("execute");
-			execute_span_key = trace_vars.global_span_counter - 1;
-			YBCPushSpanKey(execute_span_key);
-		}
+			StartEventSpan("execute", execute_span_key);
 		/*
 		 * Run the portal to completion, and then drop it (and the receiver).
 		 */
@@ -1242,10 +1225,7 @@ exec_simple_query(const char *query_string)
 						 completionTag);
 
 		if(IsYugaByteEnabled())
-		{
-			YBCPopSpanKey();
-			YBCStopQueryEvent("execute", execute_span_key);
-		}
+			EndEventSpan(execute_span_key);
 
 		receiver->rDestroy(receiver);
 

@@ -1791,6 +1791,10 @@ SearchCatCacheMiss(CatCache *cache,
 		* This case is rare enough that it's not worth expending extra cycles to
 		* detect.
 		*/
+		uint32_t span_key;
+		StartEventSpan("System Catalog Request", span_key);
+		AddIntEventAttribute("Table OID", cache->cc_reloid, span_key);
+		AddStringEventAttribute("Table Name", DatumGetPointer(v1), span_key);
 		relation = heap_open(cache->cc_reloid, AccessShareLock);
 
 		if (IsYugaByteEnabled())
@@ -1854,6 +1858,7 @@ SearchCatCacheMiss(CatCache *cache,
 		systable_endscan(scandesc);
 
 		heap_close(relation, AccessShareLock);
+		EndEventSpan(span_key);
 	}
 
 	/*

@@ -1578,8 +1578,8 @@ Status PgApiImpl::StartQueryEvent(const char *event_name) {
   return pg_session_->StartQueryEvent(event_name);
 }
 
-Status PgApiImpl::StopQueryEvent(const char *event_name, uint32_t span_key) {
-  return pg_session_->StopQueryEvent(event_name, span_key);
+Status PgApiImpl::StopQueryEvent(uint32_t span_key) {
+  return pg_session_->StopQueryEvent(span_key);
 }
 
 Status PgApiImpl::PushSpanKey(uint32_t span_key) {
@@ -1589,6 +1589,15 @@ Status PgApiImpl::PushSpanKey(uint32_t span_key) {
 Status PgApiImpl::PopSpanKey() {
   return pg_session_->PopSpanKey();
 }
+
+Status PgApiImpl::AddIntSpanAttribute(const char* key, uint32_t value, uint32_t span_key) {
+  return pg_session_->AddIntSpanAttribute(key, value, span_key);
+}
+
+Status PgApiImpl::AddStringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
+  return pg_session_->AddStringSpanAttribute(key, value, span_key);
+}
+
 //--------------------------------------------------------------------------------------------------
 // Expressions.
 //--------------------------------------------------------------------------------------------------

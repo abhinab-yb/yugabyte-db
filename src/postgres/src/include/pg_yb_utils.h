@@ -891,7 +891,7 @@ extern const char* GetPlanNodeName(Plan *plan);
 #define StopSpanIfActive(plan, span_key) \
   do { \
     if (!plan->startSpan && trace_vars.is_tracing_enabled) { \
-		YBCStopQueryEvent(GetPlanNodeName(plan), span_key); \
+		YBCStopQueryEvent(span_key); \
 		plan->startSpan = true; \
 	} \
   } while (0)

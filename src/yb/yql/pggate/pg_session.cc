@@ -512,7 +512,7 @@ Status PgSession::StartQueryEvent(const char* event_name) {
   return Status::OK();
 }
 
-Status PgSession::StopQueryEvent(const char* event_name, uint32_t span_key) {
+Status PgSession::StopQueryEvent(uint32_t span_key) {
   if (this->query_tracer_) {
     auto span = GetAndEraseSpanFromMap(span_key, spans_);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
@@ -522,14 +522,34 @@ Status PgSession::StopQueryEvent(const char* event_name, uint32_t span_key) {
 }
 
 Status PgSession::PushSpanKey(uint32_t span_key) {
-  this->current_span_key_.push(span_key);
+  if (this->query_tracer_) {
+    this->current_span_key_.push(span_key);
+  }
   return Status::OK();
 }
 
 Status PgSession::PopSpanKey() {
-  assert(!this->current_span_key_.empty());
-  this->current_span_key_.pop();
+  if (this->query_tracer_) {
+    assert(!this->current_span_key_.empty());
+    this->current_span_key_.pop();
+  }
   return Status::OK();
+}
+
+Status PgSession::AddIntSpanAttribute(const char* key, uint32_t value, uint32_t span_key) {
+  if(this->query_tracer_) {
+    auto span = this->spans_.at(span_key);
+    span->SetAttribute(key, std::to_string(value));
+  } 
+  return Status::OK(); 
+}
+
+Status PgSession::AddStringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
+  if(this->query_tracer_) {
+    // auto span = this->spans_.at(span_key);
+    // span->SetAttribute(key, value);
+  } 
+  return Status::OK(); 
 }
 
 //--------------------------------------------------------------------------------------------------
