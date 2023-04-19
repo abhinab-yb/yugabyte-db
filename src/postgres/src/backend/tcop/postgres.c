@@ -180,11 +180,6 @@ static StringInfoData row_description_buf;
 /* Flag to mark cache as invalid if discovered within a txn block. */
 static bool yb_need_cache_refresh = false;
 
-/* Trace variables to maintain span keys */
-static uint32_t analyze_span_key;
-static uint32_t planning_span_key;
-static uint32_t execute_span_key;
-
 /*
  * String constants used for redacting text after the password token in
  * CREATE/ALTER ROLE commands.
@@ -1109,11 +1104,11 @@ exec_simple_query(const char *query_string)
 		}
 
 		if( IsYugaByteEnabled()) /* Remove this? if tracing is enabled for query and not session, we cannot trace it*/
-			StartEventSpan("analyze_and_rewrite", analyze_span_key);
+			StartEventSpan("analyze_and_rewrite");
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
 												NULL, 0, NULL);
 		if( IsYugaByteEnabled())
-			EndEventSpan(analyze_span_key);
+			EndEventSpan();
 
 		if (IsYugaByteEnabled() && !trace_vars.is_tracing_enabled)
 		{
@@ -1139,11 +1134,11 @@ exec_simple_query(const char *query_string)
 		}
 
 		if(IsYugaByteEnabled())
-			StartEventSpan("planning", planning_span_key);
+			StartEventSpan("planning");
 		plantree_list = pg_plan_queries(querytree_list,
 										CURSOR_OPT_PARALLEL_OK, NULL);
 		if(IsYugaByteEnabled())
-			EndEventSpan(planning_span_key);
+			EndEventSpan();
 
 		/* Done with the snapshot used for parsing/planning */
 		if (snapshot_set)
@@ -1212,7 +1207,7 @@ exec_simple_query(const char *query_string)
 		MemoryContextSwitchTo(oldcontext);
 
 		if(IsYugaByteEnabled())
-			StartEventSpan("execute", execute_span_key);
+			StartEventSpan("execute");
 		/*
 		 * Run the portal to completion, and then drop it (and the receiver).
 		 */
@@ -1225,7 +1220,7 @@ exec_simple_query(const char *query_string)
 						 completionTag);
 
 		if(IsYugaByteEnabled())
-			EndEventSpan(execute_span_key);
+			EndEventSpan();
 
 		receiver->rDestroy(receiver);
 

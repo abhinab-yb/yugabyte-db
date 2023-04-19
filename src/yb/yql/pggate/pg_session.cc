@@ -536,19 +536,26 @@ Status PgSession::PopSpanKey() {
   return Status::OK();
 }
 
-Status PgSession::AddIntSpanAttribute(const char* key, uint32_t value, uint32_t span_key) {
-  if(this->query_tracer_) {
+uint32_t PgSession::TopSpanKey() {
+  if (this->query_tracer_) {
+    this->current_span_key_.top();
+  }
+  return 0;
+}
+
+Status PgSession::UInt32SpanAttribute(const char* key, uint32_t value, uint32_t span_key) {
+  if (this->query_tracer_) {
     auto span = this->spans_.at(span_key);
-    span->SetAttribute(key, std::to_string(value));
-  } 
+    span->SetAttribute(key, value);
+  }
   return Status::OK(); 
 }
 
-Status PgSession::AddStringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
-  if(this->query_tracer_) {
-    // auto span = this->spans_.at(span_key);
-    // span->SetAttribute(key, value);
-  } 
+Status PgSession::StringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
+  if (this->query_tracer_) {
+    auto span = this->spans_.at(span_key);
+    span->SetAttribute(key, value);
+  }
   return Status::OK(); 
 }
 

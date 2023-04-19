@@ -538,9 +538,10 @@ YBCStatus YBCStopQueryEvent(uint32_t span_key);
 
 YBCStatus YBCPushSpanKey(uint32_t span_key);
 YBCStatus YBCPopSpanKey();
+uint32_t YBCTopSpanKey();
 
-YBCStatus YBCAddIntSpanAttribute(const char* key, uint32_t value, uint32_t span_key);
-YBCStatus YBCAddStringSpanAttribute(const char* key, const char* value, uint32_t span_key);
+YBCStatus YBCUInt32SpanAttribute(const char* key, uint32_t value, uint32_t span_key);
+YBCStatus YBCStringSpanAttribute(const char* key, const char* value, uint32_t span_key);
 
 // Transaction control -----------------------------------------------------------------------------
 YBCStatus YBCPgBeginTransaction();

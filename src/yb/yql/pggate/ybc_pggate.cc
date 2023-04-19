@@ -1472,12 +1472,16 @@ YBCStatus YBCPopSpanKey() {
   return ToYBCStatus(pgapi->PopSpanKey());
 }
 
-YBCStatus YBCAddIntSpanAttribute(const char* key, uint32_t value, uint32_t span_key) {
-  return ToYBCStatus(pgapi->AddIntSpanAttribute(key, value, span_key));
+uint32_t YBCTopSpanKey() {
+  return pgapi->TopSpanKey();
 }
 
-YBCStatus YBCAddStringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
-  return ToYBCStatus(pgapi->AddStringSpanAttribute(key, value, span_key));
+YBCStatus YBCUInt32SpanAttribute(const char* key, uint32_t value, uint32_t span_key) {
+  return ToYBCStatus(pgapi->UInt32SpanAttribute(key, value, span_key));
+}
+
+YBCStatus YBCStringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
+  return ToYBCStatus(pgapi->StringSpanAttribute(key, value, span_key));
 }
 
 YBCStatus YBCGetIndexBackfillProgress(YBCPgOid* index_oids, YBCPgOid* database_oids,

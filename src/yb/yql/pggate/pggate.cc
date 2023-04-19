@@ -1590,12 +1590,16 @@ Status PgApiImpl::PopSpanKey() {
   return pg_session_->PopSpanKey();
 }
 
-Status PgApiImpl::AddIntSpanAttribute(const char* key, uint32_t value, uint32_t span_key) {
-  return pg_session_->AddIntSpanAttribute(key, value, span_key);
+uint32_t PgApiImpl::TopSpanKey() {
+  return pg_session_->TopSpanKey();
 }
 
-Status PgApiImpl::AddStringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
-  return pg_session_->AddStringSpanAttribute(key, value, span_key);
+Status PgApiImpl::UInt32SpanAttribute(const char* key, uint32_t value, uint32_t span_key) {
+  return pg_session_->UInt32SpanAttribute(key, value, span_key);
+}
+
+Status PgApiImpl::StringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
+  return pg_session_->StringSpanAttribute(key, value, span_key);
 }
 
 //--------------------------------------------------------------------------------------------------

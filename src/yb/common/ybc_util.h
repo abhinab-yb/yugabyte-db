@@ -231,27 +231,27 @@ void YBCInitThreading();
 double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 
 // Otel tracing macros
-#define StartEventSpan(event_name, span_key) \
+#define StartEventSpan(event_name) \
   do { \
-	YBCStartQueryEvent(event_name); \
-	span_key = trace_vars.global_span_counter - 1; \
-	YBCPushSpanKey(span_key); \
+    YBCStartQueryEvent(event_name); \
+    YBCPushSpanKey(trace_vars.global_span_counter - 1); \
   } while (0)
 
-#define EndEventSpan(span_key) \
+#define EndEventSpan() \
   do { \
-	YBCPopSpanKey(); \
-	YBCStopQueryEvent(span_key); \
+  	uint32_t span_key = YBCTopSpanKey(); \
+    YBCPopSpanKey(); \
+    YBCStopQueryEvent(span_key); \
   } while (0)
 
-#define AddIntEventAttribute(key, value, span_key) \
+#define UInt32EventAttribute(key, value) \
   do { \
-	YBCAddIntSpanAttribute(key, value, span_key); \
+	  YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
   } while (0)
 
-#define AddStringEventAttribute(key, value, span_key) \
+#define StringEventAttribute(key, value) \
   do { \
-	YBCAddStringSpanAttribute(key, value, span_key); \
+	  YBCStringSpanAttribute(key, value, YBCTopSpanKey()); \
   } while (0)
 
 #ifdef __cplusplus

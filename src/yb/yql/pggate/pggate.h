@@ -544,9 +544,10 @@ class PgApiImpl {
 
   Status PushSpanKey(uint32_t span_key);
   Status PopSpanKey();
+  uint32_t TopSpanKey();
 
-  Status AddIntSpanAttribute(const char* key, uint32_t value, uint32_t span_key);
-  Status AddStringSpanAttribute(const char* key, const char* value, uint32_t span_key);
+  Status UInt32SpanAttribute(const char* key, uint32_t value, uint32_t span_key);
+  Status StringSpanAttribute(const char* key, const char* value, uint32_t span_key);
 
   //------------------------------------------------------------------------------------------------
   // Analyze.
