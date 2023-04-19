@@ -264,8 +264,8 @@ FunctionRecheck(FunctionScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecFunctionScan(PlanState *pstate)
 {
-	StartSpanIfNotActive(pstate->plan);
-	YBCPushSpanKey(pstate->plan->span_key);
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 	FunctionScanState *node = castNode(FunctionScanState, pstate);
 
 	TupleTableSlot *slot = ExecScan(&node->ss,
@@ -553,7 +553,7 @@ ExecEndFunctionScan(FunctionScanState *node)
 		}
 	}
 
-	EndSpanIfActive(node->ss.ps.plan);
+	EndSpanIfActive(node->ss.ps);
 }
 
 /* ----------------------------------------------------------------

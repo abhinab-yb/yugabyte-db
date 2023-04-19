@@ -1598,6 +1598,10 @@ Status PgApiImpl::UInt32SpanAttribute(const char* key, uint32_t value, uint32_t 
   return pg_session_->UInt32SpanAttribute(key, value, span_key);
 }
 
+Status PgApiImpl::DoubleSpanAttribute(const char* key, double value, uint32_t span_key) {
+  return pg_session_->DoubleSpanAttribute(key, value, span_key);
+}
+
 Status PgApiImpl::StringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
   return pg_session_->StringSpanAttribute(key, value, span_key);
 }

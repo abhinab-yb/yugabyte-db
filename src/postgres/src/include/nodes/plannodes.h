@@ -171,12 +171,6 @@ typedef struct Plan
 	 */
 	Bitmapset  *extParam;
 	Bitmapset  *allParam;
-
-	/*
-	 * To check if we should start a span during execution
-	 */
-	bool		startSpan;
-	uint32_t	span_key;
 } Plan;
 
 /* ----------------

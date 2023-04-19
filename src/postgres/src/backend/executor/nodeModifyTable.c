@@ -2459,8 +2459,8 @@ ExecModifyTable(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate->plan);
-	YBCPushSpanKey(pstate->plan->span_key);
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 
 	/*
 	 * This should NOT get called during EvalPlanQual; we should have passed a
@@ -3318,7 +3318,7 @@ ExecEndModifyTable(ModifyTableState *node)
 	for (i = 0; i < node->mt_nplans; i++)
 		ExecEndNode(node->mt_plans[i]);
 
-	EndSpanIfActive(node->ps.plan);
+	EndSpanIfActive(node->ps);
 }
 
 void

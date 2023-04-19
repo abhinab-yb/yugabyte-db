@@ -72,8 +72,8 @@ ExecNestLoop(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate->plan);
-	YBCPushSpanKey(pstate->plan->span_key);
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 
 	/*
 	 * get information from the node
@@ -389,7 +389,7 @@ ExecEndNestLoop(NestLoopState *node)
 	NL1_printf("ExecEndNestLoop: %s\n",
 			   "node processing ended");
 
-	EndSpanIfActive(node->js.ps.plan);
+	EndSpanIfActive(node->js.ps);
 }
 
 /* ----------------------------------------------------------------

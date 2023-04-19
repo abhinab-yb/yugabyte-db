@@ -204,6 +204,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   uint32_t TopSpanKey();
 
   Status UInt32SpanAttribute(const char* key, uint32_t value, uint32_t span_key);
+  Status DoubleSpanAttribute(const char* key, double value, uint32_t span_key);
   Status StringSpanAttribute(const char* key, const char* value, uint32_t span_key);
 
   //------------------------------------------------------------------------------------------------

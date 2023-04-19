@@ -1104,11 +1104,9 @@ exec_simple_query(const char *query_string)
 		}
 
 		if( IsYugaByteEnabled()) /* Remove this? if tracing is enabled for query and not session, we cannot trace it*/
-			StartEventSpan("analyze_and_rewrite");
+			StartEventSpan("Query Planning");
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
 												NULL, 0, NULL);
-		if( IsYugaByteEnabled())
-			EndEventSpan();
 
 		if (IsYugaByteEnabled() && !trace_vars.is_tracing_enabled)
 		{
@@ -1133,8 +1131,6 @@ exec_simple_query(const char *query_string)
 			}
 		}
 
-		if(IsYugaByteEnabled())
-			StartEventSpan("planning");
 		plantree_list = pg_plan_queries(querytree_list,
 										CURSOR_OPT_PARALLEL_OK, NULL);
 		if(IsYugaByteEnabled())
@@ -1207,7 +1203,7 @@ exec_simple_query(const char *query_string)
 		MemoryContextSwitchTo(oldcontext);
 
 		if(IsYugaByteEnabled())
-			StartEventSpan("execute");
+			StartEventSpan("Query Execution");
 		/*
 		 * Run the portal to completion, and then drop it (and the receiver).
 		 */

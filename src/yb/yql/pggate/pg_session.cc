@@ -553,6 +553,14 @@ Status PgSession::UInt32SpanAttribute(const char* key, uint32_t value, uint32_t 
   return Status::OK(); 
 }
 
+Status PgSession::DoubleSpanAttribute(const char* key, double value, uint32_t span_key) {
+  if (this->query_tracer_) {
+    auto span = this->spans_.at(span_key);
+    span->SetAttribute(key, value);
+  }
+  return Status::OK(); 
+}
+
 Status PgSession::StringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
   if (this->query_tracer_) {
     auto span = this->spans_.at(span_key);

@@ -48,8 +48,8 @@ ExecMaterial(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate->plan);
-	YBCPushSpanKey(pstate->plan->span_key);
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 
 	/*
 	 * get state info from node
@@ -271,7 +271,7 @@ ExecEndMaterial(MaterialState *node)
 	 */
 	ExecEndNode(outerPlanState(node));
 
-	EndSpanIfActive(node->ss.ps.plan);
+	EndSpanIfActive(node->ss.ps);
 }
 
 /* ----------------------------------------------------------------

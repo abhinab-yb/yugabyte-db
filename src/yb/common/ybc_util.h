@@ -254,6 +254,11 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 	  YBCStringSpanAttribute(key, value, YBCTopSpanKey()); \
   } while (0)
 
+#define DoubleEventAttribute(key, value, span_key) \
+  do { \
+	  YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
+  } while (0)
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
