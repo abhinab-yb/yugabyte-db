@@ -874,21 +874,29 @@ void GetStatusMsgAndArgumentsByCode(
 	} while (0)
 #endif
 
-extern const char* GetPlanNodeName(Plan *plan);
+//------------------------------------------------------------------------------
+// YB Trace variables, functions and macros.
 
-#define StartSpanIfNotActive(plan) \
+const char* GetPlanNodeName(Plan *plan);
+
+#define StartSpanIfNotActive(planstate) \
   do { \
-    if (plan->startSpan) { \
-		YBCStartPlanStateSpan(GetPlanNodeName(plan), (int *)plan, (int *)plan->lefttree, (int *)plan->righttree); \
-		plan->startSpan = false; \
+    if (planstate->startSpan) { \
+		YBCStartQueryEvent("Query Plan Execution"); \
+		planstate->span_key = trace_vars.global_span_counter - 1; \
+		YBCStringSpanAttribute("NodeType", GetPlanNodeName(planstate->plan), planstate->span_key); \
+		planstate->startSpan = false; \
 	} \
   } while (0)
 
-#define StopSpanIfActive(plan) \
+#define EndSpanIfActive(planstate) \
   do { \
-    if (!plan->startSpan && trace_vars.is_tracing_enabled) { \
-		YBCStopPlanStateSpan(GetPlanNodeName(plan), (int *)plan); \
-		plan->startSpan = true; \
+    if (!planstate.startSpan && trace_vars.is_tracing_enabled) { \
+		double nloops = planstate.instrument->nloops; \
+		double total_ms = 1000.0 * planstate.instrument->total / nloops; \
+		YBCDoubleSpanAttribute("Time Spent", total_ms, planstate.span_key); \
+		YBCEndQueryEvent(planstate.span_key); \
+		planstate.startSpan = true; \
 	} \
   } while (0)
 

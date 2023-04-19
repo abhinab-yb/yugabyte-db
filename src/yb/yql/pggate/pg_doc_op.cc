@@ -35,6 +35,7 @@
 #include "yb/yql/pggate/pg_tools.h"
 #include "yb/yql/pggate/pggate_flags.h"
 #include "yb/yql/pggate/util/pg_doc_data.h"
+#include "yb/yql/pggate/ybc_pggate.h"
 
 using std::string;
 
@@ -294,7 +295,9 @@ void PgDocOp::MoveInactiveOpsOutside() {
 Status PgDocOp::SendRequest(ForceNonBufferable force_non_bufferable) {
   DCHECK(exec_status_.ok());
   DCHECK(!response_.Valid());
+  // StartEventSpan("Storage Read Request");
   exec_status_ = SendRequestImpl(force_non_bufferable);
+  // EndEventSpan();
   ++read_rpc_count_;
   return exec_status_;
 }

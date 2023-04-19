@@ -29,7 +29,6 @@
 #include "utils/builtins.h"
 #include "utils/memutils.h"
 
-
 /*
  * Runtime data for each function being scanned.
  */
@@ -265,12 +264,15 @@ FunctionRecheck(FunctionScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecFunctionScan(PlanState *pstate)
 {
-	StartSpanIfNotActive(pstate->plan);
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 	FunctionScanState *node = castNode(FunctionScanState, pstate);
 
-	return ExecScan(&node->ss,
+	TupleTableSlot *slot = ExecScan(&node->ss,
 					(ExecScanAccessMtd) FunctionNext,
 					(ExecScanRecheckMtd) FunctionRecheck);
+	YBCPopSpanKey();
+	return slot;
 }
 
 /* ----------------------------------------------------------------
@@ -551,7 +553,7 @@ ExecEndFunctionScan(FunctionScanState *node)
 		}
 	}
 
-	StopSpanIfActive(node->ss.ps.plan);
+	EndSpanIfActive(node->ss.ps);
 }
 
 /* ----------------------------------------------------------------

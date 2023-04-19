@@ -21,7 +21,6 @@
 #include "miscadmin.h"
 #include "utils/tuplesort.h"
 
-
 /* ----------------------------------------------------------------
  *		ExecSort
  *
@@ -39,7 +38,6 @@
 static TupleTableSlot *
 ExecSort(PlanState *pstate)
 {
-	StartSpanIfNotActive(pstate->plan);
 	SortState  *node = castNode(SortState, pstate);
 	EState	   *estate;
 	ScanDirection dir;
@@ -47,6 +45,9 @@ ExecSort(PlanState *pstate)
 	TupleTableSlot *slot;
 
 	CHECK_FOR_INTERRUPTS();
+
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 
 	/*
 	 * get state info from node
@@ -162,6 +163,7 @@ ExecSort(PlanState *pstate)
 	(void) tuplesort_gettupleslot(tuplesortstate,
 								  ScanDirectionIsForward(dir),
 								  false, slot, NULL);
+	YBCPopSpanKey();
 	return slot;
 }
 
@@ -268,7 +270,7 @@ ExecEndSort(SortState *node)
 	SO1_printf("ExecEndSort: %s\n",
 			   "sort node shutdown");
 
-	StopSpanIfActive(node->ss.ps.plan);
+	EndSpanIfActive(node->ss.ps);
 }
 
 /* ----------------------------------------------------------------

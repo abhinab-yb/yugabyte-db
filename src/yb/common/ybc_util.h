@@ -97,6 +97,7 @@ typedef struct
 {
 	bool 		is_tracing_enabled;
 	int64_t		query_id;
+    uint32_t	global_span_counter;
 } yb_trace_vars;
 
 extern yb_trace_vars trace_vars;
@@ -228,6 +229,35 @@ const char* YBCGetStackTrace();
 void YBCInitThreading();
 
 double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
+
+// Otel tracing macros
+#define StartEventSpan(event_name) \
+  do { \
+    YBCStartQueryEvent(event_name); \
+    YBCPushSpanKey(trace_vars.global_span_counter - 1); \
+  } while (0)
+
+#define EndEventSpan() \
+  do { \
+  	uint32_t span_key = YBCTopSpanKey(); \
+    YBCPopSpanKey(); \
+    YBCEndQueryEvent(span_key); \
+  } while (0)
+
+#define UInt32EventAttribute(key, value) \
+  do { \
+	  YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
+  } while (0)
+
+#define StringEventAttribute(key, value) \
+  do { \
+	  YBCStringSpanAttribute(key, value, YBCTopSpanKey()); \
+  } while (0)
+
+#define DoubleEventAttribute(key, value, span_key) \
+  do { \
+	  YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
+  } while (0)
 
 #ifdef __cplusplus
 } // extern "C"

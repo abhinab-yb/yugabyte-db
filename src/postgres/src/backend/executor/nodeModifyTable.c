@@ -2442,7 +2442,6 @@ tupconv_map_for_subplan(ModifyTableState *mtstate, int whichplan)
 static TupleTableSlot *
 ExecModifyTable(PlanState *pstate)
 {
-	StartSpanIfNotActive(pstate->plan);
 	ModifyTableState *node = castNode(ModifyTableState, pstate);
 	PartitionTupleRouting *proute = node->mt_partition_tuple_routing;
 	EState	   *estate = node->ps.state;
@@ -2459,6 +2458,9 @@ ExecModifyTable(PlanState *pstate)
 	HeapTuple	oldtuple;
 
 	CHECK_FOR_INTERRUPTS();
+
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 
 	/*
 	 * This should NOT get called during EvalPlanQual; we should have passed a
@@ -2479,7 +2481,10 @@ ExecModifyTable(PlanState *pstate)
 	 * extra times.
 	 */
 	if (node->mt_done)
+	{
+		YBCPopSpanKey();
 		return NULL;
+	}
 
 	/*
 	 * On first call, fire BEFORE STATEMENT triggers before proceeding.
@@ -2568,6 +2573,7 @@ ExecModifyTable(PlanState *pstate)
 			slot = ExecProcessReturning(resultRelInfo, NULL, planSlot);
 
 			estate->es_result_relation_info = saved_resultRelInfo;
+			YBCPopSpanKey();
 			return slot;
 		}
 
@@ -2735,6 +2741,7 @@ ExecModifyTable(PlanState *pstate)
 		if (slot)
 		{
 			estate->es_result_relation_info = saved_resultRelInfo;
+			YBCPopSpanKey();
 			return slot;
 		}
 	}
@@ -2748,6 +2755,7 @@ ExecModifyTable(PlanState *pstate)
 	fireASTriggers(node);
 
 	node->mt_done = true;
+	YBCPopSpanKey();
 
 	return NULL;
 }
@@ -3310,7 +3318,7 @@ ExecEndModifyTable(ModifyTableState *node)
 	for (i = 0; i < node->mt_nplans; i++)
 		ExecEndNode(node->mt_plans[i]);
 
-	StopSpanIfActive(node->ps.plan);
+	EndSpanIfActive(node->ps);
 }
 
 void

@@ -175,6 +175,20 @@ bool IsReadOnly(const PgsqlOp& op) {
   return op.is_read() && !IsValidRowMarkType(GetRowMarkType(op));
 }
 
+void InsertSpanToMap(std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans,
+  const nostd::shared_ptr<opentelemetry::trace::Span> &span) {
+  spans.insert({trace_vars.global_span_counter++, span});
+  LOG(INFO) << trace_vars.global_span_counter - 1;
+}
+
+nostd::shared_ptr<opentelemetry::trace::Span> GetAndEraseSpanFromMap(uint32_t current_span_key,
+  std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans) {
+  LOG(INFO) << current_span_key;
+  nostd::shared_ptr<opentelemetry::trace::Span> span = spans.at(current_span_key);
+  spans.erase(current_span_key);
+  return span;
+}
+
 } // namespace
 
 //--------------------------------------------------------------------------------------------------
@@ -457,159 +471,59 @@ Status PgSession::StartTraceForQuery(const char* query_string) {
   this->query_tracer_ = get_tracer("pg_session");
   auto span = this->query_tracer_->StartSpan(
       "Statement",
-      {
-          {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__},
-          {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__},
-          {opentelemetry::trace::SemanticConventions::kDbStatement, query_string}
-      }
-      );
-  this->spans_.push(span);
+      {{opentelemetry::trace::SemanticConventions::kDbStatement, query_string},
+      {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__},
+      {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__}});
+
+  InsertSpanToMap(this->spans_, span);
   return Status::OK();
 }
 
-Status PgSession::StopTraceForQuery() {
-  nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.top();
-  span->SetStatus(opentelemetry::trace::StatusCode::kOk);
-  span->End();
-  this->spans_.pop();
-  this->query_tracer_ = nullptr;
-  return Status::OK();
-}
-
-Status PgSession::StartQueryEvent(const char* event_name) {
+Status PgSession::EndTraceForQuery(yb_trace_counters trace_counters) {
   if (this->query_tracer_) {
-    opentelemetry::trace::StartSpanOptions options;
-    options.parent = this->spans_.top()->GetContext();
-
-    auto span = this->query_tracer_->StartSpan(
-        event_name,
-        {{opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__},
-         {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__}},
-        options
-      );
-    this->spans_.push(span);
-  }
-  return Status::OK();
-}
-
-Status PgSession::StopQueryEvent(const char* event_name) {
-  if (this->query_tracer_) {
-    nostd::shared_ptr<opentelemetry::trace::Span> span = this->spans_.back().first;
-    for (int index = (int)this->spans_.size() - 1; index >= 0; index--) {
-      if (this->spans_[index].second == std::string(event_name)) {
-        span = this->spans_[index].first;
-        this->spans_.erase(this->spans_.begin() + index);
-        this->span_context_.erase(this->span_context_.begin() + index);
-        break;
-      }
-    }
+    auto span = GetAndEraseSpanFromMap(0, spans_);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
+
+    span->SetAttribute("Statement Retries", trace_counters.statement_retries);
+    span->SetAttribute("Planning Catalog Requests", trace_counters.planning_catalog_requests);
+    span->SetAttribute("Storage Read Requests", trace_counters.storage_read_requests);
+    span->SetAttribute("Storage Write Requests", trace_counters.storage_write_requests);
+    span->SetAttribute("Catalog Read Requests", trace_counters.catalog_read_requests);
+    span->SetAttribute("Catalog Write Requests", trace_counters.catalog_write_requests);
+
     span->End();
   }
   return Status::OK();
 }
 
-Status PgSession::StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree) {
+uint32_t PgSession::TopSpanKey() {
   if (this->query_tracer_) {
-    opentelemetry::trace::StartSpanOptions options;
-    if (this->planstate_span_context_.find(planstate_node) == this->planstate_span_context_.end()) {
-      options.parent = this->span_context_.back();
-    }
-    else {
-      options.parent = this->planstate_span_context_.at(planstate_node);
-    }
-    auto span = this->query_tracer_->StartSpan(
-        planstate_name,
-        {
-          {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__},
-          {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__}
-        },
-        options
-      );
-    this->spans_.push_back({span, planstate_name});
-    this->span_context_.push_back(span->GetContext());
-    if (left_tree) {
-      this->planstate_span_context_.insert({left_tree, span->GetContext()});
-    }
-    if (right_tree) {
-      this->planstate_span_context_.insert({right_tree, span->GetContext()});
-    }
-  }
-  return Status::OK();
+    return this->current_span_key_.top();
+  return 0;
 }
 
-Status PgSession::StopPlanStateSpan(const char* planstate_name, int* planstate_node) {
+Status PgSession::UInt32SpanAttribute(const char* key, uint32_t value, uint32_t span_key) {
   if (this->query_tracer_) {
-    nostd::shared_ptr<opentelemetry::trace::Span> span;
-    for (int index = (int)this->spans_.size() - 1; index >= 0; index--) {
-      if (this->spans_[index].second == std::string(planstate_name)) {
-        span = this->spans_[index].first;
-        this->spans_.erase(this->spans_.begin() + index);
-        this->span_context_.erase(this->span_context_.begin() + index);
-        break;
-      }
-    }
-    if (span == nullptr) {
-      LOG(ERROR) << "span shouldn't be null " << std::string(planstate_name);
-    }
-    span->SetStatus(opentelemetry::trace::StatusCode::kOk);
-    span->End();
-    this->spans_.pop();
+    auto span = this->spans_.at(span_key);
+    span->SetAttribute(key, value);
   }
-  return Status::OK();
+  return Status::OK(); 
 }
 
-Status PgSession::StartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree) {
+Status PgSession::DoubleSpanAttribute(const char* key, double value, uint32_t span_key) {
   if (this->query_tracer_) {
-    opentelemetry::trace::StartSpanOptions options;
-    if (this->planstate_span_context_.find(planstate_node) == this->planstate_span_context_.end()) {
-      options.parent = this->span_context_.back();
-    }
-    else {
-      options.parent = this->planstate_span_context_.at(planstate_node);
-    }
-    auto span = this->query_tracer_->StartSpan(
-        planstate_name,
-        {
-          {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__},
-          {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__}
-        },
-        options
-      );
-    this->spans_.push_back({span, planstate_name});
-    this->span_context_.push_back(span->GetContext());
-    if (left_tree) {
-      this->planstate_span_context_.insert({left_tree, span->GetContext()});
-    }
-    if (right_tree) {
-      this->planstate_span_context_.insert({right_tree, span->GetContext()});
-    }
+    auto span = this->spans_.at(span_key);
+    span->SetAttribute(key, value);
   }
-  return Status::OK();
+  return Status::OK(); 
 }
 
-Status PgSession::StopPlanStateSpan(const char* planstate_name, int* planstate_node) {
+Status PgSession::StringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
   if (this->query_tracer_) {
-    nostd::shared_ptr<opentelemetry::trace::Span> span;
-    for (int index = (int)this->spans_.size() - 1; index >= 0; index--) {
-      if (this->spans_[index].second == std::string(planstate_name)) {
-        span = this->spans_[index].first;
-        this->spans_.erase(this->spans_.begin() + index);
-        this->span_context_.erase(this->span_context_.begin() + index);
-        break;
-      }
-    }
-    if (span == nullptr) {
-      LOG(ERROR) << "span shouldn't be null " << std::string(planstate_name);
-    }
-    span->SetStatus(opentelemetry::trace::StatusCode::kOk);
-    span->End();
-    auto find_res_ = this->planstate_span_context_.find(planstate_node);
-    if (find_res_ != this->planstate_span_context_.end()) {
-      this->planstate_span_context_.erase(find_res_);
-    }
+    auto span = this->spans_.at(span_key);
+    span->SetAttribute(key, value);
   }
-  return Status::OK();
+  return Status::OK(); 
 }
 
 //--------------------------------------------------------------------------------------------------

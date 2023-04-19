@@ -1452,23 +1452,40 @@ YBCStatus YBCStartTraceForQuery(const char* query_string) {
   return ToYBCStatus(pgapi->StartTraceForQuery(query_string));
 }
 
-YBCStatus YBCStopTraceForQuery(yb_trace_counters trace_counters) {
-  return ToYBCStatus(pgapi->StopTraceForQuery(trace_counters));
+YBCStatus YBCEndTraceForQuery(yb_trace_counters trace_counters) {
+  return ToYBCStatus(pgapi->EndTraceForQuery(trace_counters));
 }
 
 YBCStatus YBCStartQueryEvent(const char* event_name) {
   return ToYBCStatus(pgapi->StartQueryEvent(event_name));
 }
 
-YBCStatus YBCStopQueryEvent(const char *event_name) {
-  return ToYBCStatus(pgapi->StopQueryEvent(event_name));
+YBCStatus YBCEndQueryEvent(uint32_t span_key) {
+  return ToYBCStatus(pgapi->EndQueryEvent(span_key));
 }
 
-YBCStatus YBCStartPlanStateSpan(const char* planstate_name, int* planstate_node, int* left_tree, int* right_tree) {
-  return ToYBCStatus(pgapi->StartPlanStateSpan(planstate_name, planstate_node, left_tree, right_tree));
+YBCStatus YBCPushSpanKey(uint32_t span_key) {
+  return ToYBCStatus(pgapi->PushSpanKey(span_key));
 }
-YBCStatus YBCStopPlanStateSpan(const char* planstate_name, int* planstate_node) {
-  return ToYBCStatus(pgapi->StopPlanStateSpan(planstate_name, planstate_node));
+
+YBCStatus YBCPopSpanKey() {
+  return ToYBCStatus(pgapi->PopSpanKey());
+}
+
+uint32_t YBCTopSpanKey() {
+  return pgapi->TopSpanKey();
+}
+
+YBCStatus YBCUInt32SpanAttribute(const char* key, uint32_t value, uint32_t span_key) {
+  return ToYBCStatus(pgapi->UInt32SpanAttribute(key, value, span_key));
+}
+
+YBCStatus YBCDoubleSpanAttribute(const char* key, double value, uint32_t span_key) {
+  return ToYBCStatus(pgapi->DoubleSpanAttribute(key, value, span_key));
+}
+
+YBCStatus YBCStringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
+  return ToYBCStatus(pgapi->StringSpanAttribute(key, value, span_key));
 }
 
 YBCStatus YBCGetIndexBackfillProgress(YBCPgOid* index_oids, YBCPgOid* database_oids,

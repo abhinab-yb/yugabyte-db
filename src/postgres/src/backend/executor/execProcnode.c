@@ -408,9 +408,9 @@ ExecInitNode(Plan *node, EState *estate, int eflags)
 
 	/* Set up tracing for this node if required */
 	if (trace_vars.is_tracing_enabled)
-		result->plan->startSpan = true;
+		result->startSpan = true;
 	else
-		result->plan->startSpan = false;
+		result->startSpan = false;
 
 	return result;
 }
