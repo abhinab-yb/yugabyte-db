@@ -178,13 +178,11 @@ bool IsReadOnly(const PgsqlOp& op) {
 void InsertSpanToMap(std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans,
   const nostd::shared_ptr<opentelemetry::trace::Span> &span) {
   spans.insert({trace_vars.global_span_counter++, span});
-  LOG(INFO) << trace_vars.global_span_counter - 1;
 }
 
 nostd::shared_ptr<opentelemetry::trace::Span> GetAndEraseSpanFromMap(uint32_t current_span_key,
   std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans) {
-  LOG(INFO) << current_span_key;
-  nostd::shared_ptr<opentelemetry::trace::Span> span = spans.at(current_span_key);
+  auto span = spans.at(current_span_key);
   spans.erase(current_span_key);
   return span;
 }
