@@ -26,8 +26,6 @@
 #include "miscadmin.h"
 #include "utils/memutils.h"
 
-static uint32_t	span_key;
-
 /* ----------------------------------------------------------------
  *		ExecNestLoop(node)
  *
@@ -74,8 +72,8 @@ ExecNestLoop(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate->plan, span_key);
-	YBCPushSpanKey(span_key);
+	StartSpanIfNotActive(pstate->plan);
+	YBCPushSpanKey(pstate->plan->span_key);
 
 	/*
 	 * get information from the node
@@ -391,7 +389,7 @@ ExecEndNestLoop(NestLoopState *node)
 	NL1_printf("ExecEndNestLoop: %s\n",
 			   "node processing ended");
 
-	StopSpanIfActive(node->js.ps.plan, span_key);
+	EndSpanIfActive(node->js.ps.plan);
 }
 
 /* ----------------------------------------------------------------

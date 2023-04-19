@@ -178,10 +178,12 @@ bool IsReadOnly(const PgsqlOp& op) {
 void InsertSpanToMap(std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans,
   const nostd::shared_ptr<opentelemetry::trace::Span> &span) {
   spans.insert({trace_vars.global_span_counter++, span});
+  LOG(INFO) << trace_vars.global_span_counter - 1;
 }
 
 nostd::shared_ptr<opentelemetry::trace::Span> GetAndEraseSpanFromMap(uint32_t current_span_key,
   std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans) {
+  LOG(INFO) << current_span_key;
   nostd::shared_ptr<opentelemetry::trace::Span> span = spans.at(current_span_key);
   spans.erase(current_span_key);
   return span;
@@ -477,7 +479,7 @@ Status PgSession::StartTraceForQuery(const char* query_string) {
   return Status::OK();
 }
 
-Status PgSession::StopTraceForQuery(yb_trace_counters trace_counters) {
+Status PgSession::EndTraceForQuery(yb_trace_counters trace_counters) {
   if (this->query_tracer_) {
     auto span = GetAndEraseSpanFromMap(0, spans_);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
@@ -512,7 +514,7 @@ Status PgSession::StartQueryEvent(const char* event_name) {
   return Status::OK();
 }
 
-Status PgSession::StopQueryEvent(uint32_t span_key) {
+Status PgSession::EndQueryEvent(uint32_t span_key) {
   if (this->query_tracer_) {
     auto span = GetAndEraseSpanFromMap(span_key, spans_);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
@@ -538,7 +540,7 @@ Status PgSession::PopSpanKey() {
 
 uint32_t PgSession::TopSpanKey() {
   if (this->query_tracer_) {
-    this->current_span_key_.top();
+    return this->current_span_key_.top();
   }
   return 0;
 }

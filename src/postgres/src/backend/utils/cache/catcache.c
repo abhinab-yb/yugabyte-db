@@ -1794,7 +1794,9 @@ SearchCatCacheMiss(CatCache *cache,
 		StartEventSpan("System Catalog Request");
 		UInt32EventAttribute("Table OID", cache->cc_reloid);
 		if (cache->id == 50)
-			StringEventAttribute("Table Name", DatumGetPointer(v1));
+			StringEventAttribute("Table Name", DatumGetCString(v1));
+		if (cache->id == 74)
+			StringEventAttribute("Namespace", DatumGetCString(v1));
 		relation = heap_open(cache->cc_reloid, AccessShareLock);
 
 		if (IsYugaByteEnabled())

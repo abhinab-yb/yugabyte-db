@@ -879,19 +879,19 @@ void GetStatusMsgAndArgumentsByCode(
 
 extern const char* GetPlanNodeName(Plan *plan);
 
-#define StartSpanIfNotActive(plan, span_key) \
+#define StartSpanIfNotActive(plan) \
   do { \
     if (plan->startSpan) { \
 		YBCStartQueryEvent(GetPlanNodeName(plan)); \
-		span_key = trace_vars.global_span_counter - 1; \
+		plan->span_key = trace_vars.global_span_counter - 1; \
 		plan->startSpan = false; \
 	} \
   } while (0)
 
-#define StopSpanIfActive(plan, span_key) \
+#define EndSpanIfActive(plan) \
   do { \
     if (!plan->startSpan && trace_vars.is_tracing_enabled) { \
-		YBCStopQueryEvent(span_key); \
+		YBCEndQueryEvent(plan->span_key); \
 		plan->startSpan = true; \
 	} \
   } while (0)

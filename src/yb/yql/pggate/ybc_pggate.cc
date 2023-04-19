@@ -1452,16 +1452,16 @@ YBCStatus YBCStartTraceForQuery(const char* query_string) {
   return ToYBCStatus(pgapi->StartTraceForQuery(query_string));
 }
 
-YBCStatus YBCStopTraceForQuery(yb_trace_counters trace_counters) {
-  return ToYBCStatus(pgapi->StopTraceForQuery(trace_counters));
+YBCStatus YBCEndTraceForQuery(yb_trace_counters trace_counters) {
+  return ToYBCStatus(pgapi->EndTraceForQuery(trace_counters));
 }
 
 YBCStatus YBCStartQueryEvent(const char* event_name) {
   return ToYBCStatus(pgapi->StartQueryEvent(event_name));
 }
 
-YBCStatus YBCStopQueryEvent(uint32_t span_key) {
-  return ToYBCStatus(pgapi->StopQueryEvent(span_key));
+YBCStatus YBCEndQueryEvent(uint32_t span_key) {
+  return ToYBCStatus(pgapi->EndQueryEvent(span_key));
 }
 
 YBCStatus YBCPushSpanKey(uint32_t span_key) {

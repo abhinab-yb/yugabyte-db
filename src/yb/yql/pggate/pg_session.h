@@ -194,10 +194,10 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   //------------------------------------------------------------------------------------------------
 
   Status StartTraceForQuery(const char* query_string);
-  Status StopTraceForQuery(yb_trace_counters trace_counters);
+  Status EndTraceForQuery(yb_trace_counters trace_counters);
 
   Status StartQueryEvent(const char* event_name);
-  Status StopQueryEvent(uint32_t span_key);
+  Status EndQueryEvent(uint32_t span_key);
 
   Status PushSpanKey(uint32_t span_key);
   Status PopSpanKey();

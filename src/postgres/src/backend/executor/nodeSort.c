@@ -21,8 +21,6 @@
 #include "miscadmin.h"
 #include "utils/tuplesort.h"
 
-static uint32_t	span_key;
-
 /* ----------------------------------------------------------------
  *		ExecSort
  *
@@ -48,8 +46,8 @@ ExecSort(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate->plan, span_key);
-	YBCPushSpanKey(span_key);
+	StartSpanIfNotActive(pstate->plan);
+	YBCPushSpanKey(pstate->plan->span_key);
 
 	/*
 	 * get state info from node
@@ -272,7 +270,7 @@ ExecEndSort(SortState *node)
 	SO1_printf("ExecEndSort: %s\n",
 			   "sort node shutdown");
 
-	StopSpanIfActive(node->ss.ps.plan, span_key);
+	EndSpanIfActive(node->ss.ps.plan);
 }
 
 /* ----------------------------------------------------------------

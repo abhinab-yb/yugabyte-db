@@ -295,9 +295,9 @@ void PgDocOp::MoveInactiveOpsOutside() {
 Status PgDocOp::SendRequest(ForceNonBufferable force_non_bufferable) {
   DCHECK(exec_status_.ok());
   DCHECK(!response_.Valid());
-  StartEventSpan("Storage Read Request");
+  // StartEventSpan("Storage Read Request");
   exec_status_ = SendRequestImpl(force_non_bufferable);
-  EndEventSpan();
+  // EndEventSpan();
   ++read_rpc_count_;
   return exec_status_;
 }

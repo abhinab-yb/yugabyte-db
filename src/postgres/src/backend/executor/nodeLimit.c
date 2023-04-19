@@ -29,8 +29,6 @@
 /*  YB includes. */
 #include "pg_yb_utils.h"
 
-static uint32_t	span_key;
-
 static void recompute_limits(LimitState *node);
 static int64 compute_tuples_needed(LimitState *node);
 
@@ -52,8 +50,8 @@ ExecLimit(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate->plan, span_key);
-	YBCPushSpanKey(span_key);
+	StartSpanIfNotActive(pstate->plan);
+	YBCPushSpanKey(pstate->plan->span_key);
 
 	/*
 	 * get information from the node
@@ -448,7 +446,7 @@ ExecEndLimit(LimitState *node)
 {
 	ExecFreeExprContext(&node->ps);
 	ExecEndNode(outerPlanState(node));
-	StopSpanIfActive(node->ps.plan, span_key);
+	EndSpanIfActive(node->ps.plan);
 }
 
 

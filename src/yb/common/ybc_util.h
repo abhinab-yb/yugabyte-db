@@ -241,7 +241,7 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
   do { \
   	uint32_t span_key = YBCTopSpanKey(); \
     YBCPopSpanKey(); \
-    YBCStopQueryEvent(span_key); \
+    YBCEndQueryEvent(span_key); \
   } while (0)
 
 #define UInt32EventAttribute(key, value) \

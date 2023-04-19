@@ -591,7 +591,7 @@ LogicalTapeSetCreate(int ntapes, TapeShare *shared, SharedFileSet *fileset,
 void
 LogicalTapeSetClose(LogicalTapeSet *lts)
 {
-	StartEventSpan("Creating Temp File");
+	StartEventSpan("Closing Temp File");
 	LogicalTape *lt;
 	int			i;
 

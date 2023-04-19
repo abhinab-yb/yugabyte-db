@@ -1570,16 +1570,16 @@ Status PgApiImpl::StartTraceForQuery(const char *query_string) {
   return pg_session_->StartTraceForQuery(query_string);
 }
 
-Status PgApiImpl::StopTraceForQuery(yb_trace_counters trace_counters) {
-  return pg_session_->StopTraceForQuery(trace_counters);
+Status PgApiImpl::EndTraceForQuery(yb_trace_counters trace_counters) {
+  return pg_session_->EndTraceForQuery(trace_counters);
 }
 
 Status PgApiImpl::StartQueryEvent(const char *event_name) {
   return pg_session_->StartQueryEvent(event_name);
 }
 
-Status PgApiImpl::StopQueryEvent(uint32_t span_key) {
-  return pg_session_->StopQueryEvent(span_key);
+Status PgApiImpl::EndQueryEvent(uint32_t span_key) {
+  return pg_session_->EndQueryEvent(span_key);
 }
 
 Status PgApiImpl::PushSpanKey(uint32_t span_key) {

@@ -5755,7 +5755,7 @@ PostgresMain(int argc, char *argv[],
 		}
 		if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
 		{
-			YBCStopTraceForQuery(trace_counters);
+			YBCEndTraceForQuery(trace_counters);
 			ResetYbTraceVars();
 		}
 		ResetYbCounters();

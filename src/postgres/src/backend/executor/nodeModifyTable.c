@@ -83,8 +83,6 @@
 #include "optimizer/ybcplan.h"
 #include "utils/syscache.h"
 
-static uint32_t	span_key;
-
 static bool ExecOnConflictUpdate(ModifyTableState *mtstate,
 					 ResultRelInfo *resultRelInfo,
 					 ItemPointer conflictTid,
@@ -2461,8 +2459,8 @@ ExecModifyTable(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate->plan, span_key);
-	YBCPushSpanKey(span_key);
+	StartSpanIfNotActive(pstate->plan);
+	YBCPushSpanKey(pstate->plan->span_key);
 
 	/*
 	 * This should NOT get called during EvalPlanQual; we should have passed a
@@ -3320,7 +3318,7 @@ ExecEndModifyTable(ModifyTableState *node)
 	for (i = 0; i < node->mt_nplans; i++)
 		ExecEndNode(node->mt_plans[i]);
 
-	StopSpanIfActive(node->ps.plan, span_key);
+	EndSpanIfActive(node->ps.plan);
 }
 
 void
