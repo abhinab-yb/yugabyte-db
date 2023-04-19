@@ -118,6 +118,24 @@ DECLARE_int32(tracing_level);
     } \
   } while (0)
 
+#define TRACE_START_SPAN(name) \
+  do { \
+    yb::Trace* _trace = Trace::CurrentTrace(); \
+    if ((_trace)) { \
+      _trace->StartSpan(name); \
+    } \
+  } while (0)
+
+#define TRACE_AND_END_SPAN(format, substitutions...) \
+  do { \
+    yb::Trace* _trace = Trace::CurrentTrace(); \
+    if ((_trace)) { \
+      _trace->EndSpan(); \
+    } \
+    VTRACE(0, (format), ##substitutions); \
+  } while (0)
+
+
 namespace yb {
 
 struct TraceEntry;

@@ -1215,6 +1215,7 @@ Status ResolveTransactionConflicts(const DocOperations& doc_ops,
                                    ResolutionCallback callback) {
   DCHECK(resolution_ht.is_valid());
   TRACE_FUNC();
+  TRACE_START_SPAN("conflict resolver");
 
   VLOG_WITH_FUNC(3) << "conflict_management_policy=" << conflict_management_policy;
   auto context = std::make_unique<TransactionConflictResolverContext>(

@@ -574,11 +574,11 @@ Status WriteQuery::DoExecute() {
       [this](const Result<HybridTime>& result) {
         if (!result.ok()) {
           ExecuteDone(result.status());
-          TRACE("ExecuteDone");
+          TRACE_AND_END_SPAN("ExecuteDone");
           return;
         }
         TransactionalConflictsResolved();
-        TRACE("TransactionalConflictsResolved");
+        TRACE_AND_END_SPAN("TransactionalConflictsResolved");
       });
 }
 
