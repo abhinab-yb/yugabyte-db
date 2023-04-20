@@ -109,9 +109,9 @@ void InitPgTracer(int pid) {
   InitTracer(kPgServiceName, resource);
 }
 
-void InitTserverTracer(const std::string& host_name, const std::string& uuid) {
+void InitTserverTracer(const std::string& host_name, const std::string& suffix, const std::string& uuid) {
   auto resource = opentelemetry::sdk::resource::Resource::Create({
-      {opentelemetry::sdk::resource::SemanticConventions::kServiceName, kTserverServiceName},
+      {opentelemetry::sdk::resource::SemanticConventions::kServiceName, kTserverServiceName + "-" + suffix},
       {opentelemetry::trace::SemanticConventions::kNetHostName, host_name},
       {opentelemetry::sdk::resource::SemanticConventions::kServiceInstanceId, uuid}});
 

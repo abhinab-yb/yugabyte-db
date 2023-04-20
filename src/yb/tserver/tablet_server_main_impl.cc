@@ -320,7 +320,10 @@ int TabletServerMain(int argc, char** argv) {
   auto llvm_profile_dumper_result = std::make_unique<LlvmProfileDumper>();
   LOG_AND_RETURN_FROM_MAIN_NOT_OK(llvm_profile_dumper_result->Start());
 
-  InitTserverTracer(host_name, server->permanent_uuid());
+  InitTserverTracer(
+      host_name,
+      server->permanent_uuid().substr(0, 8),
+      server->permanent_uuid());
 
   termination_monitor->WaitForTermination();
 

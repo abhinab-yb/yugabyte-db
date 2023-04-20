@@ -50,7 +50,7 @@ static const size_t kSpanIdSize              = 16;
 #define INVALID_SPAN new trace_api::DefaultSpan(trace_api::SpanContext::GetInvalid())
 
 void InitPgTracer(int pid);
-void InitTserverTracer(const std::string& host_name, const std::string& uuid);
+void InitTserverTracer(const std::string& host_name, const std::string& suffix, const std::string& uuid);
 
 void CleanupTracer();
 
