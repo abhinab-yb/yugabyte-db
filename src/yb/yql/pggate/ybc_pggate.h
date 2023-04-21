@@ -530,10 +530,10 @@ void YBCGetAndResetReadRpcStats(YBCPgStatement handle, uint64_t* reads, uint64_t
 void YBCGetAndResetNonbufferedWriteRpcStats(uint64_t* writes, uint64_t* write_waits);
 
 // Trace Functions
-YBCStatus YBCStartTraceForQuery(const char* query_string);
+YBCStatus YBCStartTraceForQuery(const char* query_string, const char* file_name, int line, const char* function);
 YBCStatus YBCEndTraceForQuery(yb_trace_counters trace_counters);
 
-YBCStatus YBCStartQueryEvent(const char* event_name);
+YBCStatus YBCStartQueryEvent(const char* event_name, const char* file_name, int line, const char* function);
 YBCStatus YBCEndQueryEvent(uint32_t span_key);
 
 YBCStatus YBCPushSpanKey(uint32_t span_key);
@@ -543,6 +543,8 @@ uint32_t YBCTopSpanKey();
 YBCStatus YBCUInt32SpanAttribute(const char* key, uint32_t value, uint32_t span_key);
 YBCStatus YBCDoubleSpanAttribute(const char* key, double value, uint32_t span_key);
 YBCStatus YBCStringSpanAttribute(const char* key, const char* value, uint32_t span_key);
+
+YBCStatus YBCAddLogsToSpan(const char* logs, uint32_t span_key);
 
 // Transaction control -----------------------------------------------------------------------------
 YBCStatus YBCPgBeginTransaction();

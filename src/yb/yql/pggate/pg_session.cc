@@ -56,6 +56,7 @@
 #include "yb/util/string_util.h"
 #include "yb/util/trace.h"
 #include "yb/util/otel/trace.h"
+#include "yb/util/net/net_util.h"
 
 #include "yb/yql/pggate/pg_client.h"
 #include "yb/yql/pggate/pg_expr.h"
@@ -178,12 +179,10 @@ bool IsReadOnly(const PgsqlOp& op) {
 void InsertSpanToMap(std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans,
   const nostd::shared_ptr<opentelemetry::trace::Span> &span) {
   spans.insert({trace_vars.global_span_counter++, span});
-  LOG(INFO) << trace_vars.global_span_counter - 1;
 }
 
 nostd::shared_ptr<opentelemetry::trace::Span> GetAndEraseSpanFromMap(uint32_t current_span_key,
   std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans) {
-  LOG(INFO) << current_span_key;
   auto span = spans.at(current_span_key);
   spans.erase(current_span_key);
   return span;
@@ -466,15 +465,20 @@ Status PgSession::DeleteDBSequences(int64_t db_oid) {
 
 //--------------------------------------------------------------------------------------------------
 
-Status PgSession::StartTraceForQuery(const char* query_string) {
+Status PgSession::StartTraceForQuery(const char* query_string, const char* file_name, int line, const char* function) {
   auto provider = opentelemetry::trace::Provider::GetTracerProvider();
   this->query_tracer_ = get_tracer("pg_session");
   auto span = this->query_tracer_->StartSpan(
       query_string,
-      {
-        // {opentelemetry::trace::SemanticConventions::kDbStatement, query_string},
-      {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__},
-      {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__}});
+      {{opentelemetry::trace::SemanticConventions::kCodeFunction, function},
+      {opentelemetry::trace::SemanticConventions::kCodeLineno, line},
+      {opentelemetry::trace::SemanticConventions::kCodeFilepath, file_name}});
+
+  std::string host_name;
+  auto status = GetHostname(&host_name);
+  if (status.ok()) {
+    span->SetAttribute(opentelemetry::trace::SemanticConventions::kNetHostName, host_name);
+  }
 
   InsertSpanToMap(this->spans_, span);
   return Status::OK();
@@ -498,7 +502,7 @@ Status PgSession::EndTraceForQuery(yb_trace_counters trace_counters) {
   return Status::OK();
 }
 
-Status PgSession::StartQueryEvent(const char* event_name) {
+Status PgSession::StartQueryEvent(const char* event_name, const char* file_name, int line, const char* function) {
   if (this->query_tracer_) {
     auto parent_span_key = this->current_span_key_.top();
     opentelemetry::trace::StartSpanOptions options;
@@ -506,8 +510,9 @@ Status PgSession::StartQueryEvent(const char* event_name) {
 
     auto span = this->query_tracer_->StartSpan(
         event_name,
-        {{opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__},
-        {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__}},
+        {{opentelemetry::trace::SemanticConventions::kCodeFunction, function},
+        {opentelemetry::trace::SemanticConventions::kCodeLineno, line},
+        {opentelemetry::trace::SemanticConventions::kCodeFilepath, file_name}},
         options);
 
     InsertSpanToMap(this->spans_, span);
@@ -567,7 +572,15 @@ Status PgSession::StringSpanAttribute(const char* key, const char* value, uint32
     auto span = this->spans_.at(span_key);
     span->SetAttribute(key, value);
   }
-  return Status::OK(); 
+  return Status::OK();
+}
+
+Status PgSession::AddLogsToSpan(const char* logs, uint32_t span_key) {
+  if (this->query_tracer_) {
+    auto span = this->spans_.at(span_key);
+    span->AddEvent(logs);
+  }
+  return Status::OK();
 }
 
 //--------------------------------------------------------------------------------------------------

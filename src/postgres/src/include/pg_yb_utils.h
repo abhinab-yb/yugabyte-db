@@ -884,7 +884,7 @@ double GetPlanNodeTime(Instrumentation *instrument);
 #define StartSpanIfNotActive(planstate) \
   do { \
     if (planstate->startSpan) { \
-		YBCStartQueryEvent("Query Plan Execution"); \
+		YBCStartQueryEvent("Query Plan Execution", __FILE__, __LINE__, __func__); \
 		planstate->span_key = trace_vars.global_span_counter - 1; \
 		YBCStringSpanAttribute("node.type", GetPlanNodeName(planstate->plan), planstate->span_key); \
 		planstate->startSpan = false; \

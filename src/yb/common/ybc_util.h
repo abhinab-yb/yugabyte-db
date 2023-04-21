@@ -233,7 +233,7 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 // Otel tracing macros
 #define StartEventSpan(event_name) \
   do { \
-    YBCStartQueryEvent(event_name); \
+    YBCStartQueryEvent(event_name, __FILE__, __LINE__, __func__); \
     YBCPushSpanKey(trace_vars.global_span_counter - 1); \
   } while (0)
 
@@ -259,9 +259,14 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 	  YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
   } while (0)
 
+#define AddSpanLogs(logs) \
+  do { \
+	  YBCAddLogsToSpan(logs, YBCTopSpanKey()); \
+  } while (0)
+
 #define PggateStartEventSpan(event_name) \
   do { \
-    RETURN_NOT_OK(pg_session_->StartQueryEvent(event_name)); \
+    RETURN_NOT_OK(pg_session_->StartQueryEvent(event_name, __FILE__, __LINE__, __func__)); \
     RETURN_NOT_OK(pg_session_->PushSpanKey(trace_vars.global_span_counter - 1)); \
   } while (0)
 
@@ -285,6 +290,11 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 #define PggateDoubleEventAttribute(key, value, span_key) \
   do { \
 	  RETURN_NOT_OK(pg_session_->Int32SpanAttribute(key, value, pg_session_->TopSpanKey())); \
+  } while (0)
+
+#define PggateAddSpanLogs(logs) \
+  do { \
+	  RETURN_NOT_OK(pg_session_->AddLogsToSpan(logs, pg_session_->TopSpanKey())); \
   } while (0)
 
 #ifdef __cplusplus

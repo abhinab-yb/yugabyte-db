@@ -536,10 +536,10 @@ class PgApiImpl {
 
   //------------------------------------------------------------------------------------------------
   // Trace
-  Status StartTraceForQuery(const char* query_string);
+  Status StartTraceForQuery(const char* query_string, const char* file_name, int line, const char* function);
   Status EndTraceForQuery(yb_trace_counters trace_counters);
 
-  Status StartQueryEvent(const char* event_name);
+  Status StartQueryEvent(const char* event_name, const char* file_name, int line, const char* function);
   Status EndQueryEvent(uint32_t span_key);
 
   Status PushSpanKey(uint32_t span_key);
@@ -549,6 +549,8 @@ class PgApiImpl {
   Status UInt32SpanAttribute(const char* key, uint32_t value, uint32_t span_key);
   Status DoubleSpanAttribute(const char* key, double value, uint32_t span_key);
   Status StringSpanAttribute(const char* key, const char* value, uint32_t span_key);
+
+  Status AddLogsToSpan(const char* logs, uint32_t span_key);
 
   //------------------------------------------------------------------------------------------------
   // Analyze.

@@ -41,6 +41,7 @@
 #include "utils/typcache.h"
 #include "utils/xml.h"
 
+#include "yb/yql/pggate/ybc_pggate.h"
 
 /* Hook for plugins to get control in ExplainOneQuery() */
 ExplainOneQuery_hook_type ExplainOneQuery_hook = NULL;
@@ -286,6 +287,8 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt, const char *queryString,
 	else
 		do_text_output_oneline(tstate, es->str->data);
 	end_tup_output(tstate);
+
+	YBCAddLogsToSpan(es->str->data, 0);
 
 	pfree(es->str->data);
 }

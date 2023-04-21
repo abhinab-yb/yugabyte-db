@@ -1098,7 +1098,7 @@ exec_simple_query(const char *query_string)
 
 		if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
 		{
-			YBCStartTraceForQuery(query_string);
+			YBCStartTraceForQuery(query_string, __FILE__, __LINE__, __func__);
 			YBCPushSpanKey(trace_vars.global_span_counter - 1);
 			trace_vars.is_tracing_enabled = true;
 		}
@@ -1125,7 +1125,7 @@ exec_simple_query(const char *query_string)
 
 			if (found)
 			{
-				YBCStartTraceForQuery(query_string);
+				YBCStartTraceForQuery(query_string, __FILE__, __LINE__, __func__);
 				YBCPushSpanKey(trace_vars.global_span_counter - 1);
 				trace_vars.is_tracing_enabled = true;
 			}

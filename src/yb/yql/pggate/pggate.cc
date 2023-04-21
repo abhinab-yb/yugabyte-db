@@ -1566,16 +1566,16 @@ Status PgApiImpl::ExecSelect(PgStatement *handle, const PgExecParameters *exec_p
 // Traces.
 //--------------------------------------------------------------------------------------------------
 
-Status PgApiImpl::StartTraceForQuery(const char *query_string) {
-  return pg_session_->StartTraceForQuery(query_string);
+Status PgApiImpl::StartTraceForQuery(const char *query_string, const char* file_name, int line, const char* function) {
+  return pg_session_->StartTraceForQuery(query_string, file_name, line, function);
 }
 
 Status PgApiImpl::EndTraceForQuery(yb_trace_counters trace_counters) {
   return pg_session_->EndTraceForQuery(trace_counters);
 }
 
-Status PgApiImpl::StartQueryEvent(const char *event_name) {
-  return pg_session_->StartQueryEvent(event_name);
+Status PgApiImpl::StartQueryEvent(const char *event_name, const char* file_name, int line, const char* function) {
+  return pg_session_->StartQueryEvent(event_name, file_name, line, function);
 }
 
 Status PgApiImpl::EndQueryEvent(uint32_t span_key) {
@@ -1604,6 +1604,10 @@ Status PgApiImpl::DoubleSpanAttribute(const char* key, double value, uint32_t sp
 
 Status PgApiImpl::StringSpanAttribute(const char* key, const char* value, uint32_t span_key) {
   return pg_session_->StringSpanAttribute(key, value, span_key);
+}
+
+Status PgApiImpl::AddLogsToSpan(const char* logs, uint32_t span_key) {
+  return pg_session_->AddLogsToSpan(logs, span_key);
 }
 
 //--------------------------------------------------------------------------------------------------
