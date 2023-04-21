@@ -1890,6 +1890,25 @@ tuplesort_performsort(Tuplesortstate *state)
 #endif
 
 	MemoryContextSwitchTo(oldcontext);
+
+	switch (state->status)
+	{
+		case TSS_SORTEDINMEM:
+			if (state->boundUsed)
+				StringEventAttribute("sort.type", "top-N heapsort");
+			else
+				StringEventAttribute("sort.type", "quicksort");
+			break;
+		case TSS_SORTEDONTAPE:
+			StringEventAttribute("sort.type", "external sort");
+			break;
+		case TSS_FINALMERGE:
+			StringEventAttribute("sort.type", "external merge");
+			break;
+		default:
+			StringEventAttribute("sort.status", "still in progress");
+			break;
+	}
 }
 
 /*

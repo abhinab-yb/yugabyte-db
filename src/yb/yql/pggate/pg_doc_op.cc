@@ -295,9 +295,7 @@ void PgDocOp::MoveInactiveOpsOutside() {
 Status PgDocOp::SendRequest(ForceNonBufferable force_non_bufferable) {
   DCHECK(exec_status_.ok());
   DCHECK(!response_.Valid());
-  // StartEventSpan("Storage Read Request");
   exec_status_ = SendRequestImpl(force_non_bufferable);
-  // EndEventSpan();
   ++read_rpc_count_;
   return exec_status_;
 }
@@ -316,9 +314,16 @@ Status PgDocOp::SendRequestImpl(ForceNonBufferable force_non_bufferable) {
   // Send at most "parallelism_level_" number of requests at one time.
   size_t send_count = std::min(parallelism_level_, active_op_count_);
   VLOG(1) << "Number of operations to send: " << send_count;
+  PggateStartEventSpan("Storage Read Request");
+  PggateStringEventAttribute("table.name", (*table_).table_name().table_name().c_str());
+  if ((*table_).table_name().has_table_id()) {
+    PggateStringEventAttribute("table.id", (*table_).table_name().table_id().c_str());
+  }
+  PggateStringEventAttribute("server.type", (*table_).id().IsCatalogTableId() ? "MASTER" : "TSERVER");
   response_ = VERIFY_RESULT(sender_(
       pg_session_.get(), pgsql_ops_.data(), send_count, *table_,
       HybridTime::FromPB(GetInTxnLimitHt()), force_non_bufferable));
+  PggateEndEventSpan();
   return Status::OK();
 }
 

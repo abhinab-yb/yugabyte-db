@@ -126,7 +126,9 @@ ExecSort(PlanState *pstate)
 		/*
 		 * Complete the sort.
 		 */
+		StartEventSpan("Performing Sort");
 		tuplesort_performsort(tuplesortstate);
+		EndEventSpan();
 
 		/*
 		 * restore to user specified direction

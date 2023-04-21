@@ -41,6 +41,7 @@
 
 #include "yb/yql/pggate/pg_op.h"
 #include "yb/yql/pggate/pg_tabledesc.h"
+#include "yb/yql/pggate/ybc_pggate.h"
 
 namespace yb {
 namespace pggate {
@@ -354,6 +355,12 @@ class PgOperationBuffer::Impl {
   }
 
   Status EnsureCompleted(size_t count) {
+    bool span_open = false;
+    if (count > 0 && !in_flight_ops_.empty()) {
+      StartEventSpan("Storage Write Request");
+      UInt32EventAttribute("ops.count", (int32_t)in_flight_ops_.front().keys.size());
+      span_open = true;
+    }
     for(; count && !in_flight_ops_.empty(); --count) {
       MonoDelta *wait_time = &rpc_wait_time_;
 
@@ -374,8 +381,15 @@ class PgOperationBuffer::Impl {
         }
       }
 
-      RETURN_NOT_OK(in_flight_ops_.front().future.Get(wait_time));
+      auto status = in_flight_ops_.front().future.Get(wait_time);
+      if (!status.ok() && span_open) {
+        EndEventSpan();
+      }
+      RETURN_NOT_OK(status);
       in_flight_ops_.pop_front();
+    }
+    if (span_open) {
+      EndEventSpan();
     }
     return Status::OK();
   }

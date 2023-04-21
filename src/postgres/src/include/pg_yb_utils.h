@@ -879,22 +879,53 @@ void GetStatusMsgAndArgumentsByCode(
 
 const char* GetPlanNodeName(Plan *plan);
 
+double GetPlanNodeTime(Instrumentation *instrument);
+
 #define StartSpanIfNotActive(planstate) \
   do { \
     if (planstate->startSpan) { \
 		YBCStartQueryEvent("Query Plan Execution"); \
 		planstate->span_key = trace_vars.global_span_counter - 1; \
-		YBCStringSpanAttribute("NodeType", GetPlanNodeName(planstate->plan), planstate->span_key); \
+		YBCStringSpanAttribute("node.type", GetPlanNodeName(planstate->plan), planstate->span_key); \
 		planstate->startSpan = false; \
+	} \
+  } while (0)
+
+#define CheckMaterial(planstate, time_spent) \
+  do { \
+    switch (nodeTag(planstate->plan)) { \
+		case T_Material: \
+			if (planstate->lefttree) { \
+				time_spent -= GetPlanNodeTime(planstate->lefttree->instrument); \
+			} \
+			if (planstate->righttree) { \
+				time_spent -= GetPlanNodeTime(planstate->righttree->instrument); \
+			} \
+			break; \
+		default: \
+			break; \
 	} \
   } while (0)
 
 #define EndSpanIfActive(planstate) \
   do { \
     if (!planstate.startSpan && trace_vars.is_tracing_enabled) { \
-		double nloops = planstate.instrument->nloops; \
-		double total_ms = 1000.0 * planstate.instrument->total / nloops; \
-		YBCDoubleSpanAttribute("Time Spent", total_ms, planstate.span_key); \
+		double time_spent = GetPlanNodeTime(planstate.instrument); \
+		switch (nodeTag(planstate.plan)) { \
+			case T_Material: \
+				break; \
+			default: \
+				if (planstate.lefttree) { \
+					time_spent -= GetPlanNodeTime(planstate.lefttree->instrument); \
+					CheckMaterial(planstate.lefttree, time_spent); \
+				} \
+				if (planstate.righttree) { \
+					time_spent -= GetPlanNodeTime(planstate.righttree->instrument); \
+					CheckMaterial(planstate.righttree, time_spent); \
+				} \
+				break; \
+		} \
+		YBCDoubleSpanAttribute("time.spent", time_spent, planstate.span_key); \
 		YBCEndQueryEvent(planstate.span_key); \
 		planstate.startSpan = true; \
 	} \

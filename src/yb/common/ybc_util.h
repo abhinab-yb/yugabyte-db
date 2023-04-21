@@ -259,6 +259,34 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 	  YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
   } while (0)
 
+#define PggateStartEventSpan(event_name) \
+  do { \
+    RETURN_NOT_OK(pg_session_->StartQueryEvent(event_name)); \
+    RETURN_NOT_OK(pg_session_->PushSpanKey(trace_vars.global_span_counter - 1)); \
+  } while (0)
+
+#define PggateEndEventSpan() \
+  do { \
+  	uint32_t span_key = pg_session_->TopSpanKey(); \
+    RETURN_NOT_OK(pg_session_->PopSpanKey()); \
+    RETURN_NOT_OK(pg_session_->EndQueryEvent(span_key)); \
+  } while (0)
+
+#define PggateUInt32EventAttribute(key, value) \
+  do { \
+	  RETURN_NOT_OK(pg_session_->UInt32SpanAttribute(key, value, pg_session_->TopSpanKey())); \
+  } while (0)
+
+#define PggateStringEventAttribute(key, value) \
+  do { \
+	  RETURN_NOT_OK(pg_session_->StringSpanAttribute(key, value, pg_session_->TopSpanKey())); \
+  } while (0)
+
+#define PggateDoubleEventAttribute(key, value, span_key) \
+  do { \
+	  RETURN_NOT_OK(pg_session_->Int32SpanAttribute(key, value, pg_session_->TopSpanKey())); \
+  } while (0)
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

@@ -37,6 +37,9 @@
 #include "storage/ipc.h"
 #include "storage/proc.h"
 
+#include "pg_yb_utils.h"
+#include "yb/yql/pggate/ybc_pggate.h"
+
 
 char	   *ssl_cert_file;
 char	   *ssl_key_file;
@@ -146,10 +149,13 @@ secure_read(Port *port, void *ptr, size_t len)
 {
 	ssize_t		n;
 	int			waitfor;
+	uint32_t	retryCounter = 0;
 
 	/* Deal with any already-pending interrupt condition. */
 	ProcessClientReadInterrupt(false);
 
+	if (IsYugaByteEnabled())
+		StartEventSpan("Client Read");
 retry:
 #ifdef USE_SSL
 	waitfor = 0;
@@ -194,13 +200,25 @@ retry:
 		 * us to exit quickly in most cases.)
 		 */
 		if (event.events & WL_POSTMASTER_DEATH)
+		{
+			if (IsYugaByteEnabled())
+			{
+				UInt32EventAttribute("retry.counter", retryCounter);
+				EndEventSpan();
+			}
 			ereport(FATAL,
 					(errcode(ERRCODE_ADMIN_SHUTDOWN),
 					 errmsg("terminating connection due to unexpected postmaster exit")));
+		}
 
 		/* Handle interrupt. */
 		if (event.events & WL_LATCH_SET)
 		{
+			if (IsYugaByteEnabled())
+			{
+				UInt32EventAttribute("retry.counter", retryCounter);
+				EndEventSpan();
+			}
 			ResetLatch(MyLatch);
 			ProcessClientReadInterrupt(true);
 
@@ -210,7 +228,19 @@ retry:
 			 * socket to become ready again.
 			 */
 		}
+		retryCounter++;
+		if (IsYugaByteEnabled() && retryCounter == UINT32_MAX)
+		{
+			UInt32EventAttribute("retry.counter", retryCounter);
+			EndEventSpan();
+		}
 		goto retry;
+	}
+
+	if (IsYugaByteEnabled())
+	{
+		UInt32EventAttribute("retry.counter", retryCounter);
+		EndEventSpan();
 	}
 
 	/*
@@ -251,9 +281,13 @@ secure_write(Port *port, void *ptr, size_t len)
 {
 	ssize_t		n;
 	int			waitfor;
+	uint32_t	retryCounter = 0;
 
 	/* Deal with any already-pending interrupt condition. */
 	ProcessClientWriteInterrupt(false);
+
+	if (IsYugaByteEnabled())
+		StartEventSpan("Client Read");
 
 retry:
 	waitfor = 0;
@@ -282,13 +316,25 @@ retry:
 
 		/* See comments in secure_read. */
 		if (event.events & WL_POSTMASTER_DEATH)
+		{
+			if (IsYugaByteEnabled())
+			{
+				UInt32EventAttribute("retry.counter", retryCounter);
+				EndEventSpan();
+			}
 			ereport(FATAL,
 					(errcode(ERRCODE_ADMIN_SHUTDOWN),
 					 errmsg("terminating connection due to unexpected postmaster exit")));
+		}
 
 		/* Handle interrupt. */
 		if (event.events & WL_LATCH_SET)
 		{
+			if (IsYugaByteEnabled())
+			{
+				UInt32EventAttribute("retry.counter", retryCounter);
+				EndEventSpan();
+			}
 			ResetLatch(MyLatch);
 			ProcessClientWriteInterrupt(true);
 
@@ -298,7 +344,19 @@ retry:
 			 * for the socket to become ready again.
 			 */
 		}
+		retryCounter++;
+		if (IsYugaByteEnabled() && retryCounter == UINT32_MAX)
+		{
+			UInt32EventAttribute("retry.counter", retryCounter);
+			EndEventSpan();
+		}
 		goto retry;
+	}
+
+	if (IsYugaByteEnabled())
+	{
+		UInt32EventAttribute("retry.counter", retryCounter);
+		EndEventSpan();
 	}
 
 	/*

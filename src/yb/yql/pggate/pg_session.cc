@@ -178,10 +178,12 @@ bool IsReadOnly(const PgsqlOp& op) {
 void InsertSpanToMap(std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans,
   const nostd::shared_ptr<opentelemetry::trace::Span> &span) {
   spans.insert({trace_vars.global_span_counter++, span});
+  LOG(INFO) << trace_vars.global_span_counter - 1;
 }
 
 nostd::shared_ptr<opentelemetry::trace::Span> GetAndEraseSpanFromMap(uint32_t current_span_key,
   std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans) {
+  LOG(INFO) << current_span_key;
   auto span = spans.at(current_span_key);
   spans.erase(current_span_key);
   return span;
@@ -468,8 +470,9 @@ Status PgSession::StartTraceForQuery(const char* query_string) {
   auto provider = opentelemetry::trace::Provider::GetTracerProvider();
   this->query_tracer_ = get_tracer("pg_session");
   auto span = this->query_tracer_->StartSpan(
-      "Statement",
-      {{opentelemetry::trace::SemanticConventions::kDbStatement, query_string},
+      query_string,
+      {
+        // {opentelemetry::trace::SemanticConventions::kDbStatement, query_string},
       {opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__},
       {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__}});
 
@@ -482,14 +485,56 @@ Status PgSession::EndTraceForQuery(yb_trace_counters trace_counters) {
     auto span = GetAndEraseSpanFromMap(0, spans_);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
 
-    span->SetAttribute("Statement Retries", trace_counters.statement_retries);
-    span->SetAttribute("Planning Catalog Requests", trace_counters.planning_catalog_requests);
-    span->SetAttribute("Storage Read Requests", trace_counters.storage_read_requests);
-    span->SetAttribute("Storage Write Requests", trace_counters.storage_write_requests);
-    span->SetAttribute("Catalog Read Requests", trace_counters.catalog_read_requests);
-    span->SetAttribute("Catalog Write Requests", trace_counters.catalog_write_requests);
+    span->SetAttribute("statement.retries", trace_counters.statement_retries);
+    // span->SetAttribute("Planning Catalog Requests", trace_counters.planning_catalog_requests);
+    // span->SetAttribute("Storage Read Requests", trace_counters.storage_read_requests);
+    // span->SetAttribute("Storage Write Requests", trace_counters.storage_write_requests);
+    // span->SetAttribute("Catalog Read Requests", trace_counters.catalog_read_requests);
+    // span->SetAttribute("Catalog Write Requests", trace_counters.catalog_write_requests);
 
     span->End();
+    this->query_tracer_ = nullptr;
+  }
+  return Status::OK();
+}
+
+Status PgSession::StartQueryEvent(const char* event_name) {
+  if (this->query_tracer_) {
+    auto parent_span_key = this->current_span_key_.top();
+    opentelemetry::trace::StartSpanOptions options;
+    options.parent = this->spans_.at(parent_span_key)->GetContext();
+
+    auto span = this->query_tracer_->StartSpan(
+        event_name,
+        {{opentelemetry::trace::SemanticConventions::kCodeFunction, __FILE_NAME__},
+        {opentelemetry::trace::SemanticConventions::kCodeLineno, __LINE__}},
+        options);
+
+    InsertSpanToMap(this->spans_, span);
+  }
+  return Status::OK();
+}
+
+Status PgSession::EndQueryEvent(uint32_t span_key) {
+  if (this->query_tracer_) {
+    auto span = GetAndEraseSpanFromMap(span_key, spans_);
+    span->SetStatus(opentelemetry::trace::StatusCode::kOk);
+    span->End();
+  }
+  return Status::OK();
+}
+
+Status PgSession::PushSpanKey(uint32_t span_key) {
+  if (this->query_tracer_) {
+    this->current_span_key_.push(span_key);
+  }
+  return Status::OK();
+}
+
+Status PgSession::PopSpanKey() {
+  if (this->query_tracer_) {
+    assert(!this->current_span_key_.empty());
+    this->current_span_key_.pop();
   }
   return Status::OK();
 }
@@ -497,6 +542,7 @@ Status PgSession::EndTraceForQuery(yb_trace_counters trace_counters) {
 uint32_t PgSession::TopSpanKey() {
   if (this->query_tracer_) {
     return this->current_span_key_.top();
+  }
   return 0;
 }
 
@@ -770,7 +816,7 @@ Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOpti
 
   if (pg_txn_manager_->ShouldEnableTracing() && !this->spans_.empty()) {
     auto& trace_context = *options.mutable_trace_context();
-    SetTraceContext(trace_context, this->spans_.top());
+    SetTraceContext(trace_context, this->spans_.at(TopSpanKey()));
   }
 
   if (ops_options.cache_options) {

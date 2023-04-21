@@ -3252,3 +3252,9 @@ GetPlanNodeName(Plan *plan)
 		default: return "???";
 	}
 }
+
+double
+GetPlanNodeTime(Instrumentation *instrument)
+{
+	return 1000.0 * instrument->total / instrument->nloops;
+}

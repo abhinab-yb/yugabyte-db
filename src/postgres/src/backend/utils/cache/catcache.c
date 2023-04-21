@@ -1792,11 +1792,8 @@ SearchCatCacheMiss(CatCache *cache,
 		* detect.
 		*/
 		StartEventSpan("System Catalog Request");
-		UInt32EventAttribute("Table OID", cache->cc_reloid);
-		if (cache->id == 50)
-			StringEventAttribute("Table Name", DatumGetCString(v1));
-		if (cache->id == 74)
-			StringEventAttribute("Namespace", DatumGetCString(v1));
+		UInt32EventAttribute("rel.oid", cache->cc_reloid);
+		StringEventAttribute("rel.name", cache->cc_relname);
 		relation = heap_open(cache->cc_reloid, AccessShareLock);
 
 		if (IsYugaByteEnabled())
@@ -1860,6 +1857,13 @@ SearchCatCacheMiss(CatCache *cache,
 		systable_endscan(scandesc);
 
 		heap_close(relation, AccessShareLock);
+
+		if (ct != NULL && ct->tuple.t_tableOid >= (Oid) FirstNormalObjectId)
+		{
+			UInt32EventAttribute("table.oid", ct->tuple.t_tableOid);
+			StringEventAttribute("table.name", DatumGetCString(v1));
+		}
+
 		EndEventSpan();
 	}
 
