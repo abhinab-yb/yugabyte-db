@@ -3318,6 +3318,9 @@ ExecEndModifyTable(ModifyTableState *node)
 	for (i = 0; i < node->mt_nplans; i++)
 		ExecEndNode(node->mt_plans[i]);
 
+	YBCStringSpanAttribute("operation.type", node->operation == CMD_INSERT ? "insert" :
+		node->operation == CMD_UPDATE ? "update" : "delete", node->ps.span_key);
+
 	EndSpanIfActive(node->ps);
 }
 

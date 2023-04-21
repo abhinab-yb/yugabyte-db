@@ -174,6 +174,9 @@ ExecGatherMerge(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
+
 	/*
 	 * As with Gather, we don't launch workers until this node is actually
 	 * executed.
@@ -247,17 +250,25 @@ ExecGatherMerge(PlanState *pstate)
 	 */
 	slot = gather_merge_getnext(node);
 	if (TupIsNull(slot))
+	{
+		YBCPopSpanKey();
 		return NULL;
+	}
 
 	/* If no projection is required, we're done. */
 	if (node->ps.ps_ProjInfo == NULL)
+	{
+		YBCPopSpanKey();
 		return slot;
+	}
 
 	/*
 	 * Form the result tuple using ExecProject(), and return it.
 	 */
 	econtext->ecxt_outertuple = slot;
-	return ExecProject(node->ps.ps_ProjInfo);
+	TupleTableSlot *result = ExecProject(node->ps.ps_ProjInfo);
+	YBCPopSpanKey();
+	return result;
 }
 
 /* ----------------------------------------------------------------
@@ -274,6 +285,7 @@ ExecEndGatherMerge(GatherMergeState *node)
 	ExecFreeExprContext(&node->ps);
 	if (node->ps.ps_ResultTupleSlot)
 		ExecClearTuple(node->ps.ps_ResultTupleSlot);
+	EndSpanIfActive(node->ps);
 }
 
 /* ----------------------------------------------------------------

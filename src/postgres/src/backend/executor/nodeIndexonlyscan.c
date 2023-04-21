@@ -342,6 +342,8 @@ IndexOnlyRecheck(IndexOnlyScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecIndexOnlyScan(PlanState *pstate)
 {
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 	IndexOnlyScanState *node = castNode(IndexOnlyScanState, pstate);
 
 	/*
@@ -350,9 +352,11 @@ ExecIndexOnlyScan(PlanState *pstate)
 	if (node->ioss_NumRuntimeKeys != 0 && !node->ioss_RuntimeKeysReady)
 		ExecReScan((PlanState *) node);
 
-	return ExecScan(&node->ss,
+	TupleTableSlot *slot = ExecScan(&node->ss,
 					(ExecScanAccessMtd) IndexOnlyNext,
 					(ExecScanRecheckMtd) IndexOnlyRecheck);
+	YBCPopSpanKey();
+	return slot;
 }
 
 /* ----------------------------------------------------------------
@@ -457,6 +461,8 @@ ExecEndIndexOnlyScan(IndexOnlyScanState *node)
 	 * close the heap relation.
 	 */
 	ExecCloseScanRelation(relation);
+
+	EndSpanIfActive(node->ss.ps);
 }
 
 /* ----------------------------------------------------------------

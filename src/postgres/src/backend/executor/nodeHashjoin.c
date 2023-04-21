@@ -164,6 +164,8 @@ static void ExecParallelHashJoinPartitionOuter(HashJoinState *node);
 static pg_attribute_always_inline TupleTableSlot *
 ExecHashJoinImpl(PlanState *pstate, bool parallel)
 {
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 	HashJoinState *node = castNode(HashJoinState, pstate);
 	PlanState  *outerNode;
 	HashState  *hashNode;
@@ -263,6 +265,7 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 					if (TupIsNull(node->hj_FirstOuterTupleSlot))
 					{
 						node->hj_OuterNotEmpty = false;
+						YBCPopSpanKey();
 						return NULL;
 					}
 					else
@@ -295,7 +298,10 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 				 * outer relation.
 				 */
 				if (hashtable->totalTuples == 0 && !HJ_FILL_OUTER(node))
+				{
+					YBCPopSpanKey();
 					return NULL;
+				}
 
 				/*
 				 * need to remember whether nbatch has increased since we
@@ -464,7 +470,11 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 						node->hj_JoinState = HJ_NEED_NEW_OUTER;
 
 					if (otherqual == NULL || ExecQual(otherqual, econtext))
-						return ExecProject(node->js.ps.ps_ProjInfo);
+					{
+						TupleTableSlot *result = ExecProject(node->js.ps.ps_ProjInfo);
+						YBCPopSpanKey();
+						return result;
+					}
 					else
 						InstrCountFiltered2(node, 1);
 				}
@@ -518,7 +528,11 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 				econtext->ecxt_outertuple = node->hj_NullOuterTupleSlot;
 
 				if (otherqual == NULL || ExecQual(otherqual, econtext))
-					return ExecProject(node->js.ps.ps_ProjInfo);
+				{
+					TupleTableSlot *result = ExecProject(node->js.ps.ps_ProjInfo);
+					YBCPopSpanKey();
+					return result;
+				}
 				else
 					InstrCountFiltered2(node, 1);
 				break;
@@ -531,12 +545,18 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 				if (parallel)
 				{
 					if (!ExecParallelHashJoinNewBatch(node))
+					{
+						YBCPopSpanKey();
 						return NULL;	/* end of parallel-aware join */
+					}
 				}
 				else
 				{
 					if (!ExecHashJoinNewBatch(node))
+					{
+						YBCPopSpanKey();
 						return NULL;	/* end of parallel-oblivious join */
+					}
 				}
 				node->hj_JoinState = HJ_NEED_NEW_OUTER;
 				break;
@@ -546,6 +566,7 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 					 (int) node->hj_JoinState);
 		}
 	}
+	YBCPopSpanKey();
 }
 
 /* ----------------------------------------------------------------
@@ -784,6 +805,8 @@ ExecEndHashJoin(HashJoinState *node)
 	 */
 	ExecEndNode(outerPlanState(node));
 	ExecEndNode(innerPlanState(node));
+
+	EndSpanIfActive(node->js.ps);
 }
 
 /*

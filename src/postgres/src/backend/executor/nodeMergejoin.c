@@ -614,6 +614,9 @@ ExecMergeJoin(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
+
 	/*
 	 * get information from node
 	 */
@@ -676,7 +679,10 @@ ExecMergeJoin(PlanState *pstate)
 
 							result = MJFillOuter(node);
 							if (result)
+							{
+								YBCPopSpanKey();
 								return result;
+							}
 						}
 						break;
 					case MJEVAL_ENDOFJOIN:
@@ -694,6 +700,7 @@ ExecMergeJoin(PlanState *pstate)
 							break;
 						}
 						/* Otherwise we're done. */
+						YBCPopSpanKey();
 						return NULL;
 				}
 				break;
@@ -731,7 +738,10 @@ ExecMergeJoin(PlanState *pstate)
 
 							result = MJFillInner(node);
 							if (result)
+							{
+								YBCPopSpanKey();
 								return result;
+							}
 						}
 						break;
 					case MJEVAL_ENDOFJOIN:
@@ -751,6 +761,7 @@ ExecMergeJoin(PlanState *pstate)
 							break;
 						}
 						/* Otherwise we're done. */
+						YBCPopSpanKey();
 						return NULL;
 				}
 				break;
@@ -824,8 +835,9 @@ ExecMergeJoin(PlanState *pstate)
 						 * projection tuple and return the slot containing it.
 						 */
 						MJ_printf("ExecMergeJoin: returning tuple\n");
-
-						return ExecProject(node->js.ps.ps_ProjInfo);
+						TupleTableSlot *slot = ExecProject(node->js.ps.ps_ProjInfo);
+						YBCPopSpanKey();
+						return slot;
 					}
 					else
 						InstrCountFiltered2(node, 1);
@@ -857,7 +869,10 @@ ExecMergeJoin(PlanState *pstate)
 
 					result = MJFillInner(node);
 					if (result)
+					{
+						YBCPopSpanKey();
 						return result;
+					}
 				}
 
 				/*
@@ -959,7 +974,10 @@ ExecMergeJoin(PlanState *pstate)
 
 					result = MJFillOuter(node);
 					if (result)
+					{
+						YBCPopSpanKey();
 						return result;
+					}
 				}
 
 				/*
@@ -995,6 +1013,7 @@ ExecMergeJoin(PlanState *pstate)
 							break;
 						}
 						/* Otherwise we're done. */
+						YBCPopSpanKey();
 						return NULL;
 				}
 				break;
@@ -1137,6 +1156,7 @@ ExecMergeJoin(PlanState *pstate)
 								break;
 							}
 							/* Otherwise we're done. */
+							YBCPopSpanKey();
 							return NULL;
 					}
 				}
@@ -1220,7 +1240,10 @@ ExecMergeJoin(PlanState *pstate)
 
 					result = MJFillOuter(node);
 					if (result)
+					{
+						YBCPopSpanKey();
 						return result;
+					}
 				}
 
 				/*
@@ -1256,6 +1279,7 @@ ExecMergeJoin(PlanState *pstate)
 							break;
 						}
 						/* Otherwise we're done. */
+						YBCPopSpanKey();
 						return NULL;
 				}
 				break;
@@ -1282,7 +1306,10 @@ ExecMergeJoin(PlanState *pstate)
 
 					result = MJFillInner(node);
 					if (result)
+					{
+						YBCPopSpanKey();
 						return result;
+					}
 				}
 
 				/* Mark before advancing, if wanted */
@@ -1326,6 +1353,7 @@ ExecMergeJoin(PlanState *pstate)
 							break;
 						}
 						/* Otherwise we're done. */
+						YBCPopSpanKey();
 						return NULL;
 				}
 				break;
@@ -1370,6 +1398,7 @@ ExecMergeJoin(PlanState *pstate)
 				if (TupIsNull(innerTupleSlot))
 				{
 					MJ_printf("ExecMergeJoin: end of inner subplan\n");
+					YBCPopSpanKey();
 					return NULL;
 				}
 
@@ -1398,7 +1427,10 @@ ExecMergeJoin(PlanState *pstate)
 
 					result = MJFillOuter(node);
 					if (result)
+					{
+						YBCPopSpanKey();
 						return result;
+					}
 				}
 
 				/*
@@ -1412,6 +1444,7 @@ ExecMergeJoin(PlanState *pstate)
 				if (TupIsNull(outerTupleSlot))
 				{
 					MJ_printf("ExecMergeJoin: end of outer subplan\n");
+					YBCPopSpanKey();
 					return NULL;
 				}
 
@@ -1426,6 +1459,7 @@ ExecMergeJoin(PlanState *pstate)
 					 (int) node->mj_JoinState);
 		}
 	}
+	YBCPopSpanKey();
 }
 
 /* ----------------------------------------------------------------
@@ -1650,6 +1684,7 @@ ExecEndMergeJoin(MergeJoinState *node)
 
 	MJ1_printf("ExecEndMergeJoin: %s\n",
 			   "node processing ended");
+	EndSpanIfActive(node->js.ps);
 }
 
 void

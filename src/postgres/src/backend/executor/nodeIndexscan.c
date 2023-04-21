@@ -601,6 +601,8 @@ reorderqueue_pop(IndexScanState *node)
 static TupleTableSlot *
 ExecIndexScan(PlanState *pstate)
 {
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 	IndexScanState *node = castNode(IndexScanState, pstate);
 
 	/*
@@ -609,14 +611,17 @@ ExecIndexScan(PlanState *pstate)
 	if (node->iss_NumRuntimeKeys != 0 && !node->iss_RuntimeKeysReady)
 		ExecReScan((PlanState *) node);
 
+	TupleTableSlot *slot;
 	if (node->iss_NumOrderByKeys > 0)
-		return ExecScan(&node->ss,
+		slot = ExecScan(&node->ss,
 						(ExecScanAccessMtd) IndexNextWithReorder,
 						(ExecScanRecheckMtd) IndexRecheck);
 	else
-		return ExecScan(&node->ss,
+		slot = ExecScan(&node->ss,
 						(ExecScanAccessMtd) IndexNext,
 						(ExecScanRecheckMtd) IndexRecheck);
+	YBCPopSpanKey();
+	return slot;
 }
 
 /* ----------------------------------------------------------------
@@ -914,6 +919,8 @@ ExecEndIndexScan(IndexScanState *node)
 	 * close the heap relation.
 	 */
 	ExecCloseScanRelation(relation);
+
+	EndSpanIfActive(node->ss.ps);
 }
 
 /* ----------------------------------------------------------------

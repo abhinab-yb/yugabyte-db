@@ -258,6 +258,8 @@ ExecInitAppend(Append *node, EState *estate, int eflags)
 static TupleTableSlot *
 ExecAppend(PlanState *pstate)
 {
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 	AppendState *node = castNode(AppendState, pstate);
 
 	if (node->as_whichplan < 0)
@@ -268,11 +270,17 @@ ExecAppend(PlanState *pstate)
 		 */
 		if (node->as_whichplan == INVALID_SUBPLAN_INDEX &&
 			!node->choose_next_subplan(node))
+		{
+			YBCPopSpanKey();
 			return ExecClearTuple(node->ps.ps_ResultTupleSlot);
+		}
 
 		/* Nothing to do if there are no matching subplans */
 		else if (node->as_whichplan == NO_MATCHING_SUBPLANS)
+		{
+			YBCPopSpanKey();
 			return ExecClearTuple(node->ps.ps_ResultTupleSlot);
+		}
 	}
 
 	for (;;)
@@ -300,13 +308,18 @@ ExecAppend(PlanState *pstate)
 			 * NOT make use of the result slot that was set up in
 			 * ExecInitAppend; there's no need for it.
 			 */
+			YBCPopSpanKey();
 			return result;
 		}
 
 		/* choose new subplan; if none, we're done */
 		if (!node->choose_next_subplan(node))
+		{
+			YBCPopSpanKey();
 			return ExecClearTuple(node->ps.ps_ResultTupleSlot);
+		}
 	}
+	YBCPopSpanKey();
 }
 
 /* ----------------------------------------------------------------
@@ -341,6 +354,8 @@ ExecEndAppend(AppendState *node)
 	 */
 	if (node->as_prune_state)
 		ExecDestroyPartitionPruneState(node->as_prune_state);
+	
+	EndSpanIfActive(node->ps);
 }
 
 void

@@ -109,9 +109,13 @@ ExecCustomScan(PlanState *pstate)
 	CustomScanState *node = castNode(CustomScanState, pstate);
 
 	CHECK_FOR_INTERRUPTS();
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 
 	Assert(node->methods->ExecCustomScan != NULL);
-	return node->methods->ExecCustomScan(node);
+	TupleTableSlot *slot = node->methods->ExecCustomScan(node);
+	YBCPopSpanKey();
+	return slot;
 }
 
 void
@@ -130,6 +134,8 @@ ExecEndCustomScan(CustomScanState *node)
 	/* Close the heap relation */
 	if (node->ss.ss_currentRelation)
 		ExecCloseScanRelation(node->ss.ss_currentRelation);
+	
+	EndSpanIfActive(node->ss.ps);
 }
 
 void

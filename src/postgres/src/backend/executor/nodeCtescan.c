@@ -159,11 +159,15 @@ CteScanRecheck(CteScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecCteScan(PlanState *pstate)
 {
+	StartSpanIfNotActive(pstate);
+	YBCPushSpanKey(pstate->span_key);
 	CteScanState *node = castNode(CteScanState, pstate);
 
-	return ExecScan(&node->ss,
+	TupleTableSlot *slot = ExecScan(&node->ss,
 					(ExecScanAccessMtd) CteScanNext,
 					(ExecScanRecheckMtd) CteScanRecheck);
+	YBCPopSpanKey();
+	return slot;
 }
 
 
@@ -306,6 +310,7 @@ ExecEndCteScan(CteScanState *node)
 		tuplestore_end(node->cte_table);
 		node->cte_table = NULL;
 	}
+	EndSpanIfActive(node->ss.ps);
 }
 
 /* ----------------------------------------------------------------
