@@ -51,6 +51,8 @@ static const size_t kSpanIdSize              = 16;
 
 void InitPgTracer(int pid);
 void InitTserverTracer(const std::string& host_name, const std::string& suffix, const std::string& uuid);
+void InitMasterTracer(
+    const std::string& host_name, const std::string& suffix, const std::string& uuid);
 
 void CleanupTracer();
 

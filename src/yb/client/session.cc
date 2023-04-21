@@ -85,6 +85,10 @@ void YBSession::SetTransaction(YBTransactionPtr transaction) {
   LOG_IF(DFATAL, old_batcher) << "SetTransaction with non empty batcher";
 }
 
+void YBSession::SetTrace(TracePtr trace) {
+  batcher_config_.trace = trace;
+}
+
 void YBSession::SetRejectionScoreSource(RejectionScoreSourcePtr rejection_score_source) {
   if (batcher_) {
     batcher_->SetRejectionScoreSource(rejection_score_source);
@@ -134,7 +138,7 @@ namespace {
 internal::BatcherPtr CreateBatcher(const YBSession::BatcherConfig& config) {
   auto batcher = std::make_shared<internal::Batcher>(
       config.client, config.session.lock(), config.transaction, config.read_point(),
-      config.force_consistent_read);
+      config.force_consistent_read, config.trace);
   batcher->SetRejectionScoreSource(config.rejection_score_source);
   return batcher;
 }

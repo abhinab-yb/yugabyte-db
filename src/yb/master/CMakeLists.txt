@@ -33,6 +33,18 @@
 set(YB_PCH_PREFIX master)
 set(YB_PCH_DEP_LIBS opid_proto)
 
+set(OTEL_LIBS
+  opentelemetry_exporter_ostream_span
+  opentelemetry_trace
+  opentelemetry_exporter_in_memory
+  opentelemetry_exporter_ostream_metrics
+  opentelemetry_exporter_otlp_http
+  opentelemetry_otlp_recordable
+  opentelemetry_common
+  opentelemetry_metrics
+  opentelemetry_resources
+  opentelemetry_version)
+
 YRPC_GENERATE(
   MASTER_YRPC_SRCS MASTER_YRPC_HDRS MASTER_YRPC_TGTS
   SOURCE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..
@@ -165,6 +177,7 @@ set(MASTER_DEPS
   version_info_proto
   yb_pggate_flags
   yb_pggate
+  ${OTEL_LIBS}
 )
 
 ADD_YB_LIBRARY(master
@@ -233,7 +246,8 @@ ADD_YB_TEST(sys_catalog_xrepl-test)
 add_executable("${YB_MASTER_DYNAMIC_EXE_NAME}" master_main.cc)
 set(YB_MASTER_EXE_DEPS
     master
-    ${YB_BASE_LIBS})
+    ${YB_BASE_LIBS}
+    ${OTEL_LIBS})
 if(NOT DEFINED YB_LTO_ENABLED)
   message(FATAL_ERROR "YB_LTO_ENABLED is not defined")
 endif()

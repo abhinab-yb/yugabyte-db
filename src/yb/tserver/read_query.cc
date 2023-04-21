@@ -206,7 +206,11 @@ bool ReadQuery::IsForBackfill() const {
 }
 
 Status ReadQuery::DoPerform() {
-  if (req_->include_trace()) {
+  if (req_->has_trace_context()) {
+    auto span = StartSpanFromParentId(
+        req_->trace_context().trace_id(), req_->trace_context().span_id(), "Read");
+    context_.EnsureTraceCreated(span);
+  } else if (req_->include_trace()) {
     context_.EnsureTraceCreated();
   }
   ADOPT_TRACE(context_.trace());

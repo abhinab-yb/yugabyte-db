@@ -248,6 +248,7 @@ class Trace : public RefCountedThreadSafe<Trace> {
 
   // Functions to access spans
   nostd::shared_ptr<trace_api::Span> GetSpan() { return this->spans_.top(); }
+  bool HasSpan() const {return !this->spans_.empty() && this->spans_.top()->GetContext().IsValid();}
   void StartSpan(const std::string& span_name);
   void EndSpan();
 

@@ -436,6 +436,8 @@ void OutboundCall::SetSent() {
   }
   SetState(RpcCallState::SENT);
   TRACE_TO_WITH_TIME(trace_, end_time, "Call Sent.");
+  if (trace_)
+    trace_->EndSpan();  
 }
 
 void OutboundCall::SetFinished() {

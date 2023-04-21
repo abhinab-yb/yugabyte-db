@@ -283,7 +283,7 @@ class YBTransaction::Impl final : public internal::TxnBatcherIf {
   void EnsureTraceCreated(nostd::shared_ptr<trace_api::Span> span) {
     if (!trace_) {
       trace_ = new Trace(span);
-      TRACE_TO(trace_, "Ensure Trace Created");
+      TRACE_TO(trace_, "Ensure Trace Created. Is span valid? $0 ",  span->GetContext().IsValid());
     }
   }
 
@@ -1334,7 +1334,7 @@ class YBTransaction::Impl final : public internal::TxnBatcherIf {
                   const tserver::UpdateTransactionResponsePB& response,
                   const YBTransactionPtr& transaction) {
     TRACE_TO(trace_, __func__);
-    if (trace_->GetSpan()->GetContext().IsValid()) {
+    if (trace_ && trace_->HasSpan() && trace_->GetSpan()->GetContext().IsValid()) {
       trace_->GetSpan()->End();
     }
 

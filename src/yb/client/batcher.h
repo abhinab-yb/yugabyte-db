@@ -153,7 +153,8 @@ class Batcher : public Runnable, public std::enable_shared_from_this<Batcher> {
           const YBSessionPtr& session,
           YBTransactionPtr transaction,
           ConsistentReadPoint* read_point,
-          bool force_consistent_read);
+          bool force_consistent_read,
+          scoped_refptr<Trace> trace);
   ~Batcher();
 
   // Set the timeout for this batcher.
@@ -350,6 +351,8 @@ class Batcher : public Runnable, public std::enable_shared_from_this<Batcher> {
   std::set<RetryableRequestId> retryable_request_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(Batcher);
+
+  scoped_refptr<Trace> parent_trace_;
 };
 
 }  // namespace internal

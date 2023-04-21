@@ -951,11 +951,14 @@ Status PgClientSession::DoPerform(const DataPtr& data, CoarseTimePoint deadline,
         transaction->EnsureTraceCreated(transaction_span);
         context->trace()->AddChildTrace(transaction->trace());
         transaction->trace()->set_must_print(true);
+        LOG(INFO) << "Transaction Span created: " << transaction->trace();
       } else {
         context->trace()->set_must_print(true);
       }
     }
     ADOPT_TRACE(context->trace());
+    session->SetTrace(context->trace());
+    LOG(INFO) << "Setup trace for Perform: " << context->trace();
   }
 
   data->used_read_time = session_info.second;

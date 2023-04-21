@@ -24,12 +24,16 @@
 
 #include "yb/util/locks.h"
 #include "yb/util/monotime.h"
+#include "yb/util/trace.h"
 
 namespace yb {
 
 class ConsistentReadPoint;
 
 struct ReadHybridTime;
+
+class Trace;
+typedef scoped_refptr<Trace> TracePtr;
 
 namespace client {
 
@@ -115,6 +119,8 @@ class YBSession : public std::enable_shared_from_this<YBSession> {
 
   // Changes transaction used by this session.
   void SetTransaction(YBTransactionPtr transaction);
+
+  void SetTrace(TracePtr trace);
 
   // Set the timeout for writes made in this session.
   void SetTimeout(MonoDelta delta);
@@ -244,6 +250,8 @@ class YBSession : public std::enable_shared_from_this<YBSession> {
     RejectionScoreSourcePtr rejection_score_source;
 
     ConsistentReadPoint* read_point() const;
+
+    TracePtr trace;
   };
 
  private:

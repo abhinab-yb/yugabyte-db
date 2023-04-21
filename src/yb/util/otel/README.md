@@ -25,7 +25,7 @@ YB_THIRDPARTY_DIR=~/code/yugabyte-db-thirdparty ./yb_build.sh
 By default, traces are exported to files by PG backend and tservers.
 
 ```
-./bin/yb-ctl create --rf=1 --tserver_flags="enable_otel_tracing=true"
+./bin/yb-ctl create --rf=1 --tserver_flags="enable_otel_tracing=true" --master_flags="enable_otel_tracing=true"
 # ...
 # < Run Queries>
 # ...
@@ -118,5 +118,7 @@ Start Yugabyte cluster
 
 
 ```
-./bin/yb-ctl create --rf=1 --tserver_flags="enable_otel_tracing=true,otel_export_collector=true,otel_collector_hostname=127.0.0.1"
+./bin/yb-ctl create --rf=3 \
+  --tserver_flags="enable_otel_tracing=true,otel_export_collector=true,otel_collector_hostname=127.0.0.1" \
+  --master_flags="enable_otel_tracing=true,otel_export_collector=true,otel_collector_hostname=127.0.0.1"
 ```

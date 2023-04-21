@@ -52,6 +52,7 @@
 #include "yb/util/logging.h"
 #include "yb/util/main_util.h"
 #include "yb/util/mem_tracker.h"
+#include "yb/util/otel/trace.h"
 #include "yb/util/result.h"
 #include "yb/util/size_literals.h"
 #include "yb/util/thread.h"
@@ -161,6 +162,8 @@ static int MasterMain(int argc, char** argv) {
             [&termination_monitor]() { termination_monitor->Terminate(); });
       },
       &total_mem_watcher_thread));
+
+  InitMasterTracer(host_name, server.fs_manager()->uuid().substr(0, 8), server.fs_manager()->uuid());
 
   termination_monitor->WaitForTermination();
 

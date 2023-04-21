@@ -372,8 +372,8 @@ void Trace::AddEntry(TraceEntry* entry) {
     trace_start_time_usec_ = GetCurrentMicrosFast(entry->timestamp);
   }
   entries_tail_ = entry;
-  auto current_span = GetSpan();
-  if (current_span->GetContext().IsValid()) {
+  if (this->HasSpan()) {
+    auto current_span = this->GetSpan();
     current_span->AddEvent(
         "Trace Entry", {
                            {"filepath", entry->file_path},
@@ -442,13 +442,16 @@ size_t Trace::DynamicMemoryUsage() const {
   return arena ? arena->memory_footprint() : 0;
 }
 
-void Trace::StartSpan(const std::string& span_name){
-  spans_.push(::yb::StartSpan(span_name, spans_.top()->GetContext()));
+void Trace::StartSpan(const std::string& span_name) {
+  if (this->HasSpan())
+    spans_.push(::yb::StartSpan(span_name, spans_.top()->GetContext()));
 }
 
 void Trace::EndSpan() {
-  spans_.top()->End();
-  spans_.pop();
+  if (this->HasSpan()) {
+    this->spans_.top()->End();
+    this->spans_.pop();
+  }
 }
 
 PlainTrace::PlainTrace() {

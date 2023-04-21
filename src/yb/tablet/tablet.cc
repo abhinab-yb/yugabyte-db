@@ -3334,6 +3334,9 @@ Status Tablet::TEST_SwitchMemtable() {
 
 Result<HybridTime> Tablet::DoGetSafeTime(
     RequireLease require_lease, HybridTime min_allowed, CoarseTimePoint deadline) const {
+  TRACE_START_SPAN("DoGetSafeTime");
+  auto se = ScopeExit([] { TRACE_AND_END_SPAN("DoGetSafeTime Done"); });
+
   if (require_lease == RequireLease::kFalse) {
     return CheckSafeTime(mvcc_.SafeTimeForFollower(min_allowed, deadline), min_allowed);
   }

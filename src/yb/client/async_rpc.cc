@@ -122,7 +122,7 @@ bool IsTracingEnabled() {
 
 bool IsOtelTracingEnabled() {
   auto *trace = Trace::CurrentTrace();
-  return trace && trace->GetSpan()->GetContext().IsValid();
+  return trace && trace->HasSpan();
 }
 
 namespace {
@@ -379,11 +379,11 @@ AsyncRpcBase<Req, Resp>::AsyncRpcBase(
     const AsyncRpcData& data, YBConsistencyLevel consistency_level)
     : AsyncRpc(data, consistency_level) {
   req_.set_allocated_tablet_id(const_cast<std::string*>(&tablet_invoker_.tablet()->tablet_id()));
-  req_.set_include_trace(IsTracingEnabled());
+  req_.set_include_trace(IsTracingEnabled() || IsOtelTracingEnabled());
   if (IsOtelTracingEnabled()) {
     auto* trace = Trace::CurrentTrace();
     opentelemetry::trace::SpanContext span_context = trace->GetSpan()->GetContext();
-    LOG(INFO) << "Trace available";
+    LOG(INFO) << "Trace available: " << trace;
     auto& trace_context = *req_.mutable_trace_context();
     char trace_id[kTraceIdSize];
     span_context.trace_id().ToLowerBase16(
@@ -396,6 +396,8 @@ AsyncRpcBase<Req, Resp>::AsyncRpcBase(
     LOG(INFO) << "Set trace context. Trace ID: "
               << std::string_view(trace_id, kTraceIdSize)
               << ", Span ID:" << std::string_view(span_id, kSpanIdSize);
+  } else {
+    LOG(INFO) << "OTEL Tracing NOT setup. Trace: " << Trace::CurrentTrace();
   }
   const ConsistentReadPoint* read_point = batcher_->read_point();
   bool has_read_time = false;
@@ -720,6 +722,9 @@ ReadRpc::ReadRpc(const AsyncRpcData& data, YBConsistencyLevel yb_consistency_lev
   req_.set_consistency_level(yb_consistency_level);
   req_.set_proxy_uuid(data.batcher->proxy_uuid());
 
+  LOG(INFO) << "Creating READ RPC. Trace available" << trace_ << "Span available? "
+            << (trace_ && trace_->HasSpan())
+      << " Does Req have trace_context: " << req_.has_trace_context();
   switch (table()->table_type()) {
     case YBTableType::REDIS_TABLE_TYPE:
       FillOps<YBRedisReadOp>(

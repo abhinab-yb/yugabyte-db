@@ -74,6 +74,7 @@ namespace yb {
 
 static const std::string kPgServiceName = "PG";
 static const std::string kTserverServiceName = "TSERVER";
+static const std::string kMasterServiceName = "MASTER";
 
 void InitTracer(const std::string& service_name, opentelemetry::sdk::resource::Resource& resource) {
   std::unique_ptr<trace_sdk::SpanExporter> exporter = nullptr;
@@ -116,6 +117,15 @@ void InitTserverTracer(const std::string& host_name, const std::string& suffix, 
       {opentelemetry::sdk::resource::SemanticConventions::kServiceInstanceId, uuid}});
 
   InitTracer(kTserverServiceName, resource);
+}
+
+void InitMasterTracer(const std::string& host_name, const std::string& suffix, const std::string& uuid) {
+  auto resource = opentelemetry::sdk::resource::Resource::Create({
+      {opentelemetry::sdk::resource::SemanticConventions::kServiceName, kMasterServiceName + "-" + suffix},
+      {opentelemetry::trace::SemanticConventions::kNetHostName, host_name},
+      {opentelemetry::sdk::resource::SemanticConventions::kServiceInstanceId, uuid}});
+
+  InitTracer(kMasterServiceName, resource);
 }
 
 nostd::shared_ptr<opentelemetry::trace::Tracer> get_tracer(std::string tracer_name)

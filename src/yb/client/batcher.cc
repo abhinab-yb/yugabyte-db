@@ -121,13 +121,15 @@ Batcher::Batcher(YBClient* client,
                  const YBSessionPtr& session,
                  YBTransactionPtr transaction,
                  ConsistentReadPoint* read_point,
-                 bool force_consistent_read)
+                 bool force_consistent_read,
+                 scoped_refptr<Trace> trace)
   : client_(client),
     weak_session_(session),
     async_rpc_metrics_(session->async_rpc_metrics()),
     transaction_(std::move(transaction)),
     read_point_(read_point),
-    force_consistent_read_(force_consistent_read) {
+    force_consistent_read_(force_consistent_read),
+    parent_trace_(trace) {
 }
 
 Batcher::~Batcher() {
@@ -602,7 +604,7 @@ void Batcher::RequestsFinished() {
 std::shared_ptr<AsyncRpc> Batcher::CreateRpc(
     const BatcherPtr& self, RemoteTablet* tablet, const InFlightOpsGroup& group,
     const bool allow_local_calls_in_curr_thread, const bool need_consistent_read) {
-  ADOPT_TRACE(transaction_ ? transaction_->trace() : Trace::CurrentTrace());
+  ADOPT_TRACE(transaction_ ? transaction_->trace() : parent_trace_.get());
   VLOG_WITH_PREFIX_AND_FUNC(3) << "tablet: " << tablet->tablet_id();
 
   CHECK(group.begin != group.end);
