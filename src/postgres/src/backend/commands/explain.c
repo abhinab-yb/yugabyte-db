@@ -288,7 +288,7 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt, const char *queryString,
 		do_text_output_oneline(tstate, es->str->data);
 	end_tup_output(tstate);
 
-	YBCAddLogsToSpan(es->str->data, 0);
+	YBCStringSpanAttribute("explain.plan", es->str->data, 0);
 
 	pfree(es->str->data);
 }
