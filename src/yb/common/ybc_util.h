@@ -110,6 +110,7 @@ typedef struct
 	uint64_t    catalog_write_requests;
 	uint64_t    storage_read_requests;
 	uint64_t    storage_write_requests;
+  double      printtup_time;
 } yb_trace_counters;
 
 extern yb_trace_counters trace_counters;
@@ -254,7 +255,7 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 	  YBCStringSpanAttribute(key, value, YBCTopSpanKey()); \
   } while (0)
 
-#define DoubleEventAttribute(key, value, span_key) \
+#define DoubleEventAttribute(key, value) \
   do { \
 	  YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
   } while (0)

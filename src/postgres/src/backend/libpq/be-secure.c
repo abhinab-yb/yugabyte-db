@@ -287,7 +287,7 @@ secure_write(Port *port, void *ptr, size_t len)
 	ProcessClientWriteInterrupt(false);
 
 	if (IsYugaByteEnabled())
-		StartEventSpan("Client Read");
+		StartEventSpan("Client Write");
 
 retry:
 	waitfor = 0;

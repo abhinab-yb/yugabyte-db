@@ -1096,14 +1096,12 @@ exec_simple_query(const char *query_string)
 		 */
 		oldcontext = MemoryContextSwitchTo(MessageContext);
 
-		if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
+		if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
 		{
-			YBCStartTraceForQuery(query_string, __FILE__, __LINE__, __func__);
-			YBCPushSpanKey(trace_vars.global_span_counter - 1);
-			trace_vars.is_tracing_enabled = true;
+			StringEventAttribute("db.statement", query_string);
 		}
 
-		if( IsYugaByteEnabled()) /* Remove this? if tracing is enabled for query and not session, we cannot trace it*/
+		if (IsYugaByteEnabled()) /* Remove this? if tracing is enabled for query and not session, we cannot trace it*/
 			StartEventSpan("Query Planning");
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
 												NULL, 0, NULL);
@@ -5229,6 +5227,13 @@ PostgresMain(int argc, char *argv[],
 
 			ReadyForQuery(whereToSendOutput);
 			send_ready_for_query = false;
+
+			if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
+			{
+				YBCEndTraceForQuery(trace_counters);
+				ResetYbTraceVars();
+			}
+			ResetYbCounters();
 		}
 
 		/*
@@ -5243,6 +5248,13 @@ PostgresMain(int argc, char *argv[],
 		 * (3) read a command (loop blocks here)
 		 */
 		firstchar = ReadCommand(&input_message);
+
+		if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
+		{
+			YBCStartTraceForQuery("", __FILE__, __LINE__, __func__);
+			YBCPushSpanKey(trace_vars.global_span_counter - 1);
+			trace_vars.is_tracing_enabled = true;
+		}
 
 		/*
 		 * (4) disable async signal conditions again.
@@ -5749,12 +5761,6 @@ PostgresMain(int argc, char *argv[],
 						 errmsg("invalid frontend message type %d",
 								firstchar)));
 		}
-		if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
-		{
-			YBCEndTraceForQuery(trace_counters);
-			ResetYbTraceVars();
-		}
-		ResetYbCounters();
 	}							/* end of input-reading loop */
 }
 
@@ -6066,4 +6072,5 @@ ResetYbCounters(void)
 	trace_counters.catalog_write_requests = 0;
 	trace_counters.storage_read_requests = 0;
 	trace_counters.storage_write_requests = 0;
+	trace_counters.printtup_time = 0.0;
 }

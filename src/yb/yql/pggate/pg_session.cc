@@ -466,10 +466,17 @@ Status PgSession::DeleteDBSequences(int64_t db_oid) {
 //--------------------------------------------------------------------------------------------------
 
 Status PgSession::StartTraceForQuery(const char* query_string, const char* file_name, int line, const char* function) {
+  for (auto [x, y] : spans_) {
+    y->End();
+  }
+  spans_.clear();
+  while (!current_span_key_.empty()) {
+    current_span_key_.pop();
+  }
   auto provider = opentelemetry::trace::Provider::GetTracerProvider();
   this->query_tracer_ = get_tracer("pg_session");
   auto span = this->query_tracer_->StartSpan(
-      query_string,
+      "Statement",
       {{opentelemetry::trace::SemanticConventions::kCodeFunction, function},
       {opentelemetry::trace::SemanticConventions::kCodeLineno, line},
       {opentelemetry::trace::SemanticConventions::kCodeFilepath, file_name}});

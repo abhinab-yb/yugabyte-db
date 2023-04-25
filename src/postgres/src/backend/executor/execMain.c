@@ -1709,6 +1709,8 @@ ExecutePlan(EState *estate,
 	if (use_parallel_mode)
 		EnterParallelMode();
 
+	StartEventSpan("Print Tupple");
+	uint32_t span_key = YBCTopSpanKey();
 	/*
 	 * Loop until we've processed the proper number of tuples from the plan.
 	 */
@@ -1782,6 +1784,9 @@ ExecutePlan(EState *estate,
 
 	if (use_parallel_mode)
 		ExitParallelMode();
+
+	YBCDoubleSpanAttribute("time.spent", trace_counters.printtup_time, span_key);
+	EndEventSpan();
 }
 
 

@@ -393,6 +393,11 @@ printtup(TupleTableSlot *slot, DestReceiver *self)
 	StringInfo	buf = &myState->buf;
 	int			natts = typeinfo->natts;
 	int			i;
+	instr_time	starttime;
+	instr_time	endtime;
+
+	if (trace_vars.is_tracing_enabled)
+		INSTR_TIME_SET_CURRENT(starttime);
 
 	/* Set or update my derived attribute info, if needed */
 	if (myState->attrinfo != typeinfo || myState->nattrs != natts)
@@ -462,6 +467,13 @@ printtup(TupleTableSlot *slot, DestReceiver *self)
 	MemoryContextSwitchTo(oldcontext);
 	MemoryContextReset(myState->tmpcontext);
 
+	if (trace_vars.is_tracing_enabled)
+	{
+		INSTR_TIME_SET_CURRENT(endtime);
+		INSTR_TIME_SUBTRACT(endtime, starttime);
+		trace_counters.printtup_time += INSTR_TIME_GET_MILLISEC(starttime);
+	}
+
 	return true;
 }
 
@@ -480,6 +492,13 @@ printtup_20(TupleTableSlot *slot, DestReceiver *self)
 	int			i,
 				j,
 				k;
+	instr_time	starttime;
+	instr_time	endtime;
+
+	if (trace_vars.is_tracing_enabled)
+	{
+		INSTR_TIME_SET_CURRENT(starttime);
+	}
 
 	/* Set or update my derived attribute info, if needed */
 	if (myState->attrinfo != typeinfo || myState->nattrs != natts)
@@ -539,6 +558,13 @@ printtup_20(TupleTableSlot *slot, DestReceiver *self)
 	/* Return to caller's context, and flush row's temporary memory */
 	MemoryContextSwitchTo(oldcontext);
 	MemoryContextReset(myState->tmpcontext);
+
+	if (trace_vars.is_tracing_enabled)
+	{
+		INSTR_TIME_SET_CURRENT(endtime);
+		INSTR_TIME_SUBTRACT(endtime, starttime);
+		trace_counters.printtup_time += INSTR_TIME_GET_MILLISEC(starttime);
+	}
 
 	return true;
 }
