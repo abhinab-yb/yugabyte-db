@@ -449,6 +449,10 @@ ScanPgRelation(Oid targetRelId, bool indexOK, bool force_non_historic)
 	ScanKeyData key[1];
 	Snapshot	snapshot;
 
+	StartEventSpan("System Catalog Request");
+	UInt32EventAttribute("rel.oid", targetRelId);
+	StringEventAttribute("rel.name", "pg_class");
+
 	/*
 	 * If something goes wrong during backend startup, we might find ourselves
 	 * trying to read pg_class before we've selected a database.  That ain't
@@ -500,6 +504,8 @@ ScanPgRelation(Oid targetRelId, bool indexOK, bool force_non_historic)
 	/* all done */
 	systable_endscan(pg_class_scan);
 	heap_close(pg_class_desc, AccessShareLock);
+
+	EndEventSpan();
 
 	return pg_class_tuple;
 }

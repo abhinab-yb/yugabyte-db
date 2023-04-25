@@ -2126,6 +2126,10 @@ SearchCatCacheList(CatCache *cache,
 		cur_skey[2].sk_argument = v3;
 		cur_skey[3].sk_argument = v4;
 
+		StartEventSpan("System Catalog Request");
+		UInt32EventAttribute("rel.oid", cache->cc_reloid);
+		StringEventAttribute("rel.name", cache->cc_relname);
+
 		relation = heap_open(cache->cc_reloid, AccessShareLock);
 
 		scandesc = systable_beginscan(relation,
@@ -2198,6 +2202,8 @@ SearchCatCacheList(CatCache *cache,
 		systable_endscan(scandesc);
 
 		heap_close(relation, AccessShareLock);
+
+		EndEventSpan();
 
 		/* Now we can build the CatCList entry. */
 		oldcxt = MemoryContextSwitchTo(CacheMemoryContext);
