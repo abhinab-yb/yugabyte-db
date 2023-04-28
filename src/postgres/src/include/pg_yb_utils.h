@@ -883,11 +883,15 @@ double GetPlanNodeTime(Instrumentation *instrument);
 
 #define VStartSpanIfNotActive(level, planstate) \
   do { \
-    if (planstate->startSpan && trace_vars.is_tracing_enabled && level <= trace_vars.trace_level) { \
-		YBCStartQueryEvent("Query Plan Execution", __FILE__, __LINE__, __func__); \
-		planstate->span_key = trace_vars.global_span_counter - 1; \
-		YBCStringSpanAttribute("node.type", GetPlanNodeName(planstate->plan), planstate->span_key); \
-		planstate->startSpan = false; \
+    if (planstate->startSpan && trace_vars.is_tracing_enabled) { \
+		if (level <= trace_vars.trace_level) { \
+			YBCStartQueryEvent("Query Plan Execution", __FILE__, __LINE__, __func__); \
+			planstate->span_key = trace_vars.global_span_counter - 1; \
+			YBCStringSpanAttribute("node.type", GetPlanNodeName(planstate->plan), planstate->span_key); \
+			planstate->startSpan = false; \
+		} else if (level == trace_vars.trace_level + 1) { \
+			YBCIncrementCounter(GetPlanNodeName(planstate->plan)); \
+		} \
 	} \
   } while (0)
 

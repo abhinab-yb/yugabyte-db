@@ -303,6 +303,8 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
     if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
       RETURN_NOT_OK(pg_session_->StartQueryEvent((event_name), __FILE__, __LINE__, __func__)); \
       RETURN_NOT_OK(pg_session_->PushSpanKey(trace_vars.global_span_counter - 1)); \
+    } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
+      RETURN_NOT_OK(pg_session->IncrementCounter(event_name)); \
     } \
   } while (0)
 
