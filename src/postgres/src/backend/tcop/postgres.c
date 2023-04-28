@@ -108,8 +108,6 @@ int			max_stack_depth = 100;
 /* wait N seconds to allow attach from a debugger */
 int			PostAuthDelay = 0;
 
-yb_trace	trace_vars;
-
 /* ----------------
  *		private variables
  * ----------------
@@ -1096,12 +1094,6 @@ exec_simple_query(const char *query_string)
 		 * these must outlive the execution context).
 		 */
 		oldcontext = MemoryContextSwitchTo(MessageContext);
-
-		if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
-		{
-			YBCStartTraceForQuery(query_string);
-			trace_vars.is_tracing_enabled = true;
-		}
 
 		if( IsYugaByteEnabled()) /* Remove this? if tracing is enabled for query and not session, we cannot trace it*/
 			YBCStartQueryEvent("analyze_and_rewrite");
@@ -5221,6 +5213,12 @@ PostgresMain(int argc, char *argv[],
 
 			ReadyForQuery(whereToSendOutput);
 			send_ready_for_query = false;
+
+			if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
+			{
+				YBCStopTraceForQuery();
+				ResetYbTraceVars();
+			}
 		}
 
 		/*
@@ -5235,6 +5233,13 @@ PostgresMain(int argc, char *argv[],
 		 * (3) read a command (loop blocks here)
 		 */
 		firstchar = ReadCommand(&input_message);
+
+		if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
+		{
+			YBCStartTraceForQuery(query_string);
+			trace_vars.is_tracing_enabled = true;
+			trace_vars.trace_level = pg_atomic_read_u32(&MyProc->trace_level);
+		}
 
 		/*
 		 * (4) disable async signal conditions again.
@@ -5741,11 +5746,6 @@ PostgresMain(int argc, char *argv[],
 						 errmsg("invalid frontend message type %d",
 								firstchar)));
 		}
-		if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
-		{
-			YBCStopTraceForQuery();
-			ResetYbTraceVars();
-		}
 	}							/* end of input-reading loop */
 }
 
@@ -6045,4 +6045,6 @@ ResetYbTraceVars(void)
 {
 	trace_vars.is_tracing_enabled = false;
 	trace_vars.query_id = -1;
+	trace_vars.global_span_counter = 0;
+	trace_vars.trace_level = 0;
 }

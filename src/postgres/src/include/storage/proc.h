@@ -113,6 +113,7 @@ struct PGPROC
 	int			pgprocno;
 
 	pg_atomic_uint32 is_yb_tracing_enabled;
+	pg_atomic_uint32 trace_level;
 
 	/* These fields are zero while a backend is still starting up: */
 	BackendId	backendId;		/* This backend's backend ID (if assigned) */

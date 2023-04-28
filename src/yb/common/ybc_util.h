@@ -87,6 +87,35 @@ extern bool yb_run_with_explain_analyze;
  */
 extern bool yb_enable_hash_batch_in;
 
+ /* Set to true when only for ANALYZE (EXPLAIN, DIST) and enables collection of RPC stats that may
+ * slow down regular query execution.
+ */
+extern bool yb_run_with_analyze_explain_dist;
+
+/* Variables related to opentelemetry tracing */
+typedef struct
+{
+  bool 		  is_tracing_enabled;
+	int64_t		query_id;
+  uint32_t	global_span_counter;
+  uint32_t  trace_level;
+} yb_trace_vars;
+
+extern yb_trace_vars trace_vars;
+
+typedef struct
+{
+	int         statement_retries;
+	double      planning_catalog_requests;
+	double      catalog_read_requests;
+	uint64_t    catalog_write_requests;
+	uint64_t    storage_read_requests;
+	uint64_t    storage_write_requests;
+  double      printtup_time;
+} yb_trace_counters;
+
+extern yb_trace_counters trace_counters;
+
 /*
  * xcluster consistency level
  */

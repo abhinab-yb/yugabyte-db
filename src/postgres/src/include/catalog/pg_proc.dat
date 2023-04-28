@@ -10437,8 +10437,8 @@
 
 { oid => '8059', descr => 'Enable yb tracing',
   proname => 'yb_pg_enable_tracing', provolatile => 's', proisstrict => 'f',
-  prorettype => 'bool', proargtypes => 'int4 int8', prosrc => 'yb_pg_enable_tracing',
-  proargnames => '{pid,query_id}' },
+  prorettype => 'bool', proargtypes => 'int4 int8 int4', prosrc => 'yb_pg_enable_tracing',
+  proargnames => '{pid,query_id,trace_level}' },
 
 { oid => '8060', descr => 'Disable yb tracing',
   proname => 'yb_pg_disable_tracing', provolatile => 's', proisstrict => 'f',

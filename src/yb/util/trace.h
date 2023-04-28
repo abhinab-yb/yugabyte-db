@@ -289,6 +289,7 @@ class Trace : public RefCountedThreadSafe<Trace> {
   std::vector<scoped_refptr<Trace> > child_traces_;
 
   std::stack<nostd::shared_ptr<trace_api::Span>> spans_;
+  TraceAggregates trace_aggregates_;
 
   DISALLOW_COPY_AND_ASSIGN(Trace);
 };
