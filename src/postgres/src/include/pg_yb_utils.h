@@ -881,9 +881,9 @@ const char* GetPlanNodeName(Plan *plan);
 
 double GetPlanNodeTime(Instrumentation *instrument);
 
-#define StartSpanIfNotActive(planstate) \
+#define VStartSpanIfNotActive(level, planstate) \
   do { \
-    if (planstate->startSpan) { \
+    if (planstate->startSpan && trace_vars.is_tracing_enabled && level <= trace_vars.trace_level) { \
 		YBCStartQueryEvent("Query Plan Execution", __FILE__, __LINE__, __func__); \
 		planstate->span_key = trace_vars.global_span_counter - 1; \
 		YBCStringSpanAttribute("node.type", GetPlanNodeName(planstate->plan), planstate->span_key); \
@@ -907,9 +907,9 @@ double GetPlanNodeTime(Instrumentation *instrument);
 	} \
   } while (0)
 
-#define EndSpanIfActive(planstate) \
+#define VEndSpanIfActive(level, planstate) \
   do { \
-    if (!planstate.startSpan && trace_vars.is_tracing_enabled) { \
+    if (!planstate.startSpan && trace_vars.is_tracing_enabled && level <= trace_vars.trace_level) { \
 		double time_spent = GetPlanNodeTime(planstate.instrument); \
 		switch (nodeTag(planstate.plan)) { \
 			case T_Material: \
@@ -930,5 +930,11 @@ double GetPlanNodeTime(Instrumentation *instrument);
 		planstate.startSpan = true; \
 	} \
   } while (0)
+
+#define StartSpanIfNotActive(planstate) \
+	VStartSpanIfNotActive(0, planstate)
+
+#define EndSpanIfActive(planstate) \
+	VEndSpanIfActive(0, planstate)
 
 #endif /* PG_YB_UTILS_H */
