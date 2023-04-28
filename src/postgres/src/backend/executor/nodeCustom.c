@@ -109,7 +109,7 @@ ExecCustomScan(PlanState *pstate)
 	CustomScanState *node = castNode(CustomScanState, pstate);
 
 	CHECK_FOR_INTERRUPTS();
-	StartSpanIfNotActive(pstate);
+	VStartSpanIfNotActive(2, pstate);
 	YBCPushSpanKey(pstate->span_key);
 
 	Assert(node->methods->ExecCustomScan != NULL);
@@ -135,7 +135,7 @@ ExecEndCustomScan(CustomScanState *node)
 	if (node->ss.ss_currentRelation)
 		ExecCloseScanRelation(node->ss.ss_currentRelation);
 	
-	EndSpanIfActive(node->ss.ps);
+	VEndSpanIfActive(2, node->ss.ps);
 }
 
 void

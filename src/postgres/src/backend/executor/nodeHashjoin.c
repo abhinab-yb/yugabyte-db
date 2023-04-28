@@ -164,7 +164,7 @@ static void ExecParallelHashJoinPartitionOuter(HashJoinState *node);
 static pg_attribute_always_inline TupleTableSlot *
 ExecHashJoinImpl(PlanState *pstate, bool parallel)
 {
-	StartSpanIfNotActive(pstate);
+	VStartSpanIfNotActive(2, pstate);
 	YBCPushSpanKey(pstate->span_key);
 	HashJoinState *node = castNode(HashJoinState, pstate);
 	PlanState  *outerNode;
@@ -806,7 +806,7 @@ ExecEndHashJoin(HashJoinState *node)
 	ExecEndNode(outerPlanState(node));
 	ExecEndNode(innerPlanState(node));
 
-	EndSpanIfActive(node->js.ps);
+	VEndSpanIfActive(2, node->js.ps);
 }
 
 /*

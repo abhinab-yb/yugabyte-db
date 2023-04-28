@@ -306,15 +306,16 @@ class PgSession::RunHelper {
                 << ToString(session_type_) << " num ops: " << operations_.size();
     }
 
-    // YBCEndQueryEvent(span_key);
-    YBCStartQueryEvent("Flushing Operations", __FILE__, __LINE__, __func__);
+    if (3 <= trace_vars.trace_level) {
+      YBCStartQueryEvent("Flushing Operations", __FILE__, __LINE__, __func__);
+    }
     return pg_session_.Perform(
         std::move(operations_),
         {.use_catalog_session = IsCatalog(),
          .cache_options = std::move(cache_options),
          .in_txn_limit = in_txn_limit_
         },
-        trace_vars.global_span_counter - 1);
+        3 <= trace_vars.trace_level ? trace_vars.global_span_counter - 1 : 0);
   }
 
  private:
@@ -517,6 +518,7 @@ Status PgSession::EndTraceForQuery(yb_trace_counters trace_counters) {
 
 Status PgSession::StartQueryEvent(const char* event_name, const char* file_name, int line, const char* function) {
   if (this->query_tracer_) {
+    LOG(INFO) << trace_vars.global_span_counter << " ----------- " << std::string(event_name);
     assert(!this->current_span_key_.empty());
     auto parent_span_key = this->current_span_key_.top();
     opentelemetry::trace::StartSpanOptions options;
@@ -537,6 +539,7 @@ Status PgSession::StartQueryEvent(const char* event_name, const char* file_name,
 
 Status PgSession::EndQueryEvent(uint32_t span_key) {
   if (this->query_tracer_) {
+    LOG(INFO) << span_key;
     auto span = GetAndEraseSpanFromMap(span_key, spans_);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
     span->End();

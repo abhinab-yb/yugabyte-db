@@ -50,7 +50,7 @@ ExecLimit(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate);
+	VStartSpanIfNotActive(2, pstate);
 	YBCPushSpanKey(pstate->span_key);
 
 	/*
@@ -446,7 +446,7 @@ ExecEndLimit(LimitState *node)
 {
 	ExecFreeExprContext(&node->ps);
 	ExecEndNode(outerPlanState(node));
-	EndSpanIfActive(node->ps);
+	VEndSpanIfActive(2, node->ps);
 }
 
 

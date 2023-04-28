@@ -2459,7 +2459,7 @@ ExecModifyTable(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate);
+	VStartSpanIfNotActive(2, pstate);
 	YBCPushSpanKey(pstate->span_key);
 
 	/*
@@ -3321,7 +3321,7 @@ ExecEndModifyTable(ModifyTableState *node)
 	YBCStringSpanAttribute("operation.type", node->operation == CMD_INSERT ? "insert" :
 		node->operation == CMD_UPDATE ? "update" : "delete", node->ps.span_key);
 
-	EndSpanIfActive(node->ps);
+	VEndSpanIfActive(2, node->ps);
 }
 
 void

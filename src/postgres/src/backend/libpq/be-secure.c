@@ -287,7 +287,7 @@ secure_write(Port *port, void *ptr, size_t len)
 	ProcessClientWriteInterrupt(false);
 
 	if (IsYugaByteEnabled())
-		StartEventSpan("Client Write");
+		VStartEventSpan(2, "Client Write");
 
 retry:
 	waitfor = 0;
@@ -319,8 +319,8 @@ retry:
 		{
 			if (IsYugaByteEnabled())
 			{
-				UInt32EventAttribute("retry.counter", retryCounter);
-				EndEventSpan();
+				VUInt32EventAttribute(2, "retry.counter", retryCounter);
+				VEndEventSpan(2);
 			}
 			ereport(FATAL,
 					(errcode(ERRCODE_ADMIN_SHUTDOWN),
@@ -332,8 +332,8 @@ retry:
 		{
 			if (IsYugaByteEnabled())
 			{
-				UInt32EventAttribute("retry.counter", retryCounter);
-				EndEventSpan();
+				VUInt32EventAttribute(2, "retry.counter", retryCounter);
+				VEndEventSpan(2);
 			}
 			ResetLatch(MyLatch);
 			ProcessClientWriteInterrupt(true);
@@ -347,16 +347,16 @@ retry:
 		retryCounter++;
 		if (IsYugaByteEnabled() && retryCounter == UINT32_MAX)
 		{
-			UInt32EventAttribute("retry.counter", retryCounter);
-			EndEventSpan();
+			VUInt32EventAttribute(2, "retry.counter", retryCounter);
+			VEndEventSpan(2);
 		}
 		goto retry;
 	}
 
 	if (IsYugaByteEnabled())
 	{
-		UInt32EventAttribute("retry.counter", retryCounter);
-		EndEventSpan();
+		VUInt32EventAttribute(2, "retry.counter", retryCounter);
+		VEndEventSpan(2);
 	}
 
 	/*

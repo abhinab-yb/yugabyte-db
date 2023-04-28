@@ -174,7 +174,7 @@ ExecGatherMerge(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate);
+	VStartSpanIfNotActive(2, pstate);
 	YBCPushSpanKey(pstate->span_key);
 
 	/*
@@ -285,7 +285,7 @@ ExecEndGatherMerge(GatherMergeState *node)
 	ExecFreeExprContext(&node->ps);
 	if (node->ps.ps_ResultTupleSlot)
 		ExecClearTuple(node->ps.ps_ResultTupleSlot);
-	EndSpanIfActive(node->ps);
+	VEndSpanIfActive(2, node->ps);
 }
 
 /* ----------------------------------------------------------------

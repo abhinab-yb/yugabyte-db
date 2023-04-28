@@ -1770,7 +1770,7 @@ ExecAgg(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate);
+	VStartSpanIfNotActive(2, pstate);
 	YBCPushSpanKey(pstate->span_key);
 
 	if (!node->agg_done)
@@ -3759,7 +3759,7 @@ ExecEndAgg(AggState *node)
 
 	outerPlan = outerPlanState(node);
 	ExecEndNode(outerPlan);
-	EndSpanIfActive(node->ss.ps);
+	VEndSpanIfActive(2, node->ss.ps);
 }
 
 void

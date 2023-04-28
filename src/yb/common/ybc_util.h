@@ -243,7 +243,7 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 
 #define VEndEventSpan(level) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
       uint32_t span_key = YBCTopSpanKey(); \
       YBCPopSpanKey(); \
       YBCEndQueryEvent(span_key); \
@@ -252,28 +252,28 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 
 #define VUInt32EventAttribute(level, key, value) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
 	    YBCUInt32SpanAttribute((key), (value), YBCTopSpanKey()); \
     } \
   } while (0)
 
 #define VStringEventAttribute(level, key, value) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
 	    YBCStringSpanAttribute((key), (value), YBCTopSpanKey()); \
     } \
   } while (0)
 
 #define VDoubleEventAttribute(level, key, value) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
 	    YBCUInt32SpanAttribute((key), (value), YBCTopSpanKey()); \
     } \
   } while (0)
 
 #define VAddSpanLogs(level, logs) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
 	    YBCAddLogsToSpan((logs), YBCTopSpanKey()); \
     } \
   } while (0)
@@ -298,7 +298,7 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 
 #define VPggateStartEventSpan(level, event_name) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
       RETURN_NOT_OK(pg_session_->StartQueryEvent((event_name), __FILE__, __LINE__, __func__)); \
       RETURN_NOT_OK(pg_session_->PushSpanKey(trace_vars.global_span_counter - 1)); \
     } \
@@ -306,7 +306,7 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 
 #define VPggateEndEventSpan(level) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
       uint32_t span_key = pg_session_->TopSpanKey(); \
       RETURN_NOT_OK(pg_session_->PopSpanKey()); \
       RETURN_NOT_OK(pg_session_->EndQueryEvent(span_key)); \
@@ -315,28 +315,28 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 
 #define VPggateUInt32EventAttribute(level, key, value) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
   	  RETURN_NOT_OK(pg_session_->UInt32SpanAttribute((key), (value), pg_session_->TopSpanKey())); \
     } \
   } while (0)
 
 #define VPggateStringEventAttribute(level, key, value) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
 	    RETURN_NOT_OK(pg_session_->StringSpanAttribute((key), (value), pg_session_->TopSpanKey())); \
     } \
   } while (0)
 
 #define VPggateDoubleEventAttribute(level, key, value, span_key) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
 	    RETURN_NOT_OK(pg_session_->Int32SpanAttribute((key), (value), pg_session_->TopSpanKey())); \
     } \
   } while (0)
 
 #define VPggateAddSpanLogs(level, logs) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
 	    RETURN_NOT_OK(pg_session_->AddLogsToSpan((logs), pg_session_->TopSpanKey())); \
     } \
   } while (0)

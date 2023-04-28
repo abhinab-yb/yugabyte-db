@@ -342,7 +342,7 @@ IndexOnlyRecheck(IndexOnlyScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecIndexOnlyScan(PlanState *pstate)
 {
-	StartSpanIfNotActive(pstate);
+	VStartSpanIfNotActive(2, pstate);
 	YBCPushSpanKey(pstate->span_key);
 	IndexOnlyScanState *node = castNode(IndexOnlyScanState, pstate);
 
@@ -462,7 +462,7 @@ ExecEndIndexOnlyScan(IndexOnlyScanState *node)
 	 */
 	ExecCloseScanRelation(relation);
 
-	EndSpanIfActive(node->ss.ps);
+	VEndSpanIfActive(2, node->ss.ps);
 }
 
 /* ----------------------------------------------------------------

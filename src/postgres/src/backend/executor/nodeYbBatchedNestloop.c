@@ -124,7 +124,7 @@ ExecYbBatchedNestLoop(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate);
+	VStartSpanIfNotActive(2, pstate);
 	YBCPushSpanKey(pstate->span_key);
 
 	/*
@@ -959,7 +959,7 @@ ExecEndYbBatchedNestLoop(YbBatchedNestLoopState *bnlstate)
 
 	NL1_printf("ExecEndYbBatchedNestLoop: %s\n",
 			   "node processing ended");
-	EndSpanIfActive(bnlstate->js.ps);	
+	VEndSpanIfActive(2, bnlstate->js.ps);	
 }
 
 /* ----------------------------------------------------------------

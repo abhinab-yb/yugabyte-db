@@ -614,7 +614,7 @@ ExecMergeJoin(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate);
+	VStartSpanIfNotActive(2, pstate);
 	YBCPushSpanKey(pstate->span_key);
 
 	/*
@@ -1684,7 +1684,7 @@ ExecEndMergeJoin(MergeJoinState *node)
 
 	MJ1_printf("ExecEndMergeJoin: %s\n",
 			   "node processing ended");
-	EndSpanIfActive(node->js.ps);
+	VEndSpanIfActive(2, node->js.ps);
 }
 
 void

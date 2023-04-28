@@ -516,7 +516,7 @@ LogicalTapeSet *
 LogicalTapeSetCreate(int ntapes, TapeShare *shared, SharedFileSet *fileset,
 					 int worker)
 {
-	StartEventSpan("Creating Temp File");
+	VStartEventSpan(3, "Creating Temp File");
 	LogicalTapeSet *lts;
 	LogicalTape *lt;
 	int			i;
@@ -581,7 +581,7 @@ LogicalTapeSetCreate(int ntapes, TapeShare *shared, SharedFileSet *fileset,
 	else
 		lts->pfile = BufFileCreateTemp(false);
 
-	EndEventSpan();
+	VEndEventSpan(3);
 	return lts;
 }
 
@@ -591,7 +591,7 @@ LogicalTapeSetCreate(int ntapes, TapeShare *shared, SharedFileSet *fileset,
 void
 LogicalTapeSetClose(LogicalTapeSet *lts)
 {
-	StartEventSpan("Closing Temp File");
+	VStartEventSpan(3, "Closing Temp File");
 	LogicalTape *lt;
 	int			i;
 
@@ -604,7 +604,7 @@ LogicalTapeSetClose(LogicalTapeSet *lts)
 	}
 	pfree(lts->freeBlocks);
 	pfree(lts);
-	EndEventSpan();
+	VEndEventSpan(3);
 }
 
 /*

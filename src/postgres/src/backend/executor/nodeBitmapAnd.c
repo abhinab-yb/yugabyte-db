@@ -196,7 +196,7 @@ ExecEndBitmapAnd(BitmapAndState *node)
 		if (bitmapplans[i])
 			ExecEndNode(bitmapplans[i]);
 	}
-	EndSpanIfActive(node->ps);
+	VEndSpanIfActive(2, node->ps);
 }
 
 void

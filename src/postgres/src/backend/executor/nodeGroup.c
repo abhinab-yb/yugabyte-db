@@ -43,7 +43,7 @@ ExecGroup(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate);
+	VStartSpanIfNotActive(2, pstate);
 	YBCPushSpanKey(pstate->span_key);
 
 	/*
@@ -241,7 +241,7 @@ ExecEndGroup(GroupState *node)
 
 	outerPlan = outerPlanState(node);
 	ExecEndNode(outerPlan);
-	EndSpanIfActive(node->ss.ps);
+	VEndSpanIfActive(2, node->ss.ps);
 }
 
 void

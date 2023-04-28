@@ -258,7 +258,7 @@ ExecInitAppend(Append *node, EState *estate, int eflags)
 static TupleTableSlot *
 ExecAppend(PlanState *pstate)
 {
-	StartSpanIfNotActive(pstate);
+	VStartSpanIfNotActive(2, pstate);
 	YBCPushSpanKey(pstate->span_key);
 	AppendState *node = castNode(AppendState, pstate);
 
@@ -355,7 +355,7 @@ ExecEndAppend(AppendState *node)
 	if (node->as_prune_state)
 		ExecDestroyPartitionPruneState(node->as_prune_state);
 	
-	EndSpanIfActive(node->ps);
+	VEndSpanIfActive(2, node->ps);
 }
 
 void
