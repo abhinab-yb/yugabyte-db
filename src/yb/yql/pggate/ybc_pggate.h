@@ -546,6 +546,8 @@ YBCStatus YBCStringSpanAttribute(const char* key, const char* value, uint32_t sp
 
 YBCStatus YBCAddLogsToSpan(const char* logs, uint32_t span_key);
 
+YBCStatus YBCIncrementCounter(const char* event_name);
+
 // Transaction control -----------------------------------------------------------------------------
 YBCStatus YBCPgBeginTransaction();
 YBCStatus YBCPgRecreateTransaction();

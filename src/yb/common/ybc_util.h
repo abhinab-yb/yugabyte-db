@@ -238,6 +238,8 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
     if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
       YBCStartQueryEvent((event_name), __FILE__, __LINE__, __func__); \
       YBCPushSpanKey(trace_vars.global_span_counter - 1); \
+    } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
+      YBCIncrementCounter(event_name); \
     } \
   } while (0)
 
