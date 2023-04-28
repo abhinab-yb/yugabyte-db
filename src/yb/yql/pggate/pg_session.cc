@@ -306,7 +306,7 @@ class PgSession::RunHelper {
                 << ToString(session_type_) << " num ops: " << operations_.size();
     }
 
-    if (3 <= trace_vars.trace_level) {
+    if (4 <= trace_vars.trace_level) {
       YBCStartQueryEvent("Flushing Operations", __FILE__, __LINE__, __func__);
     }
     return pg_session_.Perform(
@@ -315,7 +315,7 @@ class PgSession::RunHelper {
          .cache_options = std::move(cache_options),
          .in_txn_limit = in_txn_limit_
         },
-        3 <= trace_vars.trace_level ? trace_vars.global_span_counter - 1 : 0);
+        4 <= trace_vars.trace_level ? trace_vars.global_span_counter - 1 : 0);
   }
 
  private:

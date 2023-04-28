@@ -724,7 +724,7 @@ BitmapHeapRecheck(BitmapHeapScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecBitmapHeapScan(PlanState *pstate)
 {
-	VStartSpanIfNotActive(2, pstate);
+	VStartSpanIfNotActive(3, pstate);
 	YBCPushSpanKey(pstate->span_key);
 	BitmapHeapScanState *node = castNode(BitmapHeapScanState, pstate);
 
@@ -843,7 +843,7 @@ ExecEndBitmapHeapScan(BitmapHeapScanState *node)
 	 */
 	ExecCloseScanRelation(relation);
 
-	VEndSpanIfActive(2, node->ss.ps);
+	VEndSpanIfActive(3, node->ss.ps);
 }
 
 /* ----------------------------------------------------------------

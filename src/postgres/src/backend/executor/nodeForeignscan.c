@@ -121,7 +121,7 @@ ForeignRecheck(ForeignScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecForeignScan(PlanState *pstate)
 {
-	VStartSpanIfNotActive(2, pstate);
+	VStartSpanIfNotActive(3, pstate);
 	YBCPushSpanKey(pstate->span_key);
 	ForeignScanState *node = castNode(ForeignScanState, pstate);
 
@@ -273,7 +273,7 @@ ExecEndForeignScan(ForeignScanState *node)
 	if (node->ss.ss_currentRelation)
 		ExecCloseScanRelation(node->ss.ss_currentRelation);
 
-	VEndSpanIfActive(2, node->ss.ps);
+	VEndSpanIfActive(3, node->ss.ps);
 }
 
 /* ----------------------------------------------------------------

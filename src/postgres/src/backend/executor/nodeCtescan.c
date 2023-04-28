@@ -159,7 +159,7 @@ CteScanRecheck(CteScanState *node, TupleTableSlot *slot)
 static TupleTableSlot *
 ExecCteScan(PlanState *pstate)
 {
-	VStartSpanIfNotActive(2, pstate);
+	VStartSpanIfNotActive(3, pstate);
 	YBCPushSpanKey(pstate->span_key);
 	CteScanState *node = castNode(CteScanState, pstate);
 
@@ -310,7 +310,7 @@ ExecEndCteScan(CteScanState *node)
 		tuplestore_end(node->cte_table);
 		node->cte_table = NULL;
 	}
-	VEndSpanIfActive(2, node->ss.ps);
+	VEndSpanIfActive(3, node->ss.ps);
 }
 
 /* ----------------------------------------------------------------
