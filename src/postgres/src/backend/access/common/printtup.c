@@ -471,7 +471,7 @@ printtup(TupleTableSlot *slot, DestReceiver *self)
 	{
 		INSTR_TIME_SET_CURRENT(endtime);
 		INSTR_TIME_SUBTRACT(endtime, starttime);
-		trace_counters.printtup_time += INSTR_TIME_GET_MICROSEC(endtime);
+		trace_counters.printtup_time += (((uint64) endtime.tv_sec * (uint64) 1000000000) + (uint64) endtime.tv_nsec);
 	}
 
 	return true;
@@ -563,7 +563,7 @@ printtup_20(TupleTableSlot *slot, DestReceiver *self)
 	{
 		INSTR_TIME_SET_CURRENT(endtime);
 		INSTR_TIME_SUBTRACT(endtime, starttime);
-		trace_counters.printtup_time += INSTR_TIME_GET_MICROSEC(endtime);
+		trace_counters.printtup_time += (((uint64) endtime.tv_sec * (uint64) 1000000000) + (uint64) endtime.tv_nsec);
 	}
 
 	return true;
