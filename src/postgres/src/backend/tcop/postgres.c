@@ -5230,6 +5230,7 @@ PostgresMain(int argc, char *argv[],
 
 			if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
 			{
+				YBCStringSpanAttribute("user", username, 0);
 				YBCEndTraceForQuery(trace_counters);
 				ResetYbTraceVars();
 			}
@@ -5254,6 +5255,7 @@ PostgresMain(int argc, char *argv[],
 			YBCStartTraceForQuery("", __FILE__, __LINE__, __func__);
 			YBCPushSpanKey(trace_vars.global_span_counter - 1);
 			trace_vars.is_tracing_enabled = true;
+			trace_vars.trace_level = pg_atomic_read_u32(&MyProc->trace_level);
 		}
 
 		/*
@@ -6061,6 +6063,7 @@ ResetYbTraceVars(void)
 	trace_vars.is_tracing_enabled = false;
 	trace_vars.query_id = -1;
 	trace_vars.global_span_counter = 0;
+	trace_vars.trace_level = 0;
 }
 
 static void

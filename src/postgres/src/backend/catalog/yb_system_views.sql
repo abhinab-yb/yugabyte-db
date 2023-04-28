@@ -1283,7 +1283,7 @@ STRICT STABLE PARALLEL SAFE
 AS 'yb_is_database_colocated';
 
 CREATE OR REPLACE FUNCTION
-  yb_pg_enable_tracing(pid int4 DEFAULT NULL, query_id int8 DEFAULT NULL)
+  yb_pg_enable_tracing(pid int4 DEFAULT NULL, query_id int8 DEFAULT NULL, trace_level int4 DEFAULT 0)
 RETURNS boolean
 LANGUAGE INTERNAL
 STABLE PARALLEL SAFE
