@@ -95,9 +95,9 @@ extern bool yb_run_with_analyze_explain_dist;
 /* Variables related to opentelemetry tracing */
 typedef struct
 {
-	bool 		is_tracing_enabled;
+  bool 		  is_tracing_enabled;
 	int64_t		query_id;
-    uint32_t	global_span_counter;
+  uint32_t	global_span_counter;
 } yb_trace_vars;
 
 extern yb_trace_vars trace_vars;
@@ -234,68 +234,92 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 // Otel tracing macros
 #define StartEventSpan(event_name) \
   do { \
-    YBCStartQueryEvent(event_name, __FILE__, __LINE__, __func__); \
-    YBCPushSpanKey(trace_vars.global_span_counter - 1); \
+    if (trace_vars.is_tracing_enabled) { \
+      YBCStartQueryEvent(event_name, __FILE__, __LINE__, __func__); \
+      YBCPushSpanKey(trace_vars.global_span_counter - 1); \
+    } \
   } while (0)
 
 #define EndEventSpan() \
   do { \
-  	uint32_t span_key = YBCTopSpanKey(); \
-    YBCPopSpanKey(); \
-    YBCEndQueryEvent(span_key); \
+    if (trace_vars.is_tracing_enabled) { \
+      uint32_t span_key = YBCTopSpanKey(); \
+      YBCPopSpanKey(); \
+      YBCEndQueryEvent(span_key); \
+    } \
   } while (0)
 
 #define UInt32EventAttribute(key, value) \
   do { \
-	  YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
+    if (trace_vars.is_tracing_enabled) { \
+	    YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
+    } \
   } while (0)
 
 #define StringEventAttribute(key, value) \
   do { \
-	  YBCStringSpanAttribute(key, value, YBCTopSpanKey()); \
+    if (trace_vars.is_tracing_enabled) { \
+	    YBCStringSpanAttribute(key, value, YBCTopSpanKey()); \
+    } \
   } while (0)
 
 #define DoubleEventAttribute(key, value) \
   do { \
-	  YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
+    if (trace_vars.is_tracing_enabled) { \
+	    YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
+    } \
   } while (0)
 
 #define AddSpanLogs(logs) \
   do { \
-	  YBCAddLogsToSpan(logs, YBCTopSpanKey()); \
+    if (trace_vars.is_tracing_enabled) { \
+	    YBCAddLogsToSpan(logs, YBCTopSpanKey()); \
+    } \
   } while (0)
 
 #define PggateStartEventSpan(event_name) \
   do { \
-    RETURN_NOT_OK(pg_session_->StartQueryEvent(event_name, __FILE__, __LINE__, __func__)); \
-    RETURN_NOT_OK(pg_session_->PushSpanKey(trace_vars.global_span_counter - 1)); \
+    if (trace_vars.is_tracing_enabled) { \
+      RETURN_NOT_OK(pg_session_->StartQueryEvent(event_name, __FILE__, __LINE__, __func__)); \
+      RETURN_NOT_OK(pg_session_->PushSpanKey(trace_vars.global_span_counter - 1)); \
+    } \
   } while (0)
 
 #define PggateEndEventSpan() \
   do { \
-  	uint32_t span_key = pg_session_->TopSpanKey(); \
-    RETURN_NOT_OK(pg_session_->PopSpanKey()); \
-    RETURN_NOT_OK(pg_session_->EndQueryEvent(span_key)); \
+    if (trace_vars.is_tracing_enabled) { \
+      uint32_t span_key = pg_session_->TopSpanKey(); \
+      RETURN_NOT_OK(pg_session_->PopSpanKey()); \
+      RETURN_NOT_OK(pg_session_->EndQueryEvent(span_key)); \
+    } \
   } while (0)
 
 #define PggateUInt32EventAttribute(key, value) \
   do { \
-	  RETURN_NOT_OK(pg_session_->UInt32SpanAttribute(key, value, pg_session_->TopSpanKey())); \
+    if (trace_vars.is_tracing_enabled) { \
+  	  RETURN_NOT_OK(pg_session_->UInt32SpanAttribute(key, value, pg_session_->TopSpanKey())); \
+    } \
   } while (0)
 
 #define PggateStringEventAttribute(key, value) \
   do { \
-	  RETURN_NOT_OK(pg_session_->StringSpanAttribute(key, value, pg_session_->TopSpanKey())); \
+    if (trace_vars.is_tracing_enabled) { \
+	    RETURN_NOT_OK(pg_session_->StringSpanAttribute(key, value, pg_session_->TopSpanKey())); \
+    } \
   } while (0)
 
 #define PggateDoubleEventAttribute(key, value, span_key) \
   do { \
-	  RETURN_NOT_OK(pg_session_->Int32SpanAttribute(key, value, pg_session_->TopSpanKey())); \
+    if (trace_vars.is_tracing_enabled) { \
+	    RETURN_NOT_OK(pg_session_->Int32SpanAttribute(key, value, pg_session_->TopSpanKey())); \
+    } \
   } while (0)
 
 #define PggateAddSpanLogs(logs) \
   do { \
-	  RETURN_NOT_OK(pg_session_->AddLogsToSpan(logs, pg_session_->TopSpanKey())); \
+    if (trace_vars.is_tracing_enabled) { \
+	    RETURN_NOT_OK(pg_session_->AddLogsToSpan(logs, pg_session_->TopSpanKey())); \
+    } \
   } while (0)
 
 #ifdef __cplusplus
