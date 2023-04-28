@@ -98,5 +98,19 @@ Result<PerformFuture::Data> PerformFuture::Get(MonoDelta* wait_time) {
   return response;
 }
 
+uint32_t PerformFuture::TopSpanKey() {
+  assert(!span_keys_.empty());
+  return span_keys_.top();
+}
+
+void PerformFuture::PushSpanKey(uint32_t span_key) {
+  span_keys_.push(span_key);
+}
+
+void PerformFuture::PopSpanKey() {
+  assert(!span_keys_.empty());
+  span_keys_.pop();
+}
+
 } // namespace pggate
 } // namespace yb

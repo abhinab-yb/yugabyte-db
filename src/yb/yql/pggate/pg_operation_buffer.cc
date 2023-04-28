@@ -408,6 +408,7 @@ class PgOperationBuffer::Impl {
     if (keys_.empty()) {
       return Status::OK();
     }
+    StartEventSpan("Flushing Buffered Operations");
     BufferableOperations ops;
     BufferableOperations txn_ops;
     RowKeys keys;
@@ -424,6 +425,7 @@ class PgOperationBuffer::Impl {
     if (ops_sent) {
       in_flight_ops_.back().keys = std::move(keys);
     }
+    EndEventSpan();
     return Status::OK();
   }
 

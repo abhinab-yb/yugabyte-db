@@ -394,7 +394,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
       TraceContext& trace_context,
       const nostd::shared_ptr<trace_api::Span>& parent);
 
-  Result<PerformFuture> Perform(BufferableOperations&& ops, PerformOptions&& options);
+  Result<PerformFuture> Perform(BufferableOperations&& ops, PerformOptions&& options, uint32_t span_key = 0);
 
   void ProcessPerformOnTxnSerialNo(
       uint64_t txn_serial_no,

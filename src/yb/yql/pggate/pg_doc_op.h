@@ -231,6 +231,10 @@ class PgDocResponse {
   bool Valid() const;
   Result<Data> Get(MonoDelta* wait_time);
 
+  uint32_t TopSpanKey();
+  void PushSpanKey(uint32_t span_key);
+  void PopSpanKey();
+
  private:
   std::variant<PerformFuture, ProviderPtr> holder_;
 };

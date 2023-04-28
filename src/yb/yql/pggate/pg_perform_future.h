@@ -14,6 +14,7 @@
 #pragma once
 
 #include <future>
+#include <stack>
 
 #include "yb/common/common_fwd.h"
 #include "yb/common/hybrid_time.h"
@@ -45,10 +46,15 @@ class PerformFuture {
   Result<Data> Get();
   Result<Data> Get(MonoDelta* wait_time);
 
+  uint32_t TopSpanKey();
+  void PushSpanKey(uint32_t span_key);
+  void PopSpanKey();
+
  private:
   std::future<PerformResult> future_;
   PgSession* session_ = nullptr;
   PgObjectIds relations_;
+  std::stack<uint32_t> span_keys_;
 };
 
 } // namespace pggate
