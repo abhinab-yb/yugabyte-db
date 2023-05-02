@@ -454,7 +454,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   nostd::shared_ptr<opentelemetry::trace::Tracer> query_tracer_;
   std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> spans_;
   std::stack<uint32_t> current_span_key_;
-  std::unordered_map<std::string, uint32_t> trace_counters_;
+  std::unordered_map<uint32_t, std::unordered_map<std::string, uint32_t>> trace_counters_;
 };
 
 }  // namespace pggate

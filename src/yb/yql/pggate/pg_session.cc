@@ -542,10 +542,10 @@ Status PgSession::EndQueryEvent(uint32_t span_key) {
     LOG(INFO) << span_key;
     auto span = GetAndEraseSpanFromMap(span_key, spans_);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
-    for (auto [counter_name, counter_value] : this->trace_counters_) {
+    for (auto [counter_name, counter_value] : this->trace_counters_[span_key]) {
       span->SetAttribute(counter_name, counter_value);
     }
-    this->trace_counters_.clear();
+    this->trace_counters_.erase(span_key);
     span->End();
   }
   return Status::OK();
@@ -613,7 +613,8 @@ Status PgSession::AddLogsToSpan(const char* logs, uint32_t span_key) {
 
 Status PgSession::IncrementCounter(const char* event_name) {
   if (this->query_tracer_) {
-    trace_counters_[std::string(event_name)]++;
+    assert(!this->current_span_key_.empty());
+    trace_counters_[this->current_span_key_.top()][std::string(event_name)]++;
   }
   return Status::OK();
 }
