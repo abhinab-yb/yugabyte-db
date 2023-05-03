@@ -1791,9 +1791,9 @@ SearchCatCacheMiss(CatCache *cache,
 		* This case is rare enough that it's not worth expending extra cycles to
 		* detect.
 		*/
-		VStartEventSpan(2, "System Catalog Request");
-		VUInt32EventAttribute(2, "rel.oid", cache->cc_reloid);
-		VStringEventAttribute(2, "rel.name", cache->cc_relname);
+		VStartEventSpan(1, "System Catalog Request");
+		VUInt32EventAttribute(1, "rel.oid", cache->cc_reloid);
+		VStringEventAttribute(1, "rel.name", cache->cc_relname);
 		relation = heap_open(cache->cc_reloid, AccessShareLock);
 
 		if (IsYugaByteEnabled())
@@ -1858,7 +1858,7 @@ SearchCatCacheMiss(CatCache *cache,
 
 		heap_close(relation, AccessShareLock);
 
-		VEndEventSpan(2);
+		VEndEventSpan(1, "System Catalog Request");
 	}
 
 	/*
@@ -2120,9 +2120,9 @@ SearchCatCacheList(CatCache *cache,
 		cur_skey[2].sk_argument = v3;
 		cur_skey[3].sk_argument = v4;
 
-		VStartEventSpan(2, "System Catalog Request");
-		VUInt32EventAttribute(2, "rel.oid", cache->cc_reloid);
-		VStringEventAttribute(2, "rel.name", cache->cc_relname);
+		VStartEventSpan(1, "System Catalog Request");
+		VUInt32EventAttribute(1, "rel.oid", cache->cc_reloid);
+		VStringEventAttribute(1, "rel.name", cache->cc_relname);
 
 		relation = heap_open(cache->cc_reloid, AccessShareLock);
 
@@ -2197,7 +2197,7 @@ SearchCatCacheList(CatCache *cache,
 
 		heap_close(relation, AccessShareLock);
 
-		VEndEventSpan(2);
+		VEndEventSpan(1, "System Catalog Request");
 
 		/* Now we can build the CatCList entry. */
 		oldcxt = MemoryContextSwitchTo(CacheMemoryContext);

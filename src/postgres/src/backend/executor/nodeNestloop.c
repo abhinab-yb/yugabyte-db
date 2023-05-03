@@ -72,8 +72,7 @@ ExecNestLoop(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	VStartSpanIfNotActive(2, pstate);
-	YBCPushSpanKey(pstate->span_key);
+	VStartSpanIfNotActive(0, pstate);
 
 	/*
 	 * get information from the node
@@ -116,7 +115,7 @@ ExecNestLoop(PlanState *pstate)
 			if (TupIsNull(outerTupleSlot))
 			{
 				ENL1_printf("no outer tuple, ending join");
-				YBCPopSpanKey();
+				VPopSpanKey(0);
 				return NULL;
 			}
 
@@ -192,7 +191,7 @@ ExecNestLoop(PlanState *pstate)
 					 */
 					ENL1_printf("qualification succeeded, projecting tuple");
 					TupleTableSlot *slot = ExecProject(node->js.ps.ps_ProjInfo);
-					YBCPopSpanKey();
+					VPopSpanKey(0);
 					return slot;
 				}
 				else
@@ -243,7 +242,7 @@ ExecNestLoop(PlanState *pstate)
 				ENL1_printf("qualification succeeded, projecting tuple");
 
 				TupleTableSlot *slot = ExecProject(node->js.ps.ps_ProjInfo);
-				YBCPopSpanKey();
+				VPopSpanKey(0);
 				return slot;
 			}
 			else
@@ -259,7 +258,7 @@ ExecNestLoop(PlanState *pstate)
 
 		ENL1_printf("qualification failed, looping");
 	}
-	YBCPopSpanKey();
+	VPopSpanKey(0);
 }
 
 /* ----------------------------------------------------------------
@@ -389,7 +388,7 @@ ExecEndNestLoop(NestLoopState *node)
 	NL1_printf("ExecEndNestLoop: %s\n",
 			   "node processing ended");
 
-	VEndSpanIfActive(2, node->js.ps);
+	VEndSpanIfActive(0, node->js.ps);
 }
 
 /* ----------------------------------------------------------------

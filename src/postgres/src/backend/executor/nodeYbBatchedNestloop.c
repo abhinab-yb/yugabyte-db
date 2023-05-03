@@ -124,8 +124,7 @@ ExecYbBatchedNestLoop(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	VStartSpanIfNotActive(2, pstate);
-	YBCPushSpanKey(pstate->span_key);
+	VStartSpanIfNotActive(0, pstate);
 
 	/*
 	 * get information from the node
@@ -167,7 +166,7 @@ ExecYbBatchedNestLoop(PlanState *pstate)
 				}
 				else
 				{
-					YBCPopSpanKey();
+					VPopSpanKey(0);
 					return NULL;
 				}
 
@@ -317,7 +316,7 @@ ExecYbBatchedNestLoop(PlanState *pstate)
 
 		elog(DEBUG2, "qualification failed, looping");
 	}
-	YBCPopSpanKey();
+	VPopSpanKey(0);
 }
 
 
@@ -959,7 +958,7 @@ ExecEndYbBatchedNestLoop(YbBatchedNestLoopState *bnlstate)
 
 	NL1_printf("ExecEndYbBatchedNestLoop: %s\n",
 			   "node processing ended");
-	VEndSpanIfActive(2, bnlstate->js.ps);	
+	VEndSpanIfActive(0, bnlstate->js.ps);	
 }
 
 /* ----------------------------------------------------------------

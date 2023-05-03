@@ -127,8 +127,7 @@ ExecGather(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	VStartSpanIfNotActive(2, pstate);
-	YBCPushSpanKey(pstate->span_key);
+	VStartSpanIfNotActive(0, pstate);
 
 	/*
 	 * Initialize the parallel context and workers on first execution. We do
@@ -210,14 +209,14 @@ ExecGather(PlanState *pstate)
 	slot = gather_getnext(node);
 	if (TupIsNull(slot))
 	{
-		YBCPopSpanKey();
+		VPopSpanKey(0);
 		return NULL;
 	}
 
 	/* If no projection is required, we're done. */
 	if (node->ps.ps_ProjInfo == NULL)
 	{
-		YBCPopSpanKey();
+		VPopSpanKey(0);
 		return slot;
 	}
 
@@ -226,7 +225,7 @@ ExecGather(PlanState *pstate)
 	 */
 	econtext->ecxt_outertuple = slot;
 	TupleTableSlot *result = ExecProject(node->ps.ps_ProjInfo);
-	YBCPopSpanKey();
+	VPopSpanKey(0);
 	return result;
 }
 
@@ -244,7 +243,7 @@ ExecEndGather(GatherState *node)
 	ExecFreeExprContext(&node->ps);
 	if (node->ps.ps_ResultTupleSlot)
 		ExecClearTuple(node->ps.ps_ResultTupleSlot);
-	VEndSpanIfActive(2, node->ps);
+	VEndSpanIfActive(0, node->ps);
 }
 
 /*

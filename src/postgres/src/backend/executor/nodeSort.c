@@ -46,8 +46,7 @@ ExecSort(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	VStartSpanIfNotActive(2, pstate);
-	YBCPushSpanKey(pstate->span_key);
+	VStartSpanIfNotActive(0, pstate);
 
 	/*
 	 * get state info from node
@@ -126,9 +125,9 @@ ExecSort(PlanState *pstate)
 		/*
 		 * Complete the sort.
 		 */
-		VStartEventSpan(3, "Performing Sort");
+		VStartEventSpan(0, "Performing Sort");
 		tuplesort_performsort(tuplesortstate);
-		VEndEventSpan(3);
+		VEndEventSpan(0, "Performing Sort");
 
 		/*
 		 * restore to user specified direction
@@ -165,7 +164,7 @@ ExecSort(PlanState *pstate)
 	(void) tuplesort_gettupleslot(tuplesortstate,
 								  ScanDirectionIsForward(dir),
 								  false, slot, NULL);
-	YBCPopSpanKey();
+	VPopSpanKey(0);
 	return slot;
 }
 
@@ -272,7 +271,7 @@ ExecEndSort(SortState *node)
 	SO1_printf("ExecEndSort: %s\n",
 			   "sort node shutdown");
 
-	VEndSpanIfActive(2, node->ss.ps);
+	VEndSpanIfActive(0, node->ss.ps);
 }
 
 /* ----------------------------------------------------------------

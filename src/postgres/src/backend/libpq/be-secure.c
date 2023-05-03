@@ -204,7 +204,7 @@ retry:
 			if (IsYugaByteEnabled())
 			{
 				UInt32EventAttribute("retry.counter", retryCounter);
-				EndEventSpan();
+				EndEventSpan("Client Read");
 			}
 			ereport(FATAL,
 					(errcode(ERRCODE_ADMIN_SHUTDOWN),
@@ -217,7 +217,7 @@ retry:
 			if (IsYugaByteEnabled())
 			{
 				UInt32EventAttribute("retry.counter", retryCounter);
-				EndEventSpan();
+				EndEventSpan("Client Read");
 			}
 			ResetLatch(MyLatch);
 			ProcessClientReadInterrupt(true);
@@ -232,7 +232,7 @@ retry:
 		if (IsYugaByteEnabled() && retryCounter == UINT32_MAX)
 		{
 			UInt32EventAttribute("retry.counter", retryCounter);
-			EndEventSpan();
+			EndEventSpan("Client Read");
 		}
 		goto retry;
 	}
@@ -240,7 +240,7 @@ retry:
 	if (IsYugaByteEnabled())
 	{
 		UInt32EventAttribute("retry.counter", retryCounter);
-		EndEventSpan();
+		EndEventSpan("Client Read");
 	}
 
 	/*
@@ -287,7 +287,7 @@ secure_write(Port *port, void *ptr, size_t len)
 	ProcessClientWriteInterrupt(false);
 
 	if (IsYugaByteEnabled())
-		VStartEventSpan(2, "Client Write");
+		VStartEventSpan(0, "Client Write");
 
 retry:
 	waitfor = 0;
@@ -319,8 +319,8 @@ retry:
 		{
 			if (IsYugaByteEnabled())
 			{
-				VUInt32EventAttribute(2, "retry.counter", retryCounter);
-				VEndEventSpan(2);
+				VUInt32EventAttribute(0, "retry.counter", retryCounter);
+				VEndEventSpan(0, "Client Write");
 			}
 			ereport(FATAL,
 					(errcode(ERRCODE_ADMIN_SHUTDOWN),
@@ -332,8 +332,8 @@ retry:
 		{
 			if (IsYugaByteEnabled())
 			{
-				VUInt32EventAttribute(2, "retry.counter", retryCounter);
-				VEndEventSpan(2);
+				VUInt32EventAttribute(0, "retry.counter", retryCounter);
+				VEndEventSpan(0, "Client Write");
 			}
 			ResetLatch(MyLatch);
 			ProcessClientWriteInterrupt(true);
@@ -347,16 +347,16 @@ retry:
 		retryCounter++;
 		if (IsYugaByteEnabled() && retryCounter == UINT32_MAX)
 		{
-			VUInt32EventAttribute(2, "retry.counter", retryCounter);
-			VEndEventSpan(2);
+			VUInt32EventAttribute(0, "retry.counter", retryCounter);
+			VEndEventSpan(0, "Client Write");
 		}
 		goto retry;
 	}
 
 	if (IsYugaByteEnabled())
 	{
-		VUInt32EventAttribute(2, "retry.counter", retryCounter);
-		VEndEventSpan(2);
+		VUInt32EventAttribute(0, "retry.counter", retryCounter);
+		VEndEventSpan(0, "Client Write");
 	}
 
 	/*

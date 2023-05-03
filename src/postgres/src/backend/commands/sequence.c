@@ -940,7 +940,7 @@ nextval_internal(Oid relid, bool check_permissions)
 		elm->last_valid = true;
 		last_used_seq = elm;
 		relation_close(seqrel, NoLock);
-		EndEventSpan();
+		EndEventSpan("TServer Sequence Reads");
 		return first_val;
 	}
 

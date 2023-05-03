@@ -238,17 +238,24 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
     if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
       YBCStartQueryEvent((event_name), __FILE__, __LINE__, __func__); \
       YBCPushSpanKey(trace_vars.global_span_counter - 1); \
+      YBCUInt32SpanAttribute("verbosity", level, trace_vars.global_span_counter - 1); \
     } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
-      YBCIncrementCounter(event_name); \
+      const char* count = " Count"; \
+      char* counter_name = (char *)malloc(strlen(event_name)+strlen(count)+1); \
+      strcpy(counter_name, event_name); \
+      strcat(counter_name, count); \
+      YBCIncrementCounter(counter_name, 1, YBCTopSpanKey()); \
     } \
   } while (0)
 
-#define VEndEventSpan(level) \
+#define VEndEventSpan(level, event_name) \
   do { \
     if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
       uint32_t span_key = YBCTopSpanKey(); \
       YBCPopSpanKey(); \
       YBCEndQueryEvent(span_key); \
+    } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
+      YBCStopCounter(event_name); \
     } \
   } while (0)
 
@@ -283,8 +290,8 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 #define StartEventSpan(event_name) \
   VStartEventSpan(0, (event_name))
 
-#define EndEventSpan() \
-  VEndEventSpan(0)
+#define EndEventSpan(event_name) \
+  VEndEventSpan(0, event_name)
 
 #define UInt32EventAttribute(key, value) \
   VUInt32EventAttribute(0, (key), (value))
@@ -304,7 +311,11 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
       RETURN_NOT_OK(pg_session_->StartQueryEvent((event_name), __FILE__, __LINE__, __func__)); \
       RETURN_NOT_OK(pg_session_->PushSpanKey(trace_vars.global_span_counter - 1)); \
     } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
-      RETURN_NOT_OK(pg_session->IncrementCounter(event_name)); \
+      const char* count = " Count"; \
+      char* counter_name = (char *)malloc(strlen(event_name)+strlen(count)+1); \
+      strcpy(counter_name, event_name); \
+      strcat(counter_name, count); \
+      RETURN_NOT_OK(pg_session->IncrementCounter(counter_name, 1, pg_session_->TopSpanKey())); \
     } \
   } while (0)
 

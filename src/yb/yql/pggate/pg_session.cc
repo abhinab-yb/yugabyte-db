@@ -185,7 +185,7 @@ nostd::shared_ptr<opentelemetry::trace::Span> GetAndEraseSpanFromMap(uint32_t cu
   std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans) {
   assert(spans.find(current_span_key) != spans.end());
   auto span = spans.at(current_span_key);
-  spans.erase(current_span_key);
+  // spans.erase(current_span_key);
   return span;
 }
 
@@ -306,16 +306,23 @@ class PgSession::RunHelper {
                 << ToString(session_type_) << " num ops: " << operations_.size();
     }
 
-    if (4 <= trace_vars.trace_level) {
+    if (1 <= trace_vars.trace_level) {
       YBCStartQueryEvent("Flushing Operations", __FILE__, __LINE__, __func__);
+      YBCUInt32SpanAttribute("verbosity", 1,  trace_vars.global_span_counter - 1);
+    } else if (1 == trace_vars.trace_level + 1) {
+      YBCIncrementCounter("Flushing Operations Count", 1, YBCTopSpanKey());
     }
-    return pg_session_.Perform(
+
+    auto res = pg_session_.Perform(
         std::move(operations_),
         {.use_catalog_session = IsCatalog(),
          .cache_options = std::move(cache_options),
          .in_txn_limit = in_txn_limit_
-        },
-        4 <= trace_vars.trace_level ? trace_vars.global_span_counter - 1 : 0);
+        });
+    if (1 <= trace_vars.trace_level) {
+      res->PushSpanKey(trace_vars.global_span_counter - 1);
+    }
+    return res;
   }
 
  private:
@@ -492,7 +499,7 @@ Status PgSession::StartTraceForQuery(const char* query_string, const char* file_
   if (status.ok()) {
     span->SetAttribute(opentelemetry::trace::SemanticConventions::kNetHostName, host_name);
   }
-
+  span->SetAttribute("verbosity", 0);
   InsertSpanToMap(this->spans_, span);
   this->current_span_key_.push(trace_vars.global_span_counter - 1);
   return Status::OK();
@@ -518,7 +525,6 @@ Status PgSession::EndTraceForQuery(yb_trace_counters trace_counters) {
 
 Status PgSession::StartQueryEvent(const char* event_name, const char* file_name, int line, const char* function) {
   if (this->query_tracer_) {
-    LOG(INFO) << trace_vars.global_span_counter << " ----------- " << std::string(event_name);
     assert(!this->current_span_key_.empty());
     auto parent_span_key = this->current_span_key_.top();
     opentelemetry::trace::StartSpanOptions options;
@@ -539,7 +545,6 @@ Status PgSession::StartQueryEvent(const char* event_name, const char* file_name,
 
 Status PgSession::EndQueryEvent(uint32_t span_key) {
   if (this->query_tracer_) {
-    LOG(INFO) << span_key;
     auto span = GetAndEraseSpanFromMap(span_key, spans_);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
     for (auto [counter_name, counter_value] : this->trace_counters_[span_key]) {
@@ -610,11 +615,24 @@ Status PgSession::AddLogsToSpan(const char* logs, uint32_t span_key) {
   return Status::OK();
 }
 
-
-Status PgSession::IncrementCounter(const char* event_name) {
+Status PgSession::IncrementCounter(const char* event_name, double value, uint32_t span_key) {
   if (this->query_tracer_) {
-    assert(!this->current_span_key_.empty());
-    trace_counters_[this->current_span_key_.top()][std::string(event_name)]++;
+    this->trace_counters_[span_key][std::string(event_name)] += value;
+    this->aggregate_time_[span_key] = MonoTime::Now();
+  }
+  return Status::OK();
+}
+
+Status PgSession::StopCounter(const char* event_name) {
+  if (this->query_tracer_) {
+    assert(this->aggregate_time_.find(TopSpanKey()) != this->aggregate_time_.end());
+    auto counter_duration = MonoTime::Now() - this->aggregate_time_[TopSpanKey()];
+    const char* runtime = " Runtime";
+    char* counter_name = (char *)malloc(strlen(event_name)+strlen(runtime)+1);
+    strcpy(counter_name, event_name);
+    strcat(counter_name, runtime);
+    RETURN_NOT_OK(IncrementCounter(counter_name, counter_duration.ToMilliseconds(), TopSpanKey()));
+    this->aggregate_time_.erase(TopSpanKey());
   }
   return Status::OK();
 }
@@ -808,7 +826,7 @@ void PgSession::SetTraceContext(
             << ", Span ID:" << std::string_view(span_id, kSpanIdSize);
 }
 
-Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOptions&& ops_options, uint32_t span_key) {
+Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOptions&& ops_options) {
   DCHECK(!ops.empty());
   tserver::PgPerformOptionsPB options;
   if (ops_options.use_catalog_session) {
@@ -880,11 +898,7 @@ Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOpti
   pg_client_.PerformAsync(&options, &ops.operations, [promise](const PerformResult& result) {
     promise->set_value(result);
   });
-  auto res = PerformFuture(promise->get_future(), this, std::move(ops.relations));
-  if (span_key) {
-    res.PushSpanKey(span_key);
-  }
-  return res;
+  return PerformFuture(promise->get_future(), this, std::move(ops.relations));
 }
 
 void PgSession::ProcessPerformOnTxnSerialNo(

@@ -449,9 +449,9 @@ ScanPgRelation(Oid targetRelId, bool indexOK, bool force_non_historic)
 	ScanKeyData key[1];
 	Snapshot	snapshot;
 
-	VStartEventSpan(2, "System Catalog Request");
-	VUInt32EventAttribute(2, "rel.oid", targetRelId);
-	VStringEventAttribute(2, "rel.name", "pg_class");
+	VStartEventSpan(1, "System Catalog Request");
+	VUInt32EventAttribute(1, "rel.oid", targetRelId);
+	VStringEventAttribute(1, "rel.name", "pg_class");
 
 	/*
 	 * If something goes wrong during backend startup, we might find ourselves
@@ -505,7 +505,7 @@ ScanPgRelation(Oid targetRelId, bool indexOK, bool force_non_historic)
 	systable_endscan(pg_class_scan);
 	heap_close(pg_class_desc, AccessShareLock);
 
-	VEndEventSpan(2);
+	VEndEventSpan(1, "System Catalog Request");
 
 	return pg_class_tuple;
 }
@@ -669,9 +669,9 @@ RelationBuildTupleDesc(Relation relation)
 				Int16GetDatum(0));
 
 
-	VStartEventSpan(2, "System Catalog Request");
-	VUInt32EventAttribute(2, "rel.oid", relation->rd_id);
-	VStringEventAttribute(2, "rel.name", "pg_attribute");
+	VStartEventSpan(1, "System Catalog Request");
+	VUInt32EventAttribute(1, "rel.oid", relation->rd_id);
+	VStringEventAttribute(1, "rel.name", "pg_attribute");
 
 	/*
 	 * Open pg_attribute and begin a scan.  Force heap scan if we haven't yet
@@ -786,7 +786,7 @@ RelationBuildTupleDesc(Relation relation)
 	systable_endscan(pg_attribute_scan);
 	heap_close(pg_attribute_desc, AccessShareLock);
 
-	VEndEventSpan(2);
+	VEndEventSpan(1, "System Catalog Request");
 
 	if (need != 0)
 		elog(ERROR, "catalog is missing %d attribute(s) for relid %u",

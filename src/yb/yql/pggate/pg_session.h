@@ -209,7 +209,8 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
 
   Status AddLogsToSpan(const char* logs, uint32_t span_key);
 
-  Status IncrementCounter(const char* event_name);
+  Status IncrementCounter(const char* event_name, double value, uint32_t span_key);
+  Status StopCounter(const char* event_name);
 
   //------------------------------------------------------------------------------------------------
   // Operations on Tablegroup.
@@ -396,7 +397,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
       TraceContext& trace_context,
       const nostd::shared_ptr<trace_api::Span>& parent);
 
-  Result<PerformFuture> Perform(BufferableOperations&& ops, PerformOptions&& options, uint32_t span_key = 0);
+  Result<PerformFuture> Perform(BufferableOperations&& ops, PerformOptions&& options);
 
   void ProcessPerformOnTxnSerialNo(
       uint64_t txn_serial_no,
@@ -454,7 +455,8 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   nostd::shared_ptr<opentelemetry::trace::Tracer> query_tracer_;
   std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> spans_;
   std::stack<uint32_t> current_span_key_;
-  std::unordered_map<uint32_t, std::unordered_map<std::string, uint32_t>> trace_counters_;
+  std::unordered_map<uint32_t, std::unordered_map<std::string, double>> trace_counters_;
+  std::unordered_map<uint32_t, MonoTime> aggregate_time_;
 };
 
 }  // namespace pggate

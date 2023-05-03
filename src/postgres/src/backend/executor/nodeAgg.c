@@ -1770,8 +1770,7 @@ ExecAgg(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	VStartSpanIfNotActive(2, pstate);
-	YBCPushSpanKey(pstate->span_key);
+	VStartSpanIfNotActive(0, pstate);
 
 	if (!node->agg_done)
 	{
@@ -1805,12 +1804,12 @@ ExecAgg(PlanState *pstate)
 
 		if (!TupIsNull(result))
 		{
-			YBCPopSpanKey();
+			VPopSpanKey(0);
 			return result;
 		}
 	}
 	
-	YBCPopSpanKey();
+	VPopSpanKey(0);
 	return NULL;
 }
 
@@ -3759,7 +3758,7 @@ ExecEndAgg(AggState *node)
 
 	outerPlan = outerPlanState(node);
 	ExecEndNode(outerPlan);
-	VEndSpanIfActive(2, node->ss.ps);
+	VEndSpanIfActive(0, node->ss.ps);
 }
 
 void

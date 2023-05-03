@@ -1610,8 +1610,12 @@ Status PgApiImpl::AddLogsToSpan(const char* logs, uint32_t span_key) {
   return pg_session_->AddLogsToSpan(logs, span_key);
 }
 
-Status PgApiImpl::IncrementCounter(const char* event_name) {
-  return pg_session_->IncrementCounter(event_name);
+Status PgApiImpl::IncrementCounter(const char* event_name, double value, uint32_t span_key) {
+  return pg_session_->IncrementCounter(event_name, value, span_key);
+}
+
+Status PgApiImpl::StopCounter(const char* event_name) {
+  return pg_session_->StopCounter(event_name);
 }
 
 //--------------------------------------------------------------------------------------------------

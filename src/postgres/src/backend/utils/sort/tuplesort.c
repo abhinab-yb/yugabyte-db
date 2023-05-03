@@ -1895,18 +1895,18 @@ tuplesort_performsort(Tuplesortstate *state)
 	{
 		case TSS_SORTEDINMEM:
 			if (state->boundUsed)
-				StringEventAttribute("sort.type", "top-N heapsort");
+				VStringEventAttribute(3, "sort.type", "top-N heapsort");
 			else
-				StringEventAttribute("sort.type", "quicksort");
+				VStringEventAttribute(3, "sort.type", "quicksort");
 			break;
 		case TSS_SORTEDONTAPE:
-			StringEventAttribute("sort.type", "external sort");
+			VStringEventAttribute(3, "sort.type", "external sort");
 			break;
 		case TSS_FINALMERGE:
-			StringEventAttribute("sort.type", "external merge");
+			VStringEventAttribute(3, "sort.type", "external merge");
 			break;
 		default:
-			StringEventAttribute("sort.status", "still in progress");
+			VStringEventAttribute(3, "sort.status", "still in progress");
 			break;
 	}
 }

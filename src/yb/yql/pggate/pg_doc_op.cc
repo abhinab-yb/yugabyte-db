@@ -278,19 +278,22 @@ Result<std::list<PgDocResult>> PgDocOp::GetResult() {
     }
 
     DCHECK(response_.Valid());
-    if (3 <= trace_vars.trace_level) {
+    if (1 <= trace_vars.trace_level) {
       RETURN_NOT_OK(pg_session_->EndQueryEvent(response_.TopSpanKey()));
       response_.PopSpanKey();
+    } else if (1 == trace_vars.trace_level + 1) {
+      RETURN_NOT_OK(pg_session_->StopCounter("Flushing Operations"));
     }
-    VStartEventSpan(4, "Storage Read Request");
-    VStringEventAttribute(4, "table.name", (*table_).table_name().table_name().c_str());
+
+    VStartEventSpan(1, "Storage Read Request");
+    VStringEventAttribute(1, "table.name", (*table_).table_name().table_name().c_str());
     if ((*table_).table_name().has_table_id()) {
-      VStringEventAttribute(4, "table.id", (*table_).table_name().table_id().c_str());
+      VStringEventAttribute(1, "table.id", (*table_).table_name().table_id().c_str());
     }
-    VStringEventAttribute(4, "server.type", (*table_).id().IsCatalogTableId() ? "MASTER" : "TSERVER");
-    VAddSpanLogs(4, pgsql_ops_.back()->ToString().c_str());
+    VStringEventAttribute(1, "server.type", (*table_).id().IsCatalogTableId() ? "MASTER" : "TSERVER");
+    VAddSpanLogs(1, pgsql_ops_.back()->ToString().c_str());
     result = VERIFY_RESULT(ProcessResponse(response_.Get(&read_rpc_wait_time_)));
-    VEndEventSpan(4);
+    VEndEventSpan(1, "Storage Read Request");
     // In case ProcessResponse doesn't fail with an error
     // it should return non empty rows and/or set end_of_data_.
     DCHECK(!result.empty() || end_of_data_);

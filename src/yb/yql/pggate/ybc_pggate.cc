@@ -1492,8 +1492,12 @@ YBCStatus YBCAddLogsToSpan(const char* logs, uint32_t span_key) {
   return ToYBCStatus(pgapi->AddLogsToSpan(logs, span_key));
 }
 
-YBCStatus YBCIncrementCounter(const char* event_name) {
-  return ToYBCStatus(pgapi->IncrementCounter(event_name));
+YBCStatus YBCIncrementCounter(const char* event_name, double value, uint32_t span_key) {
+  return ToYBCStatus(pgapi->IncrementCounter(event_name, value, span_key));
+}
+
+YBCStatus YBCStopCounter(const char* event_name) {
+  return ToYBCStatus(pgapi->StopCounter(event_name));
 }
 
 YBCStatus YBCGetIndexBackfillProgress(YBCPgOid* index_oids, YBCPgOid* database_oids,

@@ -2243,6 +2243,7 @@ GetDefaultOpClass(Oid type_id, Oid am_id)
 	 * we need a tiebreaker.)  If we find more than one exact match, then
 	 * someone put bogus entries in pg_opclass.
 	 */
+	// VStartEventSpan(1, "System Catalog Request");
 	rel = heap_open(OperatorClassRelationId, AccessShareLock);
 
 	ScanKeyInit(&skey[0],
@@ -2284,6 +2285,7 @@ GetDefaultOpClass(Oid type_id, Oid am_id)
 	systable_endscan(scan);
 
 	heap_close(rel, AccessShareLock);
+	// VEndEventSpan(1, "System Catalog Request");
 
 	/* raise error if pg_opclass contains inconsistent data */
 	if (nexact > 1)
