@@ -307,22 +307,19 @@ class PgSession::RunHelper {
     }
 
     if (1 <= trace_vars.trace_level) {
-      YBCStartQueryEvent("Flushing Operations", __FILE__, __LINE__, __func__);
-      YBCUInt32SpanAttribute("verbosity", 1,  trace_vars.global_span_counter - 1);
+      YBCStartQueryEvent(SpanName(T_FlushRead), __FILE__, __LINE__, __func__);
+      YBCUInt32SpanAttribute("verbosity", 1, trace_vars.global_span_counter - 1);
     } else if (1 == trace_vars.trace_level + 1) {
-      YBCIncrementCounter("Flushing Operations Count", 1, YBCTopSpanKey());
+      YBCIncrementCounterAndStartTimer(SpanCounter(T_FlushRead));
     }
 
-    auto res = pg_session_.Perform(
+    return pg_session_.Perform(
         std::move(operations_),
         {.use_catalog_session = IsCatalog(),
          .cache_options = std::move(cache_options),
          .in_txn_limit = in_txn_limit_
-        });
-    if (1 <= trace_vars.trace_level) {
-      res->PushSpanKey(trace_vars.global_span_counter - 1);
-    }
-    return res;
+        },
+        1 <= trace_vars.trace_level ? trace_vars.global_span_counter - 1 : 0);
   }
 
  private:
@@ -539,18 +536,20 @@ Status PgSession::StartQueryEvent(const char* event_name, const char* file_name,
         options);
 
     InsertSpanToMap(this->spans_, span);
+    // LOG(INFO) << trace_vars.global_span_counter - 1 << " ---------- " << std::string(event_name);
   }
   return Status::OK();
 }
 
 Status PgSession::EndQueryEvent(uint32_t span_key) {
   if (this->query_tracer_) {
+    // LOG(INFO) << span_key << " ---------- END";
     auto span = GetAndEraseSpanFromMap(span_key, spans_);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
-    for (auto [counter_name, counter_value] : this->trace_counters_[span_key]) {
+    for (auto [counter_name, counter_value] : this->trace_aggregates_) {
       span->SetAttribute(counter_name, counter_value);
     }
-    this->trace_counters_.erase(span_key);
+    this->trace_aggregates_.clear();
     span->End();
   }
   return Status::OK();
@@ -558,6 +557,7 @@ Status PgSession::EndQueryEvent(uint32_t span_key) {
 
 Status PgSession::PushSpanKey(uint32_t span_key) {
   if (this->query_tracer_) {
+    // LOG(INFO) << "Pushing " << span_key;
     this->current_span_key_.push(span_key);
   }
   return Status::OK();
@@ -566,6 +566,7 @@ Status PgSession::PushSpanKey(uint32_t span_key) {
 Status PgSession::PopSpanKey() {
   if (this->query_tracer_) {
     assert(!this->current_span_key_.empty());
+    // LOG(INFO) << "Popping " << this->current_span_key_.top();
     this->current_span_key_.pop();
   }
   return Status::OK();
@@ -615,24 +616,22 @@ Status PgSession::AddLogsToSpan(const char* logs, uint32_t span_key) {
   return Status::OK();
 }
 
-Status PgSession::IncrementCounter(const char* event_name, double value, uint32_t span_key) {
+Status PgSession::IncrementCounterAndStartTimer(const char* counter) {
   if (this->query_tracer_) {
-    this->trace_counters_[span_key][std::string(event_name)] += value;
-    this->aggregate_time_[span_key] = MonoTime::Now();
+    // LOG(INFO) << "Incrementing and starting timer for: " << std::string(counter) << " with parent: " << TopSpanKey();
+    this->trace_aggregates_[std::string(counter)] ++;
+    this->span_timer_.push(MonoTime::Now());
   }
   return Status::OK();
 }
 
-Status PgSession::StopCounter(const char* event_name) {
+Status PgSession::EndTimer(const char* timer) {
   if (this->query_tracer_) {
-    assert(this->aggregate_time_.find(TopSpanKey()) != this->aggregate_time_.end());
-    auto counter_duration = MonoTime::Now() - this->aggregate_time_[TopSpanKey()];
-    const char* runtime = " Runtime";
-    char* counter_name = (char *)malloc(strlen(event_name)+strlen(runtime)+1);
-    strcpy(counter_name, event_name);
-    strcat(counter_name, runtime);
-    RETURN_NOT_OK(IncrementCounter(counter_name, counter_duration.ToMilliseconds(), TopSpanKey()));
-    this->aggregate_time_.erase(TopSpanKey());
+    // LOG(INFO) << "Ending timer for: " << std::string(timer) << " with parent: " << TopSpanKey();
+    assert(!this->span_timer_.empty());
+    auto time = MonoTime::Now() - this->span_timer_.top();
+    this->trace_aggregates_[std::string(timer)] += time.ToMilliseconds();
+    this->span_timer_.pop();
   }
   return Status::OK();
 }
@@ -801,6 +800,7 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
         false /* read_only */, txn_priority_requirement));
   }
 
+  // VStartEventSpan(1, "Flushing");
   // In case of flushing of non-transactional operations it is required to set read time with the
   // very first (and all further) request as flushing is done asynchronously (i.e. YSQL may send
   // multiple bunch of operations in parallel). As a result PgClientService is unable to use read
@@ -826,7 +826,7 @@ void PgSession::SetTraceContext(
             << ", Span ID:" << std::string_view(span_id, kSpanIdSize);
 }
 
-Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOptions&& ops_options) {
+Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOptions&& ops_options, uint32_t span_key) {
   DCHECK(!ops.empty());
   tserver::PgPerformOptionsPB options;
   if (ops_options.use_catalog_session) {
@@ -894,11 +894,14 @@ Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOpti
       caching_info.mutable_lifetime_threshold_ms()->set_value(*cache_options.lifetime_threshold_ms);
     }
   }
-
   pg_client_.PerformAsync(&options, &ops.operations, [promise](const PerformResult& result) {
     promise->set_value(result);
   });
-  return PerformFuture(promise->get_future(), this, std::move(ops.relations));
+  auto res = PerformFuture(promise->get_future(), this, std::move(ops.relations));
+  if (span_key) {
+    res.PushSpanKey(span_key);
+  }
+  return res;
 }
 
 void PgSession::ProcessPerformOnTxnSerialNo(

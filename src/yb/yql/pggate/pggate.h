@@ -552,8 +552,8 @@ class PgApiImpl {
 
   Status AddLogsToSpan(const char* logs, uint32_t span_key);
  
-  Status IncrementCounter(const char* event_name, double value, uint32_t span_key);
-  Status StopCounter(const char* event_name);
+  Status IncrementCounterAndStartTimer(const char* counter);
+  Status EndTimer(const char* timer);
 
   //------------------------------------------------------------------------------------------------
   // Analyze.

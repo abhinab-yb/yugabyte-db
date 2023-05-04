@@ -1791,7 +1791,7 @@ SearchCatCacheMiss(CatCache *cache,
 		* This case is rare enough that it's not worth expending extra cycles to
 		* detect.
 		*/
-		VStartEventSpan(1, "System Catalog Request");
+		VStartEventSpan(1, T_CatalogRequest);
 		VUInt32EventAttribute(1, "rel.oid", cache->cc_reloid);
 		VStringEventAttribute(1, "rel.name", cache->cc_relname);
 		relation = heap_open(cache->cc_reloid, AccessShareLock);
@@ -1858,7 +1858,7 @@ SearchCatCacheMiss(CatCache *cache,
 
 		heap_close(relation, AccessShareLock);
 
-		VEndEventSpan(1, "System Catalog Request");
+		VEndEventSpan(1, T_CatalogRequest);
 	}
 
 	/*
@@ -2120,7 +2120,7 @@ SearchCatCacheList(CatCache *cache,
 		cur_skey[2].sk_argument = v3;
 		cur_skey[3].sk_argument = v4;
 
-		VStartEventSpan(1, "System Catalog Request");
+		VStartEventSpan(1, T_CatalogRequest);
 		VUInt32EventAttribute(1, "rel.oid", cache->cc_reloid);
 		VStringEventAttribute(1, "rel.name", cache->cc_relname);
 
@@ -2197,7 +2197,7 @@ SearchCatCacheList(CatCache *cache,
 
 		heap_close(relation, AccessShareLock);
 
-		VEndEventSpan(1, "System Catalog Request");
+		VEndEventSpan(1, T_CatalogRequest);
 
 		/* Now we can build the CatCList entry. */
 		oldcxt = MemoryContextSwitchTo(CacheMemoryContext);

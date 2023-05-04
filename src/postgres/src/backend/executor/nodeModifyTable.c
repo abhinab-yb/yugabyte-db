@@ -2485,6 +2485,14 @@ ExecModifyTable(PlanState *pstate)
 		return NULL;
 	}
 
+	// switch (operation) {
+	// 	case CMD_INSERT:
+	// 		VStartEventSpan(1, "Buffering");
+	// 		break;
+	// 	default:
+	// 		break;
+	// }
+
 	/*
 	 * On first call, fire BEFORE STATEMENT triggers before proceeding.
 	 */
@@ -2573,6 +2581,13 @@ ExecModifyTable(PlanState *pstate)
 
 			estate->es_result_relation_info = saved_resultRelInfo;
 			VPopSpanKey(0);
+			// switch (operation) {
+			// 	case CMD_INSERT:
+			// 		VEndEventSpan(1, "Buffering");
+			// 		break;
+			// 	default:
+			// 		break;
+			// }
 			return slot;
 		}
 
@@ -2741,6 +2756,13 @@ ExecModifyTable(PlanState *pstate)
 		{
 			estate->es_result_relation_info = saved_resultRelInfo;
 			VPopSpanKey(0);
+			// switch (operation) {
+			// 	case CMD_INSERT:
+			// 		VEndEventSpan(1, "Buffering");
+			// 		break;
+			// 	default:
+			// 		break;
+			// }
 			return slot;
 		}
 	}
@@ -2756,6 +2778,13 @@ ExecModifyTable(PlanState *pstate)
 	node->mt_done = true;
 	VPopSpanKey(0);
 
+	// switch (operation) {
+	// 	case CMD_INSERT:
+	// 		VEndEventSpan(1, "Buffering");
+	// 		break;
+	// 	default:
+	// 		break;
+	// }
 	return NULL;
 }
 

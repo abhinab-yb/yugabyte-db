@@ -891,13 +891,6 @@ double GetPlanNodeTime(Instrumentation *instrument);
 			YBCUInt32SpanAttribute("verbosity", level, trace_vars.global_span_counter - 1); \
 		} \
 		YBCPushSpanKey(planstate->span_key); \
-	} else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
-		const char* count = " Count"; \
-		char* counter_name = (char *)malloc(strlen(GetPlanNodeName(planstate->plan))+strlen(count)+1); \
-		strcpy(counter_name, GetPlanNodeName(planstate->plan)); \
-		strcat(counter_name, count); \
-		planstate->span_key = YBCTopSpanKey(); \
-		YBCIncrementCounter(counter_name, 1, planstate->span_key); \
 	} \
   } while (0)
 
@@ -951,15 +944,6 @@ double GetPlanNodeTime(Instrumentation *instrument);
 			NodeTimeSpent(time_spent, planstate); \
 			YBCDoubleSpanAttribute("time.spent", time_spent, planstate.span_key); \
 			YBCEndQueryEvent(planstate.span_key); \
-			planstate.startSpan = true; \
-		} else if ((level) == trace_vars.trace_level + 1) { \
-			const char* runtime = " Runtime"; \
-			char* counter_name = (char *)malloc(strlen(GetPlanNodeName(planstate.plan))+strlen(runtime)+1); \
-			strcpy(counter_name, GetPlanNodeName(planstate.plan)); \
-			strcat(counter_name, runtime); \
-			double time_spent = 0; \
-			NodeTimeSpent(time_spent, planstate); \
-			YBCIncrementCounter(counter_name, time_spent, planstate.span_key); \
 		} \
 	} \
   } while (0)

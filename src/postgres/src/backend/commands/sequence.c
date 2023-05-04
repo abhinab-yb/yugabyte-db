@@ -808,7 +808,6 @@ nextval_internal(Oid relid, bool check_permissions)
 
 	if (IsYugaByteEnabled())
 	{
-		StartEventSpan("TServer Sequence Reads");
 		int64_t first_val;
 		int64_t last_val;
 		if (yb_enable_sequence_pushdown)
@@ -940,7 +939,6 @@ nextval_internal(Oid relid, bool check_permissions)
 		elm->last_valid = true;
 		last_used_seq = elm;
 		relation_close(seqrel, NoLock);
-		EndEventSpan("TServer Sequence Reads");
 		return first_val;
 	}
 

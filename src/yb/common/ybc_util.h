@@ -233,29 +233,43 @@ void YBCInitThreading();
 double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 
 // Otel tracing macros
-#define VStartEventSpan(level, event_name) \
+typedef enum SpanTag {
+  T_Planning = 0,
+  T_Execution,
+  T_ReadRequest,
+  T_WriteRequest,
+  T_CatalogRequest,
+  T_FlushRead,
+  T_FlushWrite,
+  T_ClientWrite,
+  T_Sorting,
+  T_CreateFile,
+  T_CloseFile
+} SpanTag;
+
+extern const char* SpanName(SpanTag tag);
+extern const char* SpanCounter(SpanTag tag);
+extern const char* SpanTimer(SpanTag tag);
+
+#define VStartEventSpan(level, tag) \
   do { \
     if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
-      YBCStartQueryEvent((event_name), __FILE__, __LINE__, __func__); \
+      YBCStartQueryEvent(SpanName(tag), __FILE__, __LINE__, __func__); \
       YBCPushSpanKey(trace_vars.global_span_counter - 1); \
       YBCUInt32SpanAttribute("verbosity", level, trace_vars.global_span_counter - 1); \
     } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
-      const char* count = " Count"; \
-      char* counter_name = (char *)malloc(strlen(event_name)+strlen(count)+1); \
-      strcpy(counter_name, event_name); \
-      strcat(counter_name, count); \
-      YBCIncrementCounter(counter_name, 1, YBCTopSpanKey()); \
+      YBCIncrementCounterAndStartTimer(SpanCounter(tag)); \
     } \
   } while (0)
 
-#define VEndEventSpan(level, event_name) \
+#define VEndEventSpan(level, tag) \
   do { \
     if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
       uint32_t span_key = YBCTopSpanKey(); \
       YBCPopSpanKey(); \
       YBCEndQueryEvent(span_key); \
     } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
-      YBCStopCounter(event_name); \
+      YBCEndTimer(SpanTimer(tag)); \
     } \
   } while (0)
 
@@ -287,11 +301,11 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
     } \
   } while (0)
 
-#define StartEventSpan(event_name) \
-  VStartEventSpan(0, (event_name))
+#define StartEventSpan(tag) \
+  VStartEventSpan(0, (tag))
 
-#define EndEventSpan(event_name) \
-  VEndEventSpan(0, event_name)
+#define EndEventSpan(tag) \
+  VEndEventSpan(0, tag)
 
 #define UInt32EventAttribute(key, value) \
   VUInt32EventAttribute(0, (key), (value))
@@ -305,17 +319,13 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 #define AddSpanLogs(logs) \
   VAddSpanLogs(0, (logs))
 
-#define VPggateStartEventSpan(level, event_name) \
+#define VPggateStartEventSpan(level, tag) \
   do { \
     if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
-      RETURN_NOT_OK(pg_session_->StartQueryEvent((event_name), __FILE__, __LINE__, __func__)); \
+      RETURN_NOT_OK(pg_session_->StartQueryEvent(SpanName(tag), __FILE__, __LINE__, __func__)); \
       RETURN_NOT_OK(pg_session_->PushSpanKey(trace_vars.global_span_counter - 1)); \
     } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
-      const char* count = " Count"; \
-      char* counter_name = (char *)malloc(strlen(event_name)+strlen(count)+1); \
-      strcpy(counter_name, event_name); \
-      strcat(counter_name, count); \
-      RETURN_NOT_OK(pg_session->IncrementCounter(counter_name, 1, pg_session_->TopSpanKey())); \
+      RETURN_NOT_OK(pg_session->IncrementCounterAndStartTimer(SpanCounter(tag))); \
     } \
   } while (0)
 
@@ -325,6 +335,8 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
       uint32_t span_key = pg_session_->TopSpanKey(); \
       RETURN_NOT_OK(pg_session_->PopSpanKey()); \
       RETURN_NOT_OK(pg_session_->EndQueryEvent(span_key)); \
+    } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
+      RETURN_NOT_OK(pg_session->EndTimer(SpanTimer(tag))); \
     } \
   } while (0)
 
@@ -356,8 +368,8 @@ double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
     } \
   } while (0)
 
-#define PggateStartEventSpan(event_name) \
-  VPggateStartEventSpan(0, (event_name))
+#define PggateStartEventSpan(tag) \
+  VPggateStartEventSpan(0, (tag))
 
 #define PggateEndEventSpan() \
   VPggateEndEventSpan(0)
