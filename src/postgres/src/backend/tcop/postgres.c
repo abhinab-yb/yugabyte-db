@@ -212,9 +212,6 @@ static void log_disconnections(int code, Datum arg);
 static void enable_statement_timeout(void);
 static void disable_statement_timeout(void);
 
-static void ResetYbTraceVars(void);
-static void ResetYbCounters(void);
-
 /* ----------------------------------------------------------------
  *		routines to obtain user input
  * ----------------------------------------------------------------
@@ -6055,25 +6052,4 @@ const char* RedactPasswordIfExists(const char* queryStr) {
 	}
 
 	return queryStr;
-}
-
-static void
-ResetYbTraceVars(void)
-{
-	trace_vars.is_tracing_enabled = false;
-	trace_vars.query_id = -1;
-	trace_vars.global_span_counter = 0;
-	trace_vars.trace_level = 0;
-}
-
-static void
-ResetYbCounters(void)
-{
-	trace_counters.statement_retries = -1;
-	trace_counters.planning_catalog_requests = 0;
-	trace_counters.catalog_read_requests = 0;
-	trace_counters.catalog_write_requests = 0;
-	trace_counters.storage_read_requests = 0;
-	trace_counters.storage_write_requests = 0;
-	trace_counters.printtup_time = 0.0;
 }

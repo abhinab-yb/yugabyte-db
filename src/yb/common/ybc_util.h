@@ -116,6 +116,10 @@ typedef struct
 
 extern yb_trace_counters trace_counters;
 
+extern void ResetYbTraceVars();
+
+extern void ResetYbCounters();
+
 /*
  * xcluster consistency level
  */

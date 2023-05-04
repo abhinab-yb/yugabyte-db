@@ -36,6 +36,7 @@ typedef struct ExplainState
 	bool		timing;			/* print detailed node timing */
 	bool		summary;		/* print total planning and execution timing */
 	bool		rpc;			/* print RPC stats */
+	bool		trace;			/* turn on tracing */
 	ExplainFormat format;		/* output format */
 	/* state for output formatting --- not reset for each new plan tree */
 	int			indent;			/* current indentation level */

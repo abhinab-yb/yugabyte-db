@@ -70,28 +70,28 @@ class TraceAggregates {
     TraceAggregates() = default;
     ~TraceAggregates() = default;
 
-    void IncrementCounterAndStartTimer(const char* counter) {
-        this->trace_aggregates_[std::string(counter)] ++;
-        this->span_timer_.push(MonoTime::Now());
+    void IncrementCounterAndStartTimer(const char* counter, uint32_t span_key) {
+        this->trace_aggregates_[span_key][std::string(counter)] ++;
+        this->span_timer_[span_key].push(MonoTime::Now());
     }
 
-    void EndTimer(const char* timer) {
+    void EndTimer(const char* timer, uint32_t span_key) {
         assert(!this->span_timer_.empty());
-        auto time = MonoTime::Now() - this->span_timer_.top();
-        this->trace_aggregates_[std::string(timer)] += time.ToMilliseconds();
-        this->span_timer_.pop();
+        auto time = MonoTime::Now() - this->span_timer_[span_key].top();
+        this->trace_aggregates_[span_key][std::string(timer)] += time.ToMilliseconds();
+        this->span_timer_[span_key].pop();
     }
 
-    void SetAggregates(nostd::shared_ptr<opentelemetry::trace::Span> span) {
-        for (auto [aggregate_key, aggregate_value] : this->trace_aggregates_) {
+    void SetAggregates(nostd::shared_ptr<opentelemetry::trace::Span> span, uint32_t span_key) {
+        for (auto [aggregate_key, aggregate_value] : this->trace_aggregates_[span_key]) {
             span->SetAttribute(aggregate_key, std::to_string(aggregate_value) + "ms");
         }
-        this->trace_aggregates_.clear();
+        this->trace_aggregates_.erase(span_key);
     }
 
  private:
-    std::unordered_map<std::string, double> trace_aggregates_;
-    std::stack<MonoTime> span_timer_;
+    std::unordered_map<uint32_t, std::unordered_map<std::string, double>> trace_aggregates_;
+    std::unordered_map<uint32_t, std::stack<MonoTime>> span_timer_;
 };
 
 } //namespace
