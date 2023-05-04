@@ -546,10 +546,7 @@ Status PgSession::EndQueryEvent(uint32_t span_key) {
     // LOG(INFO) << span_key << " ---------- END";
     auto span = GetAndEraseSpanFromMap(span_key, spans_);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
-    for (auto [counter_name, counter_value] : this->trace_aggregates_) {
-      span->SetAttribute(counter_name, counter_value);
-    }
-    this->trace_aggregates_.clear();
+    trace_aggregates_.SetAggregates(span);
     span->End();
   }
   return Status::OK();
@@ -617,22 +614,12 @@ Status PgSession::AddLogsToSpan(const char* logs, uint32_t span_key) {
 }
 
 Status PgSession::IncrementCounterAndStartTimer(const char* counter) {
-  if (this->query_tracer_) {
-    // LOG(INFO) << "Incrementing and starting timer for: " << std::string(counter) << " with parent: " << TopSpanKey();
-    this->trace_aggregates_[std::string(counter)] ++;
-    this->span_timer_.push(MonoTime::Now());
-  }
+  trace_aggregates_.IncrementCounterAndStartTimer(counter);
   return Status::OK();
 }
 
 Status PgSession::EndTimer(const char* timer) {
-  if (this->query_tracer_) {
-    // LOG(INFO) << "Ending timer for: " << std::string(timer) << " with parent: " << TopSpanKey();
-    assert(!this->span_timer_.empty());
-    auto time = MonoTime::Now() - this->span_timer_.top();
-    this->trace_aggregates_[std::string(timer)] += time.ToMilliseconds();
-    this->span_timer_.pop();
-  }
+  trace_aggregates_.EndTimer(timer);
   return Status::OK();
 }
 

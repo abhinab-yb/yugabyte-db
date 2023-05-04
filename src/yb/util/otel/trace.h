@@ -34,10 +34,14 @@
 
 #include <stddef.h>
 #include <string>
+#include <map>
+#include <stack>
 
 #include "opentelemetry/nostd/shared_ptr.h"
 #include "opentelemetry/trace/provider.h"
 #include "opentelemetry/trace/span.h"
+
+#include "yb/util/monotime.h"
 
 namespace trace_api      = opentelemetry::trace;
 namespace nostd          = opentelemetry::nostd;
@@ -60,5 +64,34 @@ nostd::shared_ptr<trace_api::Span> StartSpanFromParentId(
 nostd::shared_ptr<trace_api::Span> StartSpan(
     const std::string& span_name,
     const trace_api::SpanContext& parent_context);
+
+class TraceAggregates {
+ public:
+    TraceAggregates() = default;
+    ~TraceAggregates() = default;
+
+    void IncrementCounterAndStartTimer(const char* counter) {
+        this->trace_aggregates_[std::string(counter)] ++;
+        this->span_timer_.push(MonoTime::Now());
+    }
+
+    void EndTimer(const char* timer) {
+        assert(!this->span_timer_.empty());
+        auto time = MonoTime::Now() - this->span_timer_.top();
+        this->trace_aggregates_[std::string(timer)] += time.ToMilliseconds();
+        this->span_timer_.pop();
+    }
+
+    void SetAggregates(nostd::shared_ptr<opentelemetry::trace::Span> span) {
+        for (auto [aggregate_key, aggregate_value] : this->trace_aggregates_) {
+            span->SetAttribute(aggregate_key, std::to_string(aggregate_value) + "ms");
+        }
+        this->trace_aggregates_.clear();
+    }
+
+ private:
+    std::unordered_map<std::string, double> trace_aggregates_;
+    std::stack<MonoTime> span_timer_;
+};
 
 } //namespace
