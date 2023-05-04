@@ -881,13 +881,23 @@ const char* GetPlanNodeName(Plan *plan);
 
 double GetPlanNodeTime(Instrumentation *instrument);
 
-#define StartSpanIfNotActive(planstate) \
+#define VStartSpanIfNotActive(level, planstate) \
   do { \
-    if (planstate->startSpan) { \
-		YBCStartQueryEvent("Query Plan Execution", __FILE__, __LINE__, __func__); \
-		planstate->span_key = trace_vars.global_span_counter - 1; \
-		YBCStringSpanAttribute("node.type", GetPlanNodeName(planstate->plan), planstate->span_key); \
-		planstate->startSpan = false; \
+	if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
+		if (planstate->startSpan) { \
+			YBCStartQueryEvent(GetPlanNodeName(planstate->plan), __FILE__, __LINE__, __func__); \
+			planstate->span_key = trace_vars.global_span_counter - 1; \
+			planstate->startSpan = false; \
+			YBCUInt32SpanAttribute("verbosity", level, trace_vars.global_span_counter - 1); \
+		} \
+		YBCPushSpanKey(planstate->span_key); \
+	} \
+  } while (0)
+
+#define VPopSpanKey(level) \
+  do { \
+	if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
+		YBCPopSpanKey(); \
 	} \
   } while (0)
 
@@ -907,28 +917,41 @@ double GetPlanNodeTime(Instrumentation *instrument);
 	} \
   } while (0)
 
-#define EndSpanIfActive(planstate) \
+#define NodeTimeSpent(time_spent, planstate) \
   do { \
-    if (!planstate.startSpan && trace_vars.is_tracing_enabled) { \
-		double time_spent = GetPlanNodeTime(planstate.instrument); \
-		switch (nodeTag(planstate.plan)) { \
-			case T_Material: \
-				break; \
-			default: \
-				if (planstate.lefttree) { \
-					time_spent -= GetPlanNodeTime(planstate.lefttree->instrument); \
-					CheckMaterial(planstate.lefttree, time_spent); \
-				} \
-				if (planstate.righttree) { \
-					time_spent -= GetPlanNodeTime(planstate.righttree->instrument); \
-					CheckMaterial(planstate.righttree, time_spent); \
-				} \
-				break; \
+	time_spent = GetPlanNodeTime(planstate.instrument); \
+	switch (nodeTag(planstate.plan)) { \
+		case T_Material: \
+			break; \
+		default: \
+			if (planstate.lefttree) { \
+				time_spent -= GetPlanNodeTime(planstate.lefttree->instrument); \
+				CheckMaterial(planstate.lefttree, time_spent); \
+			} \
+			if (planstate.righttree) { \
+				time_spent -= GetPlanNodeTime(planstate.righttree->instrument); \
+				CheckMaterial(planstate.righttree, time_spent); \
+			} \
+			break; \
+	} \
+  } while(0)
+
+#define VEndSpanIfActive(level, planstate) \
+  do { \
+    if (trace_vars.is_tracing_enabled) { \
+		if ((level) <= trace_vars.trace_level) { \
+			double time_spent = 0; \
+			NodeTimeSpent(time_spent, planstate); \
+			YBCDoubleSpanAttribute("time.spent", time_spent, planstate.span_key); \
+			YBCEndQueryEvent(planstate.span_key); \
 		} \
-		YBCDoubleSpanAttribute("time.spent", time_spent, planstate.span_key); \
-		YBCEndQueryEvent(planstate.span_key); \
-		planstate.startSpan = true; \
 	} \
   } while (0)
+
+#define StartSpanIfNotActive(planstate) \
+	VStartSpanIfNotActive(0, planstate)
+
+#define EndSpanIfActive(planstate) \
+	VEndSpanIfActive(0, planstate)
 
 #endif /* PG_YB_UTILS_H */

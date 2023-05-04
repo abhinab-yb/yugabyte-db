@@ -50,8 +50,7 @@ ExecLimit(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate);
-	YBCPushSpanKey(pstate->span_key);
+	VStartSpanIfNotActive(0, pstate);
 
 	/*
 	 * get information from the node
@@ -103,7 +102,7 @@ ExecLimit(PlanState *pstate)
 			 */
 			if (!ScanDirectionIsForward(direction))
 			{
-				YBCPopSpanKey();
+				VPopSpanKey(0);
 				return NULL;
 			}
 
@@ -113,7 +112,7 @@ ExecLimit(PlanState *pstate)
 			if (node->count <= 0 && !node->noCount)
 			{
 				node->lstate = LIMIT_EMPTY;
-				YBCPopSpanKey();
+				VPopSpanKey(0);
 				return NULL;
 			}
 
@@ -130,7 +129,7 @@ ExecLimit(PlanState *pstate)
 					 * any output at all.
 					 */
 					node->lstate = LIMIT_EMPTY;
-					YBCPopSpanKey();
+					VPopSpanKey(0);
 					return NULL;
 				}
 				node->subSlot = slot;
@@ -150,7 +149,7 @@ ExecLimit(PlanState *pstate)
 			 * The subplan is known to return no tuples (or not more than
 			 * OFFSET tuples, in general).  So we return no tuples.
 			 */
-			YBCPopSpanKey();
+			VPopSpanKey(0);
 			return NULL;
 
 		case LIMIT_INWINDOW:
@@ -174,7 +173,7 @@ ExecLimit(PlanState *pstate)
 					if (!(node->ps.state->es_top_eflags & EXEC_FLAG_BACKWARD))
 						(void) ExecShutdownNode(outerPlan);
 
-					YBCPopSpanKey();
+					VPopSpanKey(0);
 					return NULL;
 				}
 
@@ -185,7 +184,7 @@ ExecLimit(PlanState *pstate)
 				if (TupIsNull(slot))
 				{
 					node->lstate = LIMIT_SUBPLANEOF;
-					YBCPopSpanKey();
+					VPopSpanKey(0);
 					return NULL;
 				}
 				node->subSlot = slot;
@@ -200,7 +199,7 @@ ExecLimit(PlanState *pstate)
 				if (node->position <= node->offset + 1)
 				{
 					node->lstate = LIMIT_WINDOWSTART;
-					YBCPopSpanKey();
+					VPopSpanKey(0);
 					return NULL;
 				}
 
@@ -218,7 +217,7 @@ ExecLimit(PlanState *pstate)
 		case LIMIT_SUBPLANEOF:
 			if (ScanDirectionIsForward(direction))
 			{
-				YBCPopSpanKey();
+				VPopSpanKey(0);
 				return NULL;
 			}
 
@@ -237,7 +236,7 @@ ExecLimit(PlanState *pstate)
 		case LIMIT_WINDOWEND:
 			if (ScanDirectionIsForward(direction))
 			{
-				YBCPopSpanKey();
+				VPopSpanKey(0);
 				return NULL;
 			}
 
@@ -253,7 +252,7 @@ ExecLimit(PlanState *pstate)
 		case LIMIT_WINDOWSTART:
 			if (!ScanDirectionIsForward(direction))
 			{
-				YBCPopSpanKey();
+				VPopSpanKey(0);
 				return NULL;
 			}
 
@@ -276,7 +275,7 @@ ExecLimit(PlanState *pstate)
 	/* Return the current tuple */
 	Assert(!TupIsNull(slot));
 
-	YBCPopSpanKey();
+	VPopSpanKey(0);
 	return slot;
 }
 
@@ -446,7 +445,7 @@ ExecEndLimit(LimitState *node)
 {
 	ExecFreeExprContext(&node->ps);
 	ExecEndNode(outerPlanState(node));
-	EndSpanIfActive(node->ps);
+	VEndSpanIfActive(0, node->ps);
 }
 
 

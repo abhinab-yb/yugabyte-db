@@ -1791,9 +1791,9 @@ SearchCatCacheMiss(CatCache *cache,
 		* This case is rare enough that it's not worth expending extra cycles to
 		* detect.
 		*/
-		StartEventSpan("System Catalog Request");
-		UInt32EventAttribute("rel.oid", cache->cc_reloid);
-		StringEventAttribute("rel.name", cache->cc_relname);
+		VStartEventSpan(1, T_CatalogRequest);
+		VUInt32EventAttribute(1, "rel.oid", cache->cc_reloid);
+		VStringEventAttribute(1, "rel.name", cache->cc_relname);
 		relation = heap_open(cache->cc_reloid, AccessShareLock);
 
 		if (IsYugaByteEnabled())
@@ -1858,13 +1858,7 @@ SearchCatCacheMiss(CatCache *cache,
 
 		heap_close(relation, AccessShareLock);
 
-		if (ct != NULL && ct->tuple.t_tableOid >= (Oid) FirstNormalObjectId)
-		{
-			UInt32EventAttribute("table.oid", ct->tuple.t_tableOid);
-			StringEventAttribute("table.name", DatumGetCString(v1));
-		}
-
-		EndEventSpan();
+		VEndEventSpan(1, T_CatalogRequest);
 	}
 
 	/*
@@ -2126,9 +2120,9 @@ SearchCatCacheList(CatCache *cache,
 		cur_skey[2].sk_argument = v3;
 		cur_skey[3].sk_argument = v4;
 
-		StartEventSpan("System Catalog Request");
-		UInt32EventAttribute("rel.oid", cache->cc_reloid);
-		StringEventAttribute("rel.name", cache->cc_relname);
+		VStartEventSpan(1, T_CatalogRequest);
+		VUInt32EventAttribute(1, "rel.oid", cache->cc_reloid);
+		VStringEventAttribute(1, "rel.name", cache->cc_relname);
 
 		relation = heap_open(cache->cc_reloid, AccessShareLock);
 
@@ -2203,7 +2197,7 @@ SearchCatCacheList(CatCache *cache,
 
 		heap_close(relation, AccessShareLock);
 
-		EndEventSpan();
+		VEndEventSpan(1, T_CatalogRequest);
 
 		/* Now we can build the CatCList entry. */
 		oldcxt = MemoryContextSwitchTo(CacheMemoryContext);

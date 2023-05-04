@@ -43,15 +43,14 @@ ExecGroup(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate);
-	YBCPushSpanKey(pstate->span_key);
+	VStartSpanIfNotActive(0, pstate);
 
 	/*
 	 * get state info from node
 	 */
 	if (node->grp_done)
 	{
-		YBCPopSpanKey();
+		VPopSpanKey(0);
 		return NULL;
 	}
 	econtext = node->ss.ps.ps_ExprContext;
@@ -77,7 +76,7 @@ ExecGroup(PlanState *pstate)
 		{
 			/* empty input, so return nothing */
 			node->grp_done = true;
-			YBCPopSpanKey();
+			VPopSpanKey(0);
 			return NULL;
 		}
 		/* Copy tuple into firsttupleslot */
@@ -121,7 +120,7 @@ ExecGroup(PlanState *pstate)
 			{
 				/* no more groups, so we're done */
 				node->grp_done = true;
-				YBCPopSpanKey();
+				VPopSpanKey(0);
 				return NULL;
 			}
 
@@ -157,7 +156,7 @@ ExecGroup(PlanState *pstate)
 		else
 			InstrCountFiltered1(node, 1);
 	}
-	YBCPopSpanKey();
+	VPopSpanKey(0);
 }
 
 /* -----------------
@@ -241,7 +240,7 @@ ExecEndGroup(GroupState *node)
 
 	outerPlan = outerPlanState(node);
 	ExecEndNode(outerPlan);
-	EndSpanIfActive(node->ss.ps);
+	VEndSpanIfActive(0, node->ss.ps);
 }
 
 void

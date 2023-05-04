@@ -4134,7 +4134,7 @@ KnownAssignedXidsReset(void)
 }
 
 int
-SignalTracingWithoutQueryId(uint32 signal, int pid)
+SignalTracingWithoutQueryId(uint32 signal, int pid, int trace_level)
 {
 	ProcArrayStruct *arrayP = procArray;
 	int			index;
@@ -4155,6 +4155,7 @@ SignalTracingWithoutQueryId(uint32 signal, int pid)
 		if (pid == 0 || proc->pid == pid)
 		{
 			pg_atomic_write_u32(&proc->is_yb_tracing_enabled, signal);
+			pg_atomic_write_u32(&proc->trace_level, trace_level);
 			is_tracing_toggled = true;
 
 			if (!signal)
@@ -4283,9 +4284,9 @@ SignalTracingWithQueryId(uint32 signal, int pid, int64 query_id)
 
 /* Enable/Disable tracing for the proc with the given pid and query_id */
 int
-SignalTracing(uint32 signal, int pid, int64 query_id, bool is_query_id_null)
+SignalTracing(uint32 signal, int pid, int64 query_id, bool is_query_id_null, int trace_level)
 {
-	return (is_query_id_null ? SignalTracingWithoutQueryId(signal, pid) : SignalTracingWithQueryId(signal, pid, query_id));
+	return (is_query_id_null ? SignalTracingWithoutQueryId(signal, pid, trace_level) : SignalTracingWithQueryId(signal, pid, query_id));
 }
 
 int

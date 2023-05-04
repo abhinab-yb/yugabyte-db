@@ -2459,8 +2459,7 @@ ExecModifyTable(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate);
-	YBCPushSpanKey(pstate->span_key);
+	VStartSpanIfNotActive(0, pstate);
 
 	/*
 	 * This should NOT get called during EvalPlanQual; we should have passed a
@@ -2482,9 +2481,17 @@ ExecModifyTable(PlanState *pstate)
 	 */
 	if (node->mt_done)
 	{
-		YBCPopSpanKey();
+		VPopSpanKey(0);
 		return NULL;
 	}
+
+	// switch (operation) {
+	// 	case CMD_INSERT:
+	// 		VStartEventSpan(1, "Buffering");
+	// 		break;
+	// 	default:
+	// 		break;
+	// }
 
 	/*
 	 * On first call, fire BEFORE STATEMENT triggers before proceeding.
@@ -2573,7 +2580,14 @@ ExecModifyTable(PlanState *pstate)
 			slot = ExecProcessReturning(resultRelInfo, NULL, planSlot);
 
 			estate->es_result_relation_info = saved_resultRelInfo;
-			YBCPopSpanKey();
+			VPopSpanKey(0);
+			// switch (operation) {
+			// 	case CMD_INSERT:
+			// 		VEndEventSpan(1, "Buffering");
+			// 		break;
+			// 	default:
+			// 		break;
+			// }
 			return slot;
 		}
 
@@ -2741,7 +2755,14 @@ ExecModifyTable(PlanState *pstate)
 		if (slot)
 		{
 			estate->es_result_relation_info = saved_resultRelInfo;
-			YBCPopSpanKey();
+			VPopSpanKey(0);
+			// switch (operation) {
+			// 	case CMD_INSERT:
+			// 		VEndEventSpan(1, "Buffering");
+			// 		break;
+			// 	default:
+			// 		break;
+			// }
 			return slot;
 		}
 	}
@@ -2755,8 +2776,15 @@ ExecModifyTable(PlanState *pstate)
 	fireASTriggers(node);
 
 	node->mt_done = true;
-	YBCPopSpanKey();
+	VPopSpanKey(0);
 
+	// switch (operation) {
+	// 	case CMD_INSERT:
+	// 		VEndEventSpan(1, "Buffering");
+	// 		break;
+	// 	default:
+	// 		break;
+	// }
 	return NULL;
 }
 
@@ -3321,7 +3349,7 @@ ExecEndModifyTable(ModifyTableState *node)
 	YBCStringSpanAttribute("operation.type", node->operation == CMD_INSERT ? "insert" :
 		node->operation == CMD_UPDATE ? "update" : "delete", node->ps.span_key);
 
-	EndSpanIfActive(node->ps);
+	VEndSpanIfActive(0, node->ps);
 }
 
 void

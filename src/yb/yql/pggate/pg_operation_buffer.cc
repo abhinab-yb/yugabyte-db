@@ -357,8 +357,8 @@ class PgOperationBuffer::Impl {
   Status EnsureCompleted(size_t count) {
     bool span_open = false;
     if (count > 0 && !in_flight_ops_.empty()) {
-      StartEventSpan("Storage Write Request");
-      UInt32EventAttribute("ops.count", (int32_t)in_flight_ops_.front().keys.size());
+      VStartEventSpan(1, T_WriteRequest);
+      VUInt32EventAttribute(1, "ops.count", (int32_t)in_flight_ops_.front().keys.size());
       span_open = true;
     }
     for(; count && !in_flight_ops_.empty(); --count) {
@@ -383,13 +383,13 @@ class PgOperationBuffer::Impl {
 
       auto status = in_flight_ops_.front().future.Get(wait_time);
       if (!status.ok() && span_open) {
-        EndEventSpan();
+        VEndEventSpan(1, T_WriteRequest);
       }
       RETURN_NOT_OK(status);
       in_flight_ops_.pop_front();
     }
     if (span_open) {
-      EndEventSpan();
+      VEndEventSpan(1, T_WriteRequest);
     }
     return Status::OK();
   }
@@ -408,7 +408,7 @@ class PgOperationBuffer::Impl {
     if (keys_.empty()) {
       return Status::OK();
     }
-    StartEventSpan("Flushing Buffered Operations");
+    VStartEventSpan(1, T_FlushWrite);
     BufferableOperations ops;
     BufferableOperations txn_ops;
     RowKeys keys;
@@ -425,7 +425,7 @@ class PgOperationBuffer::Impl {
     if (ops_sent) {
       in_flight_ops_.back().keys = std::move(keys);
     }
-    EndEventSpan();
+    VEndEventSpan(1, T_FlushWrite);
     return Status::OK();
   }
 

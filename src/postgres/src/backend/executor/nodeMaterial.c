@@ -48,8 +48,7 @@ ExecMaterial(PlanState *pstate)
 
 	CHECK_FOR_INTERRUPTS();
 
-	StartSpanIfNotActive(pstate);
-	YBCPushSpanKey(pstate->span_key);
+	VStartSpanIfNotActive(0, pstate);
 
 	/*
 	 * get state info from node
@@ -100,7 +99,7 @@ ExecMaterial(PlanState *pstate)
 			 */
 			if (!tuplestore_advance(tuplestorestate, forward))
 			{
-				YBCPopSpanKey();
+				VPopSpanKey(0);
 				return NULL;	/* the tuplestore must be empty */
 			}
 		}
@@ -115,7 +114,7 @@ ExecMaterial(PlanState *pstate)
 	{
 		if (tuplestore_gettupleslot(tuplestorestate, forward, false, slot))
 		{
-			YBCPopSpanKey();
+			VPopSpanKey(0);
 			return slot;
 		}
 		if (forward)
@@ -144,7 +143,7 @@ ExecMaterial(PlanState *pstate)
 		if (TupIsNull(outerslot))
 		{
 			node->eof_underlying = true;
-			YBCPopSpanKey();
+			VPopSpanKey(0);
 			return NULL;
 		}
 
@@ -159,7 +158,7 @@ ExecMaterial(PlanState *pstate)
 		/*
 		 * We can just return the subplan's returned tuple, without copying.
 		 */
-		YBCPopSpanKey();
+		VPopSpanKey(0);
 		return outerslot;
 	}
 
@@ -167,7 +166,7 @@ ExecMaterial(PlanState *pstate)
 	 * Nothing left ...
 	 */
 	TupleTableSlot *result_slot = ExecClearTuple(slot);
-	YBCPopSpanKey();
+	VPopSpanKey(0);
 	return result_slot;
 }
 
@@ -271,7 +270,7 @@ ExecEndMaterial(MaterialState *node)
 	 */
 	ExecEndNode(outerPlanState(node));
 
-	EndSpanIfActive(node->ss.ps);
+	VEndSpanIfActive(0, node->ss.ps);
 }
 
 /* ----------------------------------------------------------------

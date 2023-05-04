@@ -551,6 +551,9 @@ class PgApiImpl {
   Status StringSpanAttribute(const char* key, const char* value, uint32_t span_key);
 
   Status AddLogsToSpan(const char* logs, uint32_t span_key);
+ 
+  Status IncrementCounterAndStartTimer(const char* counter);
+  Status EndTimer(const char* timer);
 
   //------------------------------------------------------------------------------------------------
   // Analyze.

@@ -39,6 +39,7 @@
 
 #include "yb/util/lw_function.h"
 #include "yb/util/oid_generator.h"
+#include "yb/util/otel/trace.h"
 #include "yb/util/result.h"
 #include "yb/yql/pggate/pg_client.h"
 #include "yb/yql/pggate/pg_gate_fwd.h"
@@ -46,6 +47,7 @@
 #include "yb/yql/pggate/pg_perform_future.h"
 #include "yb/yql/pggate/pg_tabledesc.h"
 #include "yb/yql/pggate/pg_txn_manager.h"
+
 
 namespace nostd = opentelemetry::nostd;
 
@@ -208,6 +210,9 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   Status StringSpanAttribute(const char* key, const char* value, uint32_t span_key);
 
   Status AddLogsToSpan(const char* logs, uint32_t span_key);
+
+  Status IncrementCounterAndStartTimer(const char* counter);
+  Status EndTimer(const char* timer);
 
   //------------------------------------------------------------------------------------------------
   // Operations on Tablegroup.
@@ -452,6 +457,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
   nostd::shared_ptr<opentelemetry::trace::Tracer> query_tracer_;
   std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> spans_;
   std::stack<uint32_t> current_span_key_;
+  TraceAggregates trace_aggregates_;
 };
 
 }  // namespace pggate

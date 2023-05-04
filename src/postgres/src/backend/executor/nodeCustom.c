@@ -109,12 +109,11 @@ ExecCustomScan(PlanState *pstate)
 	CustomScanState *node = castNode(CustomScanState, pstate);
 
 	CHECK_FOR_INTERRUPTS();
-	StartSpanIfNotActive(pstate);
-	YBCPushSpanKey(pstate->span_key);
+	VStartSpanIfNotActive(0, pstate);
 
 	Assert(node->methods->ExecCustomScan != NULL);
 	TupleTableSlot *slot = node->methods->ExecCustomScan(node);
-	YBCPopSpanKey();
+	VPopSpanKey(0);
 	return slot;
 }
 
@@ -135,7 +134,7 @@ ExecEndCustomScan(CustomScanState *node)
 	if (node->ss.ss_currentRelation)
 		ExecCloseScanRelation(node->ss.ss_currentRelation);
 	
-	EndSpanIfActive(node->ss.ps);
+	VEndSpanIfActive(0, node->ss.ps);
 }
 
 void

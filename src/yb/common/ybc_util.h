@@ -98,6 +98,7 @@ typedef struct
   bool 		  is_tracing_enabled;
 	int64_t		query_id;
   uint32_t	global_span_counter;
+  uint32_t  trace_level;
 } yb_trace_vars;
 
 extern yb_trace_vars trace_vars;
@@ -232,95 +233,158 @@ void YBCInitThreading();
 double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 
 // Otel tracing macros
-#define StartEventSpan(event_name) \
+typedef enum SpanTag {
+  T_Planning = 0,
+  T_Execution,
+  T_ReadRequest,
+  T_WriteRequest,
+  T_CatalogRequest,
+  T_FlushRead,
+  T_FlushWrite,
+  T_ClientWrite,
+  T_Sorting,
+  T_CreateFile,
+  T_CloseFile
+} SpanTag;
+
+extern const char* SpanName(SpanTag tag);
+extern const char* SpanCounter(SpanTag tag);
+extern const char* SpanTimer(SpanTag tag);
+
+#define VStartEventSpan(level, tag) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
-      YBCStartQueryEvent(event_name, __FILE__, __LINE__, __func__); \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
+      YBCStartQueryEvent(SpanName(tag), __FILE__, __LINE__, __func__); \
       YBCPushSpanKey(trace_vars.global_span_counter - 1); \
+      YBCUInt32SpanAttribute("verbosity", level, trace_vars.global_span_counter - 1); \
+    } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
+      YBCIncrementCounterAndStartTimer(SpanCounter(tag)); \
     } \
   } while (0)
 
-#define EndEventSpan() \
+#define VEndEventSpan(level, tag) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
       uint32_t span_key = YBCTopSpanKey(); \
       YBCPopSpanKey(); \
       YBCEndQueryEvent(span_key); \
+    } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
+      YBCEndTimer(SpanTimer(tag)); \
     } \
   } while (0)
+
+#define VUInt32EventAttribute(level, key, value) \
+  do { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
+	    YBCUInt32SpanAttribute((key), (value), YBCTopSpanKey()); \
+    } \
+  } while (0)
+
+#define VStringEventAttribute(level, key, value) \
+  do { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
+	    YBCStringSpanAttribute((key), (value), YBCTopSpanKey()); \
+    } \
+  } while (0)
+
+#define VDoubleEventAttribute(level, key, value) \
+  do { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
+	    YBCUInt32SpanAttribute((key), (value), YBCTopSpanKey()); \
+    } \
+  } while (0)
+
+#define VAddSpanLogs(level, logs) \
+  do { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
+	    YBCAddLogsToSpan((logs), YBCTopSpanKey()); \
+    } \
+  } while (0)
+
+#define StartEventSpan(tag) \
+  VStartEventSpan(0, (tag))
+
+#define EndEventSpan(tag) \
+  VEndEventSpan(0, tag)
 
 #define UInt32EventAttribute(key, value) \
-  do { \
-    if (trace_vars.is_tracing_enabled) { \
-	    YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
-    } \
-  } while (0)
+  VUInt32EventAttribute(0, (key), (value))
 
 #define StringEventAttribute(key, value) \
-  do { \
-    if (trace_vars.is_tracing_enabled) { \
-	    YBCStringSpanAttribute(key, value, YBCTopSpanKey()); \
-    } \
-  } while (0)
+  VStringEventAttribute(0, (key), (value))
 
 #define DoubleEventAttribute(key, value) \
-  do { \
-    if (trace_vars.is_tracing_enabled) { \
-	    YBCUInt32SpanAttribute(key, value, YBCTopSpanKey()); \
-    } \
-  } while (0)
+  VDoubleEventAttribute(0, (key), (value))
 
 #define AddSpanLogs(logs) \
-  do { \
-    if (trace_vars.is_tracing_enabled) { \
-	    YBCAddLogsToSpan(logs, YBCTopSpanKey()); \
-    } \
-  } while (0)
+  VAddSpanLogs(0, (logs))
 
-#define PggateStartEventSpan(event_name) \
+#define VPggateStartEventSpan(level, tag) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
-      RETURN_NOT_OK(pg_session_->StartQueryEvent(event_name, __FILE__, __LINE__, __func__)); \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
+      RETURN_NOT_OK(pg_session_->StartQueryEvent(SpanName(tag), __FILE__, __LINE__, __func__)); \
       RETURN_NOT_OK(pg_session_->PushSpanKey(trace_vars.global_span_counter - 1)); \
+    } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
+      RETURN_NOT_OK(pg_session->IncrementCounterAndStartTimer(SpanCounter(tag))); \
     } \
   } while (0)
 
-#define PggateEndEventSpan() \
+#define VPggateEndEventSpan(level) \
   do { \
-    if (trace_vars.is_tracing_enabled) { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
       uint32_t span_key = pg_session_->TopSpanKey(); \
       RETURN_NOT_OK(pg_session_->PopSpanKey()); \
       RETURN_NOT_OK(pg_session_->EndQueryEvent(span_key)); \
+    } else if (trace_vars.is_tracing_enabled && (level) == trace_vars.trace_level + 1) { \
+      RETURN_NOT_OK(pg_session->EndTimer(SpanTimer(tag))); \
     } \
   } while (0)
+
+#define VPggateUInt32EventAttribute(level, key, value) \
+  do { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
+  	  RETURN_NOT_OK(pg_session_->UInt32SpanAttribute((key), (value), pg_session_->TopSpanKey())); \
+    } \
+  } while (0)
+
+#define VPggateStringEventAttribute(level, key, value) \
+  do { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
+	    RETURN_NOT_OK(pg_session_->StringSpanAttribute((key), (value), pg_session_->TopSpanKey())); \
+    } \
+  } while (0)
+
+#define VPggateDoubleEventAttribute(level, key, value, span_key) \
+  do { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
+	    RETURN_NOT_OK(pg_session_->Int32SpanAttribute((key), (value), pg_session_->TopSpanKey())); \
+    } \
+  } while (0)
+
+#define VPggateAddSpanLogs(level, logs) \
+  do { \
+    if (trace_vars.is_tracing_enabled && (level) <= trace_vars.trace_level) { \
+	    RETURN_NOT_OK(pg_session_->AddLogsToSpan((logs), pg_session_->TopSpanKey())); \
+    } \
+  } while (0)
+
+#define PggateStartEventSpan(tag) \
+  VPggateStartEventSpan(0, (tag))
+
+#define PggateEndEventSpan() \
+  VPggateEndEventSpan(0)
 
 #define PggateUInt32EventAttribute(key, value) \
-  do { \
-    if (trace_vars.is_tracing_enabled) { \
-  	  RETURN_NOT_OK(pg_session_->UInt32SpanAttribute(key, value, pg_session_->TopSpanKey())); \
-    } \
-  } while (0)
+  VPggateUInt32EventAttribute(0, (key), (value))
 
 #define PggateStringEventAttribute(key, value) \
-  do { \
-    if (trace_vars.is_tracing_enabled) { \
-	    RETURN_NOT_OK(pg_session_->StringSpanAttribute(key, value, pg_session_->TopSpanKey())); \
-    } \
-  } while (0)
+  VPggateStringEventAttribute(0, (key), (value))
 
 #define PggateDoubleEventAttribute(key, value, span_key) \
-  do { \
-    if (trace_vars.is_tracing_enabled) { \
-	    RETURN_NOT_OK(pg_session_->Int32SpanAttribute(key, value, pg_session_->TopSpanKey())); \
-    } \
-  } while (0)
+  VPggateDoubleEventAttribute(0, (key), (value), (span_key))
 
 #define PggateAddSpanLogs(logs) \
-  do { \
-    if (trace_vars.is_tracing_enabled) { \
-	    RETURN_NOT_OK(pg_session_->AddLogsToSpan(logs, pg_session_->TopSpanKey())); \
-    } \
-  } while (0)
+  VPggateAddSpanLogs(0, (logs))
 
 #ifdef __cplusplus
 } // extern "C"

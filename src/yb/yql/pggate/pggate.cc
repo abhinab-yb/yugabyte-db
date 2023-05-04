@@ -1610,6 +1610,14 @@ Status PgApiImpl::AddLogsToSpan(const char* logs, uint32_t span_key) {
   return pg_session_->AddLogsToSpan(logs, span_key);
 }
 
+Status PgApiImpl::IncrementCounterAndStartTimer(const char* counter) {
+  return pg_session_->IncrementCounterAndStartTimer(counter);
+}
+
+Status PgApiImpl::EndTimer(const char* timer) {
+  return pg_session_->EndTimer(timer);
+}
+
 //--------------------------------------------------------------------------------------------------
 // Expressions.
 //--------------------------------------------------------------------------------------------------

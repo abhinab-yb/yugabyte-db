@@ -401,6 +401,53 @@ void YBCInitThreading() {
   InitThreading();
 }
 
+const char* SpanName(SpanTag tag) {
+  switch (tag) {
+    case T_Planning: return "Query Planning";
+    case T_Execution: return "Query Execution";
+    case T_ReadRequest: return "Storage Read Request";
+    case T_WriteRequest: return "Storage Write Request";
+    case T_CatalogRequest: return "System Catalog Request";
+    case T_FlushRead: return "Flushing";
+    case T_FlushWrite: return "Flushing Buffered Operations";
+    case T_ClientWrite: return "Client Write";
+    case T_Sorting: return "Performing Sort";
+    case T_CreateFile: return "Creating File";
+    case T_CloseFile: return "Closing File";
+    default: return "???";
+  }
+}
+
+const char* SpanCounter(SpanTag tag) {
+  switch (tag) {
+    case T_ReadRequest: return "read.request.count";
+    case T_WriteRequest: return "write.request.count";
+    case T_CatalogRequest: return "catalog.request.count";
+    case T_FlushRead: return "flushing.count";
+    case T_FlushWrite: return "flushing.buffered.operations.count";
+    case T_ClientWrite: return "client.write.count";
+    case T_Sorting: return "performing.sort.count";
+    case T_CreateFile: return "creating.file.count";
+    case T_CloseFile: return "closing.file.count";
+    default: return "???";
+  }
+}
+
+const char* SpanTimer(SpanTag tag) {
+  switch (tag) {
+    case T_ReadRequest: return "read.request.time";
+    case T_WriteRequest: return "write.request.time";
+    case T_CatalogRequest: return "catalog.request.time";
+    case T_FlushRead: return "flushing.time";
+    case T_FlushWrite: return "flushing.buffered.operations.time";
+    case T_ClientWrite: return "client.write.time";
+    case T_Sorting: return "performing.sort.time";
+    case T_CreateFile: return "creating.file.time";
+    case T_CloseFile: return "closing.file.time";
+    default: return "???";
+  }
+}
+
 } // extern "C"
 
 } // namespace yb

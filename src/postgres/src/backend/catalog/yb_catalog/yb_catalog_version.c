@@ -395,6 +395,7 @@ bool YbGetMasterCatalogVersionFromTable(Oid db_oid, uint64_t *version)
 
 	if (!YBIsDBCatalogVersionMode())
 	{
+		// VStartEventSpan(1, T_CatalogRequest);
 		/* Fetch one row. */
 		HandleYBStatus(YBCPgDmlFetch(ybc_stmt,
 									 natts,
@@ -408,6 +409,7 @@ bool YbGetMasterCatalogVersionFromTable(Oid db_oid, uint64_t *version)
 			*version = (uint64_t) DatumGetInt64(values[current_version_attnum - 1]);
 			result = true;
 		}
+		// VEndEventSpan(1, T_CatalogRequest);
 	}
 	else
 	{

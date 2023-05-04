@@ -601,8 +601,7 @@ reorderqueue_pop(IndexScanState *node)
 static TupleTableSlot *
 ExecIndexScan(PlanState *pstate)
 {
-	StartSpanIfNotActive(pstate);
-	YBCPushSpanKey(pstate->span_key);
+	VStartSpanIfNotActive(0, pstate);
 	IndexScanState *node = castNode(IndexScanState, pstate);
 
 	/*
@@ -620,7 +619,7 @@ ExecIndexScan(PlanState *pstate)
 		slot = ExecScan(&node->ss,
 						(ExecScanAccessMtd) IndexNext,
 						(ExecScanRecheckMtd) IndexRecheck);
-	YBCPopSpanKey();
+	VPopSpanKey(0);
 	return slot;
 }
 
@@ -920,7 +919,7 @@ ExecEndIndexScan(IndexScanState *node)
 	 */
 	ExecCloseScanRelation(relation);
 
-	EndSpanIfActive(node->ss.ps);
+	VEndSpanIfActive(0, node->ss.ps);
 }
 
 /* ----------------------------------------------------------------

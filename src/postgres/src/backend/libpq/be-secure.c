@@ -149,13 +149,10 @@ secure_read(Port *port, void *ptr, size_t len)
 {
 	ssize_t		n;
 	int			waitfor;
-	uint32_t	retryCounter = 0;
 
 	/* Deal with any already-pending interrupt condition. */
 	ProcessClientReadInterrupt(false);
 
-	if (IsYugaByteEnabled())
-		StartEventSpan("Client Read");
 retry:
 #ifdef USE_SSL
 	waitfor = 0;
@@ -201,11 +198,6 @@ retry:
 		 */
 		if (event.events & WL_POSTMASTER_DEATH)
 		{
-			if (IsYugaByteEnabled())
-			{
-				UInt32EventAttribute("retry.counter", retryCounter);
-				EndEventSpan();
-			}
 			ereport(FATAL,
 					(errcode(ERRCODE_ADMIN_SHUTDOWN),
 					 errmsg("terminating connection due to unexpected postmaster exit")));
@@ -214,11 +206,6 @@ retry:
 		/* Handle interrupt. */
 		if (event.events & WL_LATCH_SET)
 		{
-			if (IsYugaByteEnabled())
-			{
-				UInt32EventAttribute("retry.counter", retryCounter);
-				EndEventSpan();
-			}
 			ResetLatch(MyLatch);
 			ProcessClientReadInterrupt(true);
 
@@ -228,19 +215,7 @@ retry:
 			 * socket to become ready again.
 			 */
 		}
-		retryCounter++;
-		if (IsYugaByteEnabled() && retryCounter == UINT32_MAX)
-		{
-			UInt32EventAttribute("retry.counter", retryCounter);
-			EndEventSpan();
-		}
 		goto retry;
-	}
-
-	if (IsYugaByteEnabled())
-	{
-		UInt32EventAttribute("retry.counter", retryCounter);
-		EndEventSpan();
 	}
 
 	/*
@@ -287,7 +262,7 @@ secure_write(Port *port, void *ptr, size_t len)
 	ProcessClientWriteInterrupt(false);
 
 	if (IsYugaByteEnabled())
-		StartEventSpan("Client Write");
+		VStartEventSpan(0, T_ClientWrite);
 
 retry:
 	waitfor = 0;
@@ -319,8 +294,8 @@ retry:
 		{
 			if (IsYugaByteEnabled())
 			{
-				UInt32EventAttribute("retry.counter", retryCounter);
-				EndEventSpan();
+				VUInt32EventAttribute(0, "retry.counter", retryCounter);
+				VEndEventSpan(0, T_ClientWrite);
 			}
 			ereport(FATAL,
 					(errcode(ERRCODE_ADMIN_SHUTDOWN),
@@ -332,8 +307,8 @@ retry:
 		{
 			if (IsYugaByteEnabled())
 			{
-				UInt32EventAttribute("retry.counter", retryCounter);
-				EndEventSpan();
+				VUInt32EventAttribute(0, "retry.counter", retryCounter);
+				VEndEventSpan(0, T_ClientWrite);
 			}
 			ResetLatch(MyLatch);
 			ProcessClientWriteInterrupt(true);
@@ -347,16 +322,16 @@ retry:
 		retryCounter++;
 		if (IsYugaByteEnabled() && retryCounter == UINT32_MAX)
 		{
-			UInt32EventAttribute("retry.counter", retryCounter);
-			EndEventSpan();
+			VUInt32EventAttribute(0, "retry.counter", retryCounter);
+			VEndEventSpan(0, T_ClientWrite);
 		}
 		goto retry;
 	}
 
 	if (IsYugaByteEnabled())
 	{
-		UInt32EventAttribute("retry.counter", retryCounter);
-		EndEventSpan();
+		VUInt32EventAttribute(0, "retry.counter", retryCounter);
+		VEndEventSpan(0, T_ClientWrite);
 	}
 
 	/*

@@ -162,8 +162,6 @@ MultiExecBitmapAnd(BitmapAndState *node)
 	/* must provide our own instrumentation support */
 	if (node->ps.instrument)
 		InstrStopNode(node->ps.instrument, 0 /* XXX */ );
-
-	YBCPopSpanKey();
 	return (Node *) result;
 }
 
@@ -196,7 +194,6 @@ ExecEndBitmapAnd(BitmapAndState *node)
 		if (bitmapplans[i])
 			ExecEndNode(bitmapplans[i]);
 	}
-	EndSpanIfActive(node->ps);
 }
 
 void

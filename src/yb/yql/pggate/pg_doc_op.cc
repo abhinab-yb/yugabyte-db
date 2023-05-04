@@ -278,17 +278,22 @@ Result<std::list<PgDocResult>> PgDocOp::GetResult() {
     }
 
     DCHECK(response_.Valid());
-    RETURN_NOT_OK(pg_session_->EndQueryEvent(response_.TopSpanKey()));
-    response_.PopSpanKey();
-    PggateStartEventSpan("Storage Read Request");
-    PggateStringEventAttribute("table.name", (*table_).table_name().table_name().c_str());
-    if ((*table_).table_name().has_table_id()) {
-      PggateStringEventAttribute("table.id", (*table_).table_name().table_id().c_str());
+    if (1 <= trace_vars.trace_level) {
+      RETURN_NOT_OK(pg_session_->EndQueryEvent(response_.TopSpanKey()));
+      response_.PopSpanKey();
+    } else if (1 == trace_vars.trace_level + 1) {
+      RETURN_NOT_OK(pg_session_->EndTimer(SpanTimer(T_FlushRead)));
     }
-    PggateStringEventAttribute("server.type", (*table_).id().IsCatalogTableId() ? "MASTER" : "TSERVER");
-    AddSpanLogs(pgsql_ops_.back()->ToString().c_str());
+
+    VStartEventSpan(1, T_ReadRequest);
+    VStringEventAttribute(1, "table.name", (*table_).table_name().table_name().c_str());
+    if ((*table_).table_name().has_table_id()) {
+      VStringEventAttribute(1, "table.id", (*table_).table_name().table_id().c_str());
+    }
+    VStringEventAttribute(1, "server.type", (*table_).id().IsCatalogTableId() ? "MASTER" : "TSERVER");
+    VAddSpanLogs(1, pgsql_ops_.back()->ToString().c_str());
     result = VERIFY_RESULT(ProcessResponse(response_.Get(&read_rpc_wait_time_)));
-    PggateEndEventSpan();
+    VEndEventSpan(1, T_ReadRequest);
     // In case ProcessResponse doesn't fail with an error
     // it should return non empty rows and/or set end_of_data_.
     DCHECK(!result.empty() || end_of_data_);

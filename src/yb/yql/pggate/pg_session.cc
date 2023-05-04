@@ -185,7 +185,7 @@ nostd::shared_ptr<opentelemetry::trace::Span> GetAndEraseSpanFromMap(uint32_t cu
   std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans) {
   assert(spans.find(current_span_key) != spans.end());
   auto span = spans.at(current_span_key);
-  spans.erase(current_span_key);
+  // spans.erase(current_span_key);
   return span;
 }
 
@@ -306,15 +306,20 @@ class PgSession::RunHelper {
                 << ToString(session_type_) << " num ops: " << operations_.size();
     }
 
-    // YBCEndQueryEvent(span_key);
-    YBCStartQueryEvent("Flushing Operations", __FILE__, __LINE__, __func__);
+    if (1 <= trace_vars.trace_level) {
+      YBCStartQueryEvent(SpanName(T_FlushRead), __FILE__, __LINE__, __func__);
+      YBCUInt32SpanAttribute("verbosity", 1, trace_vars.global_span_counter - 1);
+    } else if (1 == trace_vars.trace_level + 1) {
+      YBCIncrementCounterAndStartTimer(SpanCounter(T_FlushRead));
+    }
+
     return pg_session_.Perform(
         std::move(operations_),
         {.use_catalog_session = IsCatalog(),
          .cache_options = std::move(cache_options),
          .in_txn_limit = in_txn_limit_
         },
-        trace_vars.global_span_counter - 1);
+        1 <= trace_vars.trace_level ? trace_vars.global_span_counter - 1 : 0);
   }
 
  private:
@@ -491,7 +496,7 @@ Status PgSession::StartTraceForQuery(const char* query_string, const char* file_
   if (status.ok()) {
     span->SetAttribute(opentelemetry::trace::SemanticConventions::kNetHostName, host_name);
   }
-
+  span->SetAttribute("verbosity", 0);
   InsertSpanToMap(this->spans_, span);
   this->current_span_key_.push(trace_vars.global_span_counter - 1);
   return Status::OK();
@@ -531,14 +536,17 @@ Status PgSession::StartQueryEvent(const char* event_name, const char* file_name,
         options);
 
     InsertSpanToMap(this->spans_, span);
+    // LOG(INFO) << trace_vars.global_span_counter - 1 << " ---------- " << std::string(event_name);
   }
   return Status::OK();
 }
 
 Status PgSession::EndQueryEvent(uint32_t span_key) {
   if (this->query_tracer_) {
+    // LOG(INFO) << span_key << " ---------- END";
     auto span = GetAndEraseSpanFromMap(span_key, spans_);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
+    trace_aggregates_.SetAggregates(span);
     span->End();
   }
   return Status::OK();
@@ -546,6 +554,7 @@ Status PgSession::EndQueryEvent(uint32_t span_key) {
 
 Status PgSession::PushSpanKey(uint32_t span_key) {
   if (this->query_tracer_) {
+    // LOG(INFO) << "Pushing " << span_key;
     this->current_span_key_.push(span_key);
   }
   return Status::OK();
@@ -554,6 +563,7 @@ Status PgSession::PushSpanKey(uint32_t span_key) {
 Status PgSession::PopSpanKey() {
   if (this->query_tracer_) {
     assert(!this->current_span_key_.empty());
+    // LOG(INFO) << "Popping " << this->current_span_key_.top();
     this->current_span_key_.pop();
   }
   return Status::OK();
@@ -600,6 +610,16 @@ Status PgSession::AddLogsToSpan(const char* logs, uint32_t span_key) {
     auto span = this->spans_.at(span_key);
     span->AddEvent(logs);
   }
+  return Status::OK();
+}
+
+Status PgSession::IncrementCounterAndStartTimer(const char* counter) {
+  trace_aggregates_.IncrementCounterAndStartTimer(counter);
+  return Status::OK();
+}
+
+Status PgSession::EndTimer(const char* timer) {
+  trace_aggregates_.EndTimer(timer);
   return Status::OK();
 }
 
@@ -767,6 +787,7 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
         false /* read_only */, txn_priority_requirement));
   }
 
+  // VStartEventSpan(1, "Flushing");
   // In case of flushing of non-transactional operations it is required to set read time with the
   // very first (and all further) request as flushing is done asynchronously (i.e. YSQL may send
   // multiple bunch of operations in parallel). As a result PgClientService is unable to use read
@@ -860,7 +881,6 @@ Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOpti
       caching_info.mutable_lifetime_threshold_ms()->set_value(*cache_options.lifetime_threshold_ms);
     }
   }
-
   pg_client_.PerformAsync(&options, &ops.operations, [promise](const PerformResult& result) {
     promise->set_value(result);
   });

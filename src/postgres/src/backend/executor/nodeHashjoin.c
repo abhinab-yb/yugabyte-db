@@ -164,8 +164,7 @@ static void ExecParallelHashJoinPartitionOuter(HashJoinState *node);
 static pg_attribute_always_inline TupleTableSlot *
 ExecHashJoinImpl(PlanState *pstate, bool parallel)
 {
-	StartSpanIfNotActive(pstate);
-	YBCPushSpanKey(pstate->span_key);
+	VStartSpanIfNotActive(0, pstate);
 	HashJoinState *node = castNode(HashJoinState, pstate);
 	PlanState  *outerNode;
 	HashState  *hashNode;
@@ -265,7 +264,7 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 					if (TupIsNull(node->hj_FirstOuterTupleSlot))
 					{
 						node->hj_OuterNotEmpty = false;
-						YBCPopSpanKey();
+						VPopSpanKey(0);
 						return NULL;
 					}
 					else
@@ -299,7 +298,7 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 				 */
 				if (hashtable->totalTuples == 0 && !HJ_FILL_OUTER(node))
 				{
-					YBCPopSpanKey();
+					VPopSpanKey(0);
 					return NULL;
 				}
 
@@ -472,7 +471,7 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 					if (otherqual == NULL || ExecQual(otherqual, econtext))
 					{
 						TupleTableSlot *result = ExecProject(node->js.ps.ps_ProjInfo);
-						YBCPopSpanKey();
+						VPopSpanKey(0);
 						return result;
 					}
 					else
@@ -530,7 +529,7 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 				if (otherqual == NULL || ExecQual(otherqual, econtext))
 				{
 					TupleTableSlot *result = ExecProject(node->js.ps.ps_ProjInfo);
-					YBCPopSpanKey();
+					VPopSpanKey(0);
 					return result;
 				}
 				else
@@ -546,7 +545,7 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 				{
 					if (!ExecParallelHashJoinNewBatch(node))
 					{
-						YBCPopSpanKey();
+						VPopSpanKey(0);
 						return NULL;	/* end of parallel-aware join */
 					}
 				}
@@ -554,7 +553,7 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 				{
 					if (!ExecHashJoinNewBatch(node))
 					{
-						YBCPopSpanKey();
+						VPopSpanKey(0);
 						return NULL;	/* end of parallel-oblivious join */
 					}
 				}
@@ -566,7 +565,7 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 					 (int) node->hj_JoinState);
 		}
 	}
-	YBCPopSpanKey();
+	VPopSpanKey(0);
 }
 
 /* ----------------------------------------------------------------
@@ -806,7 +805,7 @@ ExecEndHashJoin(HashJoinState *node)
 	ExecEndNode(outerPlanState(node));
 	ExecEndNode(innerPlanState(node));
 
-	EndSpanIfActive(node->js.ps);
+	VEndSpanIfActive(0, node->js.ps);
 }
 
 /*
