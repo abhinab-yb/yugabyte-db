@@ -171,6 +171,8 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt, const char *queryString,
 			es->buffers = defGetBoolean(opt);
 		else if (strcmp(opt->defname, "dist") == 0)
 			es->rpc = defGetBoolean(opt);
+		else if (strcmp(opt->defname, "trace") == 0)
+			es->trace = defGetBoolean(opt);
 		else if (strcmp(opt->defname, "timing") == 0)
 		{
 			timing_set = true;
@@ -233,6 +235,17 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt, const char *queryString,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 				 errmsg("EXPLAIN option DIST requires ANALYZE")));
 
+	if (IsYugaByteEnabled() && !trace_vars.is_tracing_enabled && es->trace)
+	{
+		ResetYbTraceVars();
+		ResetYbCounters();
+		YBCStartTraceForQuery("", __FILE__, __LINE__, __func__);
+		YBCPushSpanKey(trace_vars.global_span_counter - 1);
+		StringEventAttribute("db.statement", queryString);
+		trace_vars.is_tracing_enabled = true;
+		trace_vars.trace_level = 1;
+	}
+
 	/*
 	 * Parse analysis was done already, but we still have to run the rule
 	 * rewriter.  We do not do AcquireRewriteLocks: we assume the query either
@@ -291,6 +304,13 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt, const char *queryString,
 	YBCStringSpanAttribute("explain.plan", es->str->data, 0);
 
 	pfree(es->str->data);
+
+	if (IsYugaByteEnabled() && trace_vars.is_tracing_enabled)
+	{
+		YBCEndTraceForQuery(trace_counters);
+		ResetYbTraceVars();
+		ResetYbCounters();
+	}
 }
 
 /*

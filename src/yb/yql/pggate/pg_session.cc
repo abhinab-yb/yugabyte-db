@@ -185,7 +185,7 @@ nostd::shared_ptr<opentelemetry::trace::Span> GetAndEraseSpanFromMap(uint32_t cu
   std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans) {
   assert(spans.find(current_span_key) != spans.end());
   auto span = spans.at(current_span_key);
-  // spans.erase(current_span_key);
+  spans.erase(current_span_key);
   return span;
 }
 
@@ -515,6 +515,7 @@ Status PgSession::EndTraceForQuery(yb_trace_counters trace_counters) {
     // span->SetAttribute("Catalog Write Requests", trace_counters.catalog_write_requests);
 
     span->End();
+    this->current_span_key_.pop();
     this->query_tracer_ = nullptr;
   }
   return Status::OK();
@@ -546,7 +547,7 @@ Status PgSession::EndQueryEvent(uint32_t span_key) {
     // LOG(INFO) << span_key << " ---------- END";
     auto span = GetAndEraseSpanFromMap(span_key, spans_);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
-    trace_aggregates_.SetAggregates(span);
+    trace_aggregates_.SetAggregates(span, span_key);
     span->End();
   }
   return Status::OK();
@@ -614,12 +615,16 @@ Status PgSession::AddLogsToSpan(const char* logs, uint32_t span_key) {
 }
 
 Status PgSession::IncrementCounterAndStartTimer(const char* counter) {
-  trace_aggregates_.IncrementCounterAndStartTimer(counter);
+  if (this->query_tracer_) {
+    trace_aggregates_.IncrementCounterAndStartTimer(counter, TopSpanKey());
+  }
   return Status::OK();
 }
 
 Status PgSession::EndTimer(const char* timer) {
-  trace_aggregates_.EndTimer(timer);
+  if (this->query_tracer_) {
+    trace_aggregates_.EndTimer(timer, TopSpanKey());
+  }
   return Status::OK();
 }
 
