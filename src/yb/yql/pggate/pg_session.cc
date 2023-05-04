@@ -185,7 +185,7 @@ nostd::shared_ptr<opentelemetry::trace::Span> GetAndEraseSpanFromMap(uint32_t cu
   std::unordered_map<uint32_t, nostd::shared_ptr<opentelemetry::trace::Span>> &spans) {
   assert(spans.find(current_span_key) != spans.end());
   auto span = spans.at(current_span_key);
-  spans.erase(current_span_key);
+  // spans.erase(current_span_key);
   return span;
 }
 
