@@ -449,9 +449,31 @@ void Trace::StartSpan(const std::string& span_name) {
 
 void Trace::EndSpan() {
   if (this->HasSpan()) {
-    this->spans_.top()->End();
+    auto span = this->spans_.top();
     this->spans_.pop();
+    this->trace_aggregates_.SetAggregates(span);
+    span->End();
   }
+}
+
+void Trace::IncrementCounterAndStartTimer(const char* counter) {
+  if (this->HasSpan()) {
+    this->trace_aggregates_.IncrementCounterAndStartTimer(counter);
+  }
+}
+
+void Trace::EndTimer(const char* timer) {
+  if (this->HasSpan()) {
+    this->trace_aggregates_.EndTimer(timer);
+  }
+}
+
+int Trace::GetVerbosity() {
+  return this->verbosity;
+}
+
+void Trace::SetVerbosity(int trace_verbosity) {
+  this->verbosity = trace_verbosity;
 }
 
 PlainTrace::PlainTrace() {

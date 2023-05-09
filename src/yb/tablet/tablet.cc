@@ -52,6 +52,7 @@
 #include "yb/common/transaction.h"
 #include "yb/common/transaction_error.h"
 #include "yb/common/ql_wire_protocol.h"
+#include "yb/common/ybc_util.h"
 
 #include "yb/consensus/consensus.messages.h"
 #include "yb/consensus/log_anchor_registry.h"
@@ -3334,8 +3335,9 @@ Status Tablet::TEST_SwitchMemtable() {
 
 Result<HybridTime> Tablet::DoGetSafeTime(
     RequireLease require_lease, HybridTime min_allowed, CoarseTimePoint deadline) const {
-  TRACE_START_SPAN("DoGetSafeTime");
-  auto se = ScopeExit([] { TRACE_AND_END_SPAN("DoGetSafeTime Done"); });
+  VTRACE_START_SPAN(1, T_SafeTime);
+  auto se = ScopeExit([] { 
+    VTRACE_AND_END_SPAN(1, T_SafeTime); });
 
   if (require_lease == RequireLease::kFalse) {
     return CheckSafeTime(mvcc_.SafeTimeForFollower(min_allowed, deadline), min_allowed);

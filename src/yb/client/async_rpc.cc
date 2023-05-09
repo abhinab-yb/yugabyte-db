@@ -26,6 +26,7 @@
 #include "yb/common/transaction.h"
 #include "yb/common/transaction_error.h"
 #include "yb/common/wire_protocol.h"
+#include "yb/common/ybc_util.h"
 
 #include "yb/gutil/casts.h"
 #include "yb/gutil/strings/substitute.h"
@@ -393,6 +394,11 @@ AsyncRpcBase<Req, Resp>::AsyncRpcBase(
 
     trace_context.set_trace_id(trace_id, kTraceIdSize);
     trace_context.set_span_id(span_id, kSpanIdSize);
+    trace_context.set_verbosity(trace_vars.trace_level);
+    std::ofstream fptr;
+    fptr.open("/home/asaha/code/log.txt", std::ios_base::app);
+    fptr << "setting verbosity: " << trace_vars.trace_level << std::endl;
+    fptr.close();
     LOG(INFO) << "Set trace context. Trace ID: "
               << std::string_view(trace_id, kTraceIdSize)
               << ", Span ID:" << std::string_view(span_id, kSpanIdSize);

@@ -51,6 +51,7 @@
 #include "yb/util/memory/arena_fwd.h"
 #include "yb/util/monotime.h"
 #include "yb/util/otel/trace.h"
+#include "yb/tserver/tserver_flags.h"
 
 DECLARE_bool(use_monotime_for_traces);
 DECLARE_int32(tracing_level);
@@ -118,23 +119,31 @@ DECLARE_int32(tracing_level);
     } \
   } while (0)
 
-#define TRACE_START_SPAN(name) \
+#define VTRACE_START_SPAN(level, tag) \
   do { \
     yb::Trace* _trace = Trace::CurrentTrace(); \
-    if ((_trace)) { \
-      _trace->StartSpan(name); \
+    if ((_trace) && (level) <= _trace->GetVerbosity()) { \
+      _trace->StartSpan(SpanName(tag)); \
+    } else if ((_trace) && (level) == _trace->GetVerbosity() + 1) { \
+      _trace->IncrementCounterAndStartTimer(SpanCounter(tag)); \
     } \
   } while (0)
 
-#define TRACE_AND_END_SPAN(format, substitutions...) \
+#define VTRACE_AND_END_SPAN(level, tag, substitutions...) \
   do { \
     yb::Trace* _trace = Trace::CurrentTrace(); \
-    if ((_trace)) { \
+    if ((_trace) && (level) <= _trace->GetVerbosity()) { \
       _trace->EndSpan(); \
+    } else if ((_trace) && (level) == _trace->GetVerbosity() + 1) { \
+      _trace->EndTimer(SpanTimer(tag)); \
     } \
-    VTRACE(0, (format), ##substitutions); \
   } while (0)
 
+#define TRACE_START_SPAN(tag) \
+  VTRACE_START_SPAN(0, tag)
+
+#define TRACE_AND_END_SPAN(tag, substitutions...) \
+  VTRACE_AND_END_SPAN(0, tag, substitutions...)
 
 namespace yb {
 
@@ -251,6 +260,10 @@ class Trace : public RefCountedThreadSafe<Trace> {
   bool HasSpan() const {return !this->spans_.empty() && this->spans_.top()->GetContext().IsValid();}
   void StartSpan(const std::string& span_name);
   void EndSpan();
+  void IncrementCounterAndStartTimer(const char* counter);
+  void EndTimer(const char* timer);
+  int GetVerbosity();
+  void SetVerbosity(int trace_verbosity);
 
  private:
   friend class ScopedAdoptTrace;
@@ -290,6 +303,7 @@ class Trace : public RefCountedThreadSafe<Trace> {
 
   std::stack<nostd::shared_ptr<trace_api::Span>> spans_;
   TraceAggregates trace_aggregates_;
+  int verbosity;
 
   DISALLOW_COPY_AND_ASSIGN(Trace);
 };

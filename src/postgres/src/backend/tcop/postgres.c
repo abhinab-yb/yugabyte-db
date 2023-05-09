@@ -1095,6 +1095,13 @@ exec_simple_query(const char *query_string)
 		 */
 		oldcontext = MemoryContextSwitchTo(MessageContext);
 
+		if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
+		{
+			YBCStartTraceForQuery(query_string);
+			trace_vars.is_tracing_enabled = true;
+			trace_vars.trace_level = pg_atomic_read_u32(&MyProc->trace_level);
+		}
+
 		if( IsYugaByteEnabled()) /* Remove this? if tracing is enabled for query and not session, we cannot trace it*/
 			YBCStartQueryEvent("analyze_and_rewrite");
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
@@ -5233,13 +5240,6 @@ PostgresMain(int argc, char *argv[],
 		 * (3) read a command (loop blocks here)
 		 */
 		firstchar = ReadCommand(&input_message);
-
-		if (IsYugaByteEnabled() && pg_atomic_read_u32(&MyProc->is_yb_tracing_enabled))
-		{
-			YBCStartTraceForQuery(query_string);
-			trace_vars.is_tracing_enabled = true;
-			trace_vars.trace_level = pg_atomic_read_u32(&MyProc->trace_level);
-		}
 
 		/*
 		 * (4) disable async signal conditions again.

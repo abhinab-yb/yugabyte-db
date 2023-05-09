@@ -100,6 +100,7 @@ class YBTransaction : public std::enable_shared_from_this<YBTransaction> {
 
   Trace *trace();
   void EnsureTraceCreated(nostd::shared_ptr<trace_api::Span> parent);
+  void SetTraceVerbosity(int verbosity);
   void SetPriority(uint64_t priority);
 
   uint64_t GetPriority() const;

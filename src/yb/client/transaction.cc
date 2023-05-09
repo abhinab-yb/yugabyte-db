@@ -287,6 +287,10 @@ class YBTransaction::Impl final : public internal::TxnBatcherIf {
     }
   }
 
+  void SetTraceVerbosity(int verbosity) {
+    trace()->SetVerbosity(verbosity);
+  }
+
   uint64_t GetPriority() const {
     return metadata_.priority;
   }
@@ -1337,6 +1341,7 @@ class YBTransaction::Impl final : public internal::TxnBatcherIf {
     if (trace_ && trace_->HasSpan() && trace_->GetSpan()->GetContext().IsValid()) {
       trace_->GetSpan()->End();
     }
+    // VTRACE_AND_END_SPAN(1, T_Transaction);
 
     auto old_status_tablet_state = old_status_tablet_state_.load(std::memory_order_acquire);
     if (old_status_tablet_state == OldTransactionState::kAborting) {
@@ -2327,6 +2332,10 @@ Trace* YBTransaction::trace() {
 
 void YBTransaction::EnsureTraceCreated(nostd::shared_ptr<trace_api::Span> span) {
   return impl_->EnsureTraceCreated(span);
+}
+
+void YBTransaction::SetTraceVerbosity(int verbosity) {
+  return impl_->SetTraceVerbosity(verbosity);
 }
 
 void YBTransaction::SetActiveSubTransaction(SubTransactionId id) {

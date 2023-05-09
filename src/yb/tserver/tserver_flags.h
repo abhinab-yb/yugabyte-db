@@ -17,3 +17,13 @@
 
 DECLARE_string(tserver_master_addrs);
 DECLARE_uint64(tserver_master_replication_factor);
+
+typedef struct
+{
+  bool      is_tracing_enabled;
+  int64_t   query_id;
+  uint32_t  global_span_counter;
+  uint32_t  trace_level;
+} yb_tserver_trace_vars;
+
+extern yb_tserver_trace_vars tserver_trace_vars;

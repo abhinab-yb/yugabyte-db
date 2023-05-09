@@ -26,3 +26,5 @@ DEFINE_UNKNOWN_uint64(tserver_master_replication_factor, 0,
     "but could be specified explicitly together with passing one or more master service domain "
     "name and port through tserver_master_addrs for masters auto-discovery when running on "
     "Kubernetes.");
+
+yb_tserver_trace_vars tserver_trace_vars;

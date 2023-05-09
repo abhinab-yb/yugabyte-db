@@ -232,6 +232,28 @@ void YBCInitThreading();
 
 double YBCEvalHashValueSelectivity(int32_t hash_low, int32_t hash_high);
 
+typedef enum SpanTag {
+  T_Planning = 0,
+  T_Execution,
+  T_ReadRequest,
+  T_WriteRequest,
+  T_CatalogRequest,
+  T_FlushRead,
+  T_FlushWrite,
+  T_ClientWrite,
+  T_Sorting,
+  T_CreateFile,
+  T_CloseFile,
+  T_ConflictResolver,
+  T_SafeTime,
+  T_QueueOutboundCall,
+  T_Transaction
+} SpanTag;
+
+extern const char* SpanName(SpanTag tag);
+extern const char* SpanCounter(SpanTag tag);
+extern const char* SpanTimer(SpanTag tag);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

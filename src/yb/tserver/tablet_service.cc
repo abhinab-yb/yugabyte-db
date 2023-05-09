@@ -87,6 +87,7 @@
 #include "yb/tserver/tablet_server.h"
 #include "yb/tserver/ts_tablet_manager.h"
 #include "yb/tserver/tserver_error.h"
+#include "yb/tserver/tserver_flags.h"
 
 #include "yb/tserver/xcluster_safe_time_map.h"
 #include "yb/util/backoff_waiter.h"
@@ -1925,6 +1926,12 @@ Status TabletServiceImpl::PerformWrite(
     auto span = StartSpanFromParentId(
         req->trace_context().trace_id(), req->trace_context().span_id(), "Write");
     context->EnsureTraceCreated(span);
+    std::ofstream fptr;
+    fptr.open("/home/asaha/code/log.txt", std::ios_base::app);
+    fptr << "Write query verbosity: " << req->trace_context().verbosity() << std::endl;
+    fptr.close();
+    context->SetTraceVerbosity(req->trace_context().verbosity());
+    tserver_trace_vars.trace_level = req->trace_context().verbosity();
   } else if (req->include_trace()) {
     context->EnsureTraceCreated();
   }

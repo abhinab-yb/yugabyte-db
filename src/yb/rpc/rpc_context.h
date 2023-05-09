@@ -204,6 +204,8 @@ class RpcContext {
   void EnsureTraceCreated();
   void EnsureTraceCreated(nostd::shared_ptr<trace_api::Span>& span);
 
+  void SetTraceVerbosity(int verbosity);
+
   // Send a response to the call. The service may call this method
   // before or after returning from the original handler method,
   // and it may call this method from a different thread.

@@ -21,6 +21,7 @@
 #include "yb/common/transaction.pb.h"
 #include "yb/common/transaction_error.h"
 #include "yb/common/transaction_priority.h"
+#include "yb/common/ybc_util.h"
 #include "yb/dockv/doc_key.h"
 #include "yb/docdb/docdb.h"
 #include "yb/docdb/docdb.messages.h"
@@ -37,6 +38,7 @@
 #include "yb/util/scope_exit.h"
 #include "yb/util/status_format.h"
 #include "yb/util/trace.h"
+#include "yb/tserver/tserver_flags.h"
 
 using namespace std::literals;
 using namespace std::placeholders;
@@ -1215,7 +1217,7 @@ Status ResolveTransactionConflicts(const DocOperations& doc_ops,
                                    ResolutionCallback callback) {
   DCHECK(resolution_ht.is_valid());
   TRACE_FUNC();
-  TRACE_START_SPAN("conflict resolver");
+  VTRACE_START_SPAN(1, T_ConflictResolver);
 
   VLOG_WITH_FUNC(3) << "conflict_management_policy=" << conflict_management_policy;
   auto context = std::make_unique<TransactionConflictResolverContext>(

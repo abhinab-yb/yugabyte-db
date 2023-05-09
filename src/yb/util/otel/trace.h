@@ -36,6 +36,7 @@
 #include <string>
 #include <map>
 #include <stack>
+#include <fstream>
 
 #include "opentelemetry/nostd/shared_ptr.h"
 #include "opentelemetry/trace/provider.h"
@@ -86,7 +87,11 @@ class TraceAggregates {
 
     void SetAggregates(nostd::shared_ptr<opentelemetry::trace::Span> span) {
         for (auto [aggregate_key, aggregate_value] : this->trace_aggregates_) {
-            span->SetAttribute(aggregate_key, std::to_string(aggregate_value) + "ms");
+            span->SetAttribute(aggregate_key, aggregate_value);
+            std::ofstream fptr;
+            fptr.open("/home/asaha/code/log.txt", std::ios_base::app);
+            fptr << aggregate_key << " ---------- " << aggregate_value << std::endl;
+            fptr.close();
         }
         this->trace_aggregates_.clear();
     }

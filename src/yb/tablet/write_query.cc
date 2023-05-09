@@ -24,6 +24,7 @@
 #include "yb/common/index.h"
 #include "yb/common/row_mark.h"
 #include "yb/common/schema.h"
+#include "yb/common/ybc_util.h"
 
 #include "yb/docdb/conflict_resolution.h"
 #include "yb/docdb/consensus_frontier.h"
@@ -574,11 +575,11 @@ Status WriteQuery::DoExecute() {
       [this](const Result<HybridTime>& result) {
         if (!result.ok()) {
           ExecuteDone(result.status());
-          TRACE_AND_END_SPAN("ExecuteDone");
+          VTRACE_AND_END_SPAN(1, T_ConflictResolver);
           return;
         }
         TransactionalConflictsResolved();
-        TRACE_AND_END_SPAN("TransactionalConflictsResolved");
+        VTRACE_AND_END_SPAN(1, T_ConflictResolver);
       });
 }
 

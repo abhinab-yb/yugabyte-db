@@ -127,6 +127,10 @@ void InboundCall::EnsureTraceCreated(nostd::shared_ptr<trace_api::Span>& span) {
   TRACE_TO(trace, "Trace Created");
 }
 
+void InboundCall::SetTraceVerbosity(int verbosity) {
+  trace()->SetVerbosity(verbosity);
+}
+
 const Endpoint& InboundCall::remote_address() const {
   CHECK_NOTNULL(conn_.get());
   return conn_->remote();

@@ -840,7 +840,7 @@ void Reactor::QueueOutboundCall(OutboundCallPtr call) {
       << scheduling_status;
   }
   TRACE_TO(call->trace(), "Scheduled.");
-  TRACE_START_SPAN("QueueOutboundCall");
+  // VTRACE_START_SPAN(1, T_QueueOutboundCall);
 }
 
 void Reactor::RegisterInboundSocket(

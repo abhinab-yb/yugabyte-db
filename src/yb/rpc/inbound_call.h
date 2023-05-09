@@ -217,8 +217,10 @@ class InboundCall : public RpcCall, public MPSCQueueEntry<InboundCall> {
 
   // For requests that have requested traces to be collected, we will ensure
   // that trace_ is not null and can be used for collecting the requested data.
-    void EnsureTraceCreated() EXCLUDES(mutex_);
+  void EnsureTraceCreated() EXCLUDES(mutex_);
   void EnsureTraceCreated(nostd::shared_ptr<trace_api::Span>& span) EXCLUDES(mutex_);
+
+  void SetTraceVerbosity(int verbosity);
 
  protected:
   ThreadPoolTask* BindTask(InboundCallHandler* handler, int64_t rpc_queue_limit);

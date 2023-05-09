@@ -42,6 +42,7 @@
 #include "yb/common/row_mark.h"
 #include "yb/common/schema.h"
 #include "yb/common/transaction_error.h"
+#include "yb/common/ybc_util.h"
 
 #include "yb/gutil/casts.h"
 
@@ -676,6 +677,7 @@ void PgSession::SetTraceContext(
 
   trace_context.set_trace_id(trace_id, kTraceIdSize);
   trace_context.set_span_id(span_id, kSpanIdSize);
+  trace_context.set_verbosity(trace_vars.trace_level);
   LOG(INFO) << "Set trace context. Trace ID: "
             << std::string_view(trace_id, kTraceIdSize)
             << ", Span ID:" << std::string_view(span_id, kSpanIdSize);

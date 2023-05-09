@@ -229,6 +229,10 @@ void RpcContext::EnsureTraceCreated(nostd::shared_ptr<trace_api::Span>& span) {
   return call_->EnsureTraceCreated(span);
 }
 
+void RpcContext::SetTraceVerbosity(int verbosity) {
+  return call_->SetTraceVerbosity(verbosity);
+}
+
 void RpcContext::Panic(const char* filepath, int line_number, const string& message) {
   // Use the LogMessage class directly so that the log messages appear to come from
   // the line of code which caused the panic, not this code.

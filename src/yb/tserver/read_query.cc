@@ -15,6 +15,7 @@
 
 #include "yb/common/row_mark.h"
 #include "yb/common/transaction.h"
+#include "yb/common/ybc_util.h"
 
 #include "yb/gutil/bind.h"
 
@@ -32,6 +33,7 @@
 #include "yb/tserver/tablet_server_interface.h"
 #include "yb/tserver/ts_tablet_manager.h"
 #include "yb/tserver/tserver.pb.h"
+#include "yb/tserver/tserver_flags.h"
 
 #include "yb/util/countdown_latch.h"
 #include "yb/util/debug/trace_event.h"
@@ -210,6 +212,12 @@ Status ReadQuery::DoPerform() {
     auto span = StartSpanFromParentId(
         req_->trace_context().trace_id(), req_->trace_context().span_id(), "Read");
     context_.EnsureTraceCreated(span);
+    std::ofstream fptr;
+    fptr.open("/home/asaha/code/log.txt", std::ios_base::app);
+    fptr << "Read query verbosity: " << req_->trace_context().verbosity() << std::endl;
+    fptr.close();
+    context_.SetTraceVerbosity(req_->trace_context().verbosity());
+    tserver_trace_vars.trace_level = req_->trace_context().verbosity();
   } else if (req_->include_trace()) {
     context_.EnsureTraceCreated();
   }

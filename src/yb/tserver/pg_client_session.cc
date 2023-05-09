@@ -31,6 +31,7 @@
 #include "yb/common/transaction_error.h"
 #include "yb/common/schema.h"
 #include "yb/common/wire_protocol.h"
+#include "yb/common/ybc_util.h"
 
 #include "yb/rpc/lightweight_message.h"
 #include "yb/rpc/rpc_context.h"
@@ -905,6 +906,15 @@ Status PgClientSession::Perform(
     span = StartSpanFromParentId(
         options.trace_context().trace_id(), options.trace_context().span_id(), "PerformRequest");
     LOG_WITH_PREFIX_AND_FUNC(INFO) << "Created a span from a parent";
+    // tserver_trace_vars.trace_level = options.trace_context().verbosity();
+    // std::ofstream fptr;
+    // fptr.open("/home/asaha/code/log.txt", std::ios_base::app);
+    // fptr << "PG Client Session Perform"  << options.trace_context().verbosity() << " ---- " << tserver_trace_vars.trace_level << std::endl;
+    // fptr.close();
+    std::ofstream fptr;
+    fptr.open("/home/asaha/code/log.txt", std::ios_base::app);
+    fptr << "Perform verbosity: " << options.trace_context().verbosity() << std::endl;
+    fptr.close();
   }
   auto data = std::make_shared<RpcPerformQuery>(id_, &table_cache_, req, resp, context, span);
   auto status = DoPerform(data, data->context.GetClientDeadline(), &data->context);
@@ -946,9 +956,11 @@ Status PgClientSession::DoPerform(const DataPtr& data, CoarseTimePoint deadline,
   if (context) {
     if (options.trace_requested()) {
       context->EnsureTraceCreated(data->span);
+      context->SetTraceVerbosity(options.trace_context().verbosity());
       if (transaction) {
         auto transaction_span = StartSpan("transaction", data->span->GetContext());
         transaction->EnsureTraceCreated(transaction_span);
+        transaction->SetTraceVerbosity(options.trace_context().verbosity());
         context->trace()->AddChildTrace(transaction->trace());
         transaction->trace()->set_must_print(true);
         LOG(INFO) << "Transaction Span created: " << transaction->trace();
