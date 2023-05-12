@@ -1341,7 +1341,7 @@ class YBTransaction::Impl final : public internal::TxnBatcherIf {
     if (trace_ && trace_->HasSpan() && trace_->GetSpan()->GetContext().IsValid()) {
       trace_->GetSpan()->End();
     }
-    // VTRACE_AND_END_SPAN(1, T_Transaction);
+    VTRACE_AND_END_SPAN(0, T_Transaction);
 
     auto old_status_tablet_state = old_status_tablet_state_.load(std::memory_order_acquire);
     if (old_status_tablet_state == OldTransactionState::kAborting) {

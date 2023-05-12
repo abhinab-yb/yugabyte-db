@@ -578,4 +578,5 @@ message TraceContext {
 	required string trace_id = 1;
 	required string span_id = 2;
   required uint32 verbosity = 3;
+  optional bool last_request = 4;
 }

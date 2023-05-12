@@ -316,10 +316,29 @@ class RpcContext {
 
   std::string ToString() const;
 
+  bool GetStartSpan() {
+    return start_span_;
+  }
+
+  bool GetEndSpan() {
+    return end_span_;
+  }
+
+  void SetStartSpan(bool start_span) {
+    start_span_ = start_span;
+  }
+
+  void SetEndSpan(bool end_span) {
+    end_span_ = end_span;
+  }
+
  private:
   std::shared_ptr<YBInboundCall> call_;
   std::shared_ptr<RpcCallParams> params_;
   bool responded_ = false;
+
+  bool start_span_ = true;
+  bool end_span_ = false;
 };
 
 void PanicRpc(RpcContext* context, const char* file, int line_number, const std::string& message);

@@ -47,7 +47,7 @@ struct BufferableOperations {
 
 class PgOperationBuffer {
  public:
-  using Flusher = std::function<Result<PerformFuture>(BufferableOperations, bool)>;
+  using Flusher = std::function<Result<PerformFuture>(BufferableOperations, bool, bool)>;
 
   PgOperationBuffer(const Flusher& flusher, const BufferingSettings& buffering_settings);
   ~PgOperationBuffer();

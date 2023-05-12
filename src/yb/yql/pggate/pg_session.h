@@ -366,7 +366,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
 
  private:
   Result<PgTableDescPtr> DoLoadTable(const PgObjectId& table_id, bool fail_on_cache_hit);
-  Result<PerformFuture> FlushOperations(BufferableOperations ops, bool transactional);
+  Result<PerformFuture> FlushOperations(BufferableOperations ops, bool transactional, bool last_request);
 
   class RunHelper;
 
@@ -381,7 +381,7 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
       TraceContext& trace_context,
       const nostd::shared_ptr<trace_api::Span>& parent);
 
-  Result<PerformFuture> Perform(BufferableOperations&& ops, PerformOptions&& options);
+  Result<PerformFuture> Perform(BufferableOperations&& ops, PerformOptions&& options, bool last_request = false);
 
   void ProcessPerformOnTxnSerialNo(
       uint64_t txn_serial_no,

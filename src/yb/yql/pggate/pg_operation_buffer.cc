@@ -288,7 +288,7 @@ class PgOperationBuffer::Impl {
   }
 
   Status DoFlush() {
-    RETURN_NOT_OK(SendBuffer());
+    RETURN_NOT_OK(SendBuffer(true));
     return EnsureAllCompleted();
   }
 
@@ -334,15 +334,15 @@ class PgOperationBuffer::Impl {
 
   using SendInterceptor = LWFunction<bool(BufferableOperations*, bool)>;
 
-  Status SendBuffer() {
-    return SendBufferImpl(nullptr /* interceptor */);
+  Status SendBuffer(bool last_request = false) {
+    return SendBufferImpl(nullptr /* interceptor */, last_request);
   }
 
   Status SendBuffer(const SendInterceptor& interceptor) {
     return SendBufferImpl(&interceptor);
   }
 
-  Status SendBufferImpl(const SendInterceptor* interceptor) {
+  Status SendBufferImpl(const SendInterceptor* interceptor, bool last_request = false) {
     if (keys_.empty()) {
       return Status::OK();
     }
@@ -355,10 +355,10 @@ class PgOperationBuffer::Impl {
 
     const auto ops_count = keys.size();
     bool ops_sent = VERIFY_RESULT(SendOperations(
-      interceptor, std::move(txn_ops), true /* transactional */, ops_count));
+      interceptor, std::move(txn_ops), true /* transactional */, ops_count, last_request));
     ops_sent = VERIFY_RESULT(SendOperations(
       interceptor, std::move(ops),
-      false /* transactional */, ops_sent ? 0 : ops_count)) || ops_sent;
+      false /* transactional */, ops_sent ? 0 : ops_count, last_request)) || ops_sent;
     if (ops_sent) {
       in_flight_ops_.back().keys = std::move(keys);
     }
@@ -368,7 +368,8 @@ class PgOperationBuffer::Impl {
   Result<bool> SendOperations(const SendInterceptor* interceptor,
                               BufferableOperations ops,
                               bool transactional,
-                              size_t ops_count) {
+                              size_t ops_count,
+                              bool last_request = false) {
     if (!ops.empty() && !(interceptor && (*interceptor)(&ops, transactional))) {
       EnsureCapacity(&in_flight_ops_, buffering_settings_);
       // In case max_in_flight_operations < max_batch_size, the number of in-flight operations will
@@ -384,7 +385,7 @@ class PgOperationBuffer::Impl {
         RETURN_NOT_OK(EnsureCompleted(1));
       }
       in_flight_ops_.push_back(
-        InFlightOperation(VERIFY_RESULT(flusher_(std::move(ops), transactional))));
+        InFlightOperation(VERIFY_RESULT(flusher_(std::move(ops), transactional, last_request))));
       return true;
     }
     return false;

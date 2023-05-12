@@ -341,7 +341,7 @@ PgSession::PgSession(
       pg_txn_manager_(std::move(pg_txn_manager)),
       clock_(std::move(clock)),
       buffer_(std::bind(
-          &PgSession::FlushOperations, this, std::placeholders::_1, std::placeholders::_2),
+          &PgSession::FlushOperations, this, std::placeholders::_1, std::placeholders::_2, false),
           buffering_settings_),
       pg_callbacks_(pg_callbacks) {
       Update(&buffering_settings_);
@@ -640,7 +640,7 @@ Result<bool> PgSession::IsInitDbDone() {
   return pg_client_.IsInitDbDone();
 }
 
-Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool transactional) {
+Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool transactional, bool last_request) {
   if (PREDICT_FALSE(yb_debug_log_docdb_requests)) {
     LOG(INFO) << "Flushing buffered operations, using "
               << (transactional ? "transactional" : "non-transactional")
@@ -662,7 +662,7 @@ Result<PerformFuture> PgSession::FlushOperations(BufferableOperations ops, bool 
   // multiple bunch of operations in parallel). As a result PgClientService is unable to use read
   // time from remote t-server or generate its own.
   return Perform(
-      std::move(ops), {.ensure_read_time_is_set = EnsureReadTimeIsSet(!transactional)});
+      std::move(ops), {.ensure_read_time_is_set = EnsureReadTimeIsSet(!transactional)}, last_request);
 }
 
 void PgSession::SetTraceContext(
@@ -683,7 +683,7 @@ void PgSession::SetTraceContext(
             << ", Span ID:" << std::string_view(span_id, kSpanIdSize);
 }
 
-Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOptions&& ops_options) {
+Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOptions&& ops_options, bool last_request) {
   DCHECK(!ops.empty());
   tserver::PgPerformOptionsPB options;
   if (ops_options.use_catalog_session) {
@@ -741,6 +741,7 @@ Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOpti
   if (pg_txn_manager_->ShouldEnableTracing() && !this->spans_.empty()) {
     auto& trace_context = *options.mutable_trace_context();
     SetTraceContext(trace_context, this->spans_.top());
+    trace_context.set_last_request(last_request);
   }
 
   if (ops_options.cache_options) {
@@ -751,6 +752,7 @@ Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOpti
       caching_info.mutable_lifetime_threshold_ms()->set_value(*cache_options.lifetime_threshold_ms);
     }
   }
+
 
   pg_client_.PerformAsync(&options, &ops.operations, [promise](const PerformResult& result) {
     promise->set_value(result);
