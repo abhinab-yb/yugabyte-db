@@ -1029,3 +1029,71 @@ pg_get_replica_identity_index(PG_FUNCTION_ARGS)
 	else
 		PG_RETURN_NULL();
 }
+
+Datum
+yb_pg_enable_tracing(PG_FUNCTION_ARGS)
+{
+	int pid = PG_ARGISNULL(0) ? MyProcPid : PG_GETARG_INT32(0);
+	bool is_queryid_null = PG_ARGISNULL(1);
+	int64 queryid = is_queryid_null ? 0 : PG_GETARG_INT64(1);
+	float sample_rate = PG_GETARG_INT32(2);
+
+	if (sample_rate < 0 || sample_rate > 1)
+		ereport(ERROR,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("sample_rate should be between 0 and 1")));
+
+	if (pid < 0)
+	{
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Backend with the given pid doesn't exist")));
+		PG_RETURN_BOOL(false);
+	}
+
+	int result = SignalOtelTracing(1, pid, queryid, is_queryid_null, sample_rate);
+
+	if (result == -2)
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Query tracing limit reached in one of the backends")));
+	else if (result == -1)
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Backend with the given pid doesn't exist")));
+	else if (result == 1)
+		PG_RETURN_BOOL(true);
+
+	PG_RETURN_BOOL(false);
+}
+
+Datum
+yb_pg_disable_tracing(PG_FUNCTION_ARGS)
+{
+	int pid = PG_ARGISNULL(0) ? MyProcPid : PG_GETARG_INT32(0);
+	bool is_queryid_null = PG_ARGISNULL(1);
+	int64 queryid = is_queryid_null ? 0 : PG_GETARG_INT64(1);
+
+	if (pid < 0)
+	{
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Backend with the given pid doesn't exist")));
+		PG_RETURN_BOOL(false);
+	}
+
+	int result = SignalOtelTracing(0, pid, queryid, is_queryid_null, 0);
+
+	if (result == -2)
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Query with the given id didn't have tracing enabled in any of the backend(s)")));
+	else if (result == -1)
+		ereport(WARNING,
+					(ERRCODE_INVALID_PARAMETER_VALUE,
+					errmsg("Backend with the given pid doesn't exist")));
+	else if (result == 1)
+		PG_RETURN_BOOL(true);
+
+	PG_RETURN_BOOL(false);
+}

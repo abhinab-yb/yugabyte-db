@@ -1282,6 +1282,20 @@ LANGUAGE INTERNAL
 STRICT STABLE PARALLEL SAFE
 AS 'yb_is_database_colocated';
 
+CREATE OR REPLACE FUNCTION
+  yb_pg_enable_tracing(pid int4 DEFAULT NULL, queryid int8 DEFAULT NULL, sample_rate float4 DEFAULT 0.001)
+RETURNS boolean
+LANGUAGE INTERNAL
+STABLE PARALLEL SAFE
+AS 'yb_pg_enable_tracing';
+
+CREATE OR REPLACE FUNCTION
+  yb_pg_disable_tracing(pid int4 DEFAULT NULL, queryid int8 DEFAULT NULL)
+RETURNS boolean
+LANGUAGE INTERNAL
+STABLE PARALLEL SAFE
+AS 'yb_pg_disable_tracing';
+
 --
 -- The default permissions for functions mean that anyone can execute them.
 -- A number of functions shouldn't be executable by just anyone, but rather

@@ -439,6 +439,13 @@ InitProcess(void)
 
 	MyProc->ybAnyLockAcquired = false;
 
+	/* Initialize traceableQueries array */
+	MyProc->isOtelTracingEnabled = 0;
+	MyProc->traceSampleRate = 0;
+	MyProc->numQueries = 0;
+	MyProc->traceableQueries = (OtelTraceableQueries *) ShmemAlloc(
+				MAX_TRACEABLE_QUERIES * sizeof(OtelTraceableQueries));
+
 	/*
 	 * Acquire ownership of the PGPROC's latch, so that we can use WaitLatch
 	 * on it.  That allows us to repoint the process latch, which so far

@@ -76,6 +76,20 @@ struct XidCache
  */
 #define INVALID_PGPROCNO		PG_INT32_MAX
 
+/* 
+ * This is the maximum number of queries that can be traced from each backend.
+ */
+#define MAX_TRACEABLE_QUERIES	100
+
+/*
+ * This struct is used to store 'queryid' and the 'sample_rate' together.
+ * 'verbosity' will also be added later.
+ */
+typedef struct OtelTraceableQueries {
+	int64 queryid;
+	float sample_rate;
+} OtelTraceableQueries;
+
 /*
  * Each backend has a PGPROC struct in shared memory.  There is also a list of
  * currently-unused PGPROC structs that will be reallocated to new backends.
@@ -211,6 +225,20 @@ struct PGPROC
 	 * pg_buffercache extension locks all buffer partitions simultaneously.
 	 */
 	bool 		ybAnyLockAcquired;
+
+	/*
+	 * These variables controls the opentelemetry tracing for the entrire
+	 * session. If isOtelTracingEnabled is non-zero, all the querys for 
+	 * this backend will be traced. traceSampleRate controls
+	 */
+	bool		isOtelTracingEnabled;
+	float		traceSampleRate;
+
+	/*
+	 * List of query ids to be traced. 
+	 */
+	int 		numQueries;
+	OtelTraceableQueries* traceableQueries;
 };
 
 /* NOTE: "typedef struct PGPROC PGPROC" appears in storage/lock.h. */

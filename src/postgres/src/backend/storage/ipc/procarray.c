@@ -4132,3 +4132,157 @@ KnownAssignedXidsReset(void)
 
 	LWLockRelease(ProcArrayLock);
 }
+
+int
+SignalOtelTracingWithoutQueryId(uint32 signal, int pid, float sample_rate)
+{
+	ProcArrayStruct *arrayP = procArray;
+	int 		index;
+	bool 		is_tracing_toggled = false;
+	bool 		backend_found = pid ? false : true;
+
+	LWLockAcquire(ProcArrayLock, LW_SHARED);
+	for (index = 0; index < arrayP->numProcs; index++)
+	{
+		int			pgprocno = arrayP->pgprocnos[index];
+		volatile PGPROC *proc = &allProcs[pgprocno];
+
+		if (proc->pid == 0)
+			continue;	/* ignore prepared xacts */
+		if (proc->isBackgroundWorker)
+			continue;	/* ignore background workers*/
+
+		if (pid == 0 || proc->pid == pid)
+		{
+			LWLockAcquire((LWLock *)&proc->backendLock, LW_EXCLUSIVE);
+			proc->isOtelTracingEnabled = signal;
+			proc->traceSampleRate = sample_rate ;
+			is_tracing_toggled = true;
+
+			if (!signal)
+			{
+				proc->numQueries = 0; /* Reset traceableQueries when disabling tracing */
+			}
+			LWLockRelease((LWLock *)&proc->backendLock);
+
+			if (pid != 0)
+			{
+				backend_found = true;
+				break;
+			}
+		}
+	}
+	LWLockRelease(ProcArrayLock);
+
+	if (!backend_found)
+		return -1; /* Backend doesn't exist */
+
+	return is_tracing_toggled;
+}
+
+bool
+AddQueryId(int64 queryid, float sample_rate, int pgprocno)
+{
+	PGPROC *proc = &allProcs[pgprocno];
+	int 		traceable_index;
+	bool 		query_tracing_limit_reached = true;
+
+	LWLockAcquire((LWLock *)&proc->backendLock, LW_EXCLUSIVE);
+	for (traceable_index = 0; traceable_index < proc->numQueries; traceable_index++)
+	{
+		if (proc->traceableQueries[traceable_index].queryid == queryid)
+		{
+			proc->traceableQueries[proc->numQueries].sample_rate = sample_rate;
+			query_tracing_limit_reached = false;
+			break;
+		}
+	}
+	if (query_tracing_limit_reached)
+	{
+		if (proc->numQueries != MAX_TRACEABLE_QUERIES)
+		{
+			proc->traceableQueries[proc->numQueries].queryid = queryid;
+			proc->traceableQueries[proc->numQueries].sample_rate = sample_rate;
+			proc->numQueries++;
+			query_tracing_limit_reached = false;
+		}
+	}
+	LWLockRelease((LWLock *)&proc->backendLock);
+
+	return !query_tracing_limit_reached;
+}
+
+bool
+RemoveQueryId(int64 queryid, int pgprocno)
+{
+	PGPROC *proc = &allProcs[pgprocno];
+	int 		traceable_index;
+	bool 		query_already_disabled = true;
+
+	LWLockAcquire((LWLock *)&proc->backendLock, LW_EXCLUSIVE);
+	for (traceable_index = 0; traceable_index < proc->numQueries; traceable_index++)
+	{
+		if (proc->traceableQueries[traceable_index].queryid == queryid)
+		{
+			memmove(&proc->traceableQueries[traceable_index],
+					&proc->traceableQueries[traceable_index + 1],
+					(proc->numQueries - traceable_index - 1) * sizeof(uint64));
+			proc->numQueries--;
+			query_already_disabled = false;
+			break;
+		}
+	}
+	LWLockRelease((LWLock *)&proc->backendLock);
+
+	return !query_already_disabled;
+}
+
+int
+SignalOtelTracingWithQueryId(uint32 signal, int pid, int64 queryid, float sample_rate)
+{
+	ProcArrayStruct *arrayP = procArray;
+	int 		index;
+	int 		pgprocno;
+	bool 		backend_found = pid ? false : true;
+	bool 		is_tracing_toggled = signal ? true : false;
+
+	LWLockAcquire(ProcArrayLock, LW_SHARED);
+	for (index = 0; index < arrayP->numProcs; index++)
+	{
+		pgprocno = arrayP->pgprocnos[index];
+		volatile PGPROC *proc = &allProcs[pgprocno];
+
+		if (proc->pid == 0)
+			continue;	/* ignore prepared xacts */
+		if (proc->isBackgroundWorker)
+			continue;	/* ignore background workers*/
+
+		if (pid == 0 || proc->pid == pid)
+		{
+			if (signal)
+				is_tracing_toggled &= AddQueryId(queryid, sample_rate, pgprocno);
+			else
+				is_tracing_toggled |= RemoveQueryId(queryid, pgprocno);
+
+			if (pid != 0)
+			{
+				backend_found = true;
+				break;	
+			}
+		}
+	}
+	LWLockRelease(ProcArrayLock);
+
+	if (!backend_found)
+		return -1; /* Backend doesn't exist */
+
+	return is_tracing_toggled ? is_tracing_toggled : -2;
+}
+
+int
+SignalOtelTracing(uint32 signal, int pid, int64 queryid, bool is_queryid_null, 
+				  float sample_rate)
+{
+	return (is_queryid_null ? SignalOtelTracingWithoutQueryId(signal, pid, sample_rate) :
+			SignalOtelTracingWithQueryId(signal, pid, queryid, sample_rate));
+}
