@@ -680,7 +680,8 @@ void PgSession::SetTraceContext(
   trace_context.set_verbosity(trace_vars.trace_level);
   LOG(INFO) << "Set trace context. Trace ID: "
             << std::string_view(trace_id, kTraceIdSize)
-            << ", Span ID:" << std::string_view(span_id, kSpanIdSize);
+            << ", Span ID:" << std::string_view(span_id, kSpanIdSize)
+            << ", verbosity: " << trace_vars.trace_level;
 }
 
 Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOptions&& ops_options, bool last_request) {

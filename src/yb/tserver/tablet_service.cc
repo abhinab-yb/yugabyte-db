@@ -361,10 +361,10 @@ class WriteQueryCompletionCallback {
           trace_->EndSpan();
           response_->set_trace_buffer(trace_->DumpToString(true));
         } else if (1 == 1 + trace_->GetVerbosity()) {
-          if (context_->GetEndSpan()) {
-            trace_->EndSpan();
-            response_->set_trace_buffer(trace_->DumpToString(true));
-          }
+          // if (context_->GetEndSpan()) {
+          //   trace_->EndSpan();
+          //   response_->set_trace_buffer(trace_->DumpToString(true));
+          // }
         }
       }
       SetupErrorAndRespond(get_error(), status, context_.get());
@@ -389,10 +389,10 @@ class WriteQueryCompletionCallback {
         trace_->EndSpan();
         response_->set_trace_buffer(trace_->DumpToString(true));
       } else if (1 == 1 + trace_->GetVerbosity()) {
-        if (context_->GetEndSpan()) {
-          trace_->EndSpan();
-          response_->set_trace_buffer(trace_->DumpToString(true));
-        }
+        // if (context_->GetEndSpan()) {
+        //   trace_->EndSpan();
+        //   response_->set_trace_buffer(trace_->DumpToString(true));
+        // }
       }
     }
     response_->set_propagated_hybrid_time(clock_->Now().ToUint64());
@@ -1937,27 +1937,23 @@ bool EmptyWriteBatch(const docdb::KeyValueWriteBatchPB& write_batch) {
 Status TabletServiceImpl::PerformWrite(
     const WriteRequestPB* req, WriteResponsePB* resp, rpc::RpcContext* context) {
   if (req->has_trace_context()) {
-    std::ofstream fptr;
-    fptr.open("/home/asaha/code/log.txt", std::ios_base::app);
-    fptr << "Write query verbosity: " << req->trace_context().verbosity() << std::endl;
-    fptr.close();
+    LOG(INFO) << "--------------------------------------- Write trace verb: " << req->trace_context().verbosity();
     if (1 <= req->trace_context().verbosity()) {
       auto span = StartSpanFromParentId(
         req->trace_context().trace_id(), req->trace_context().span_id(), "Write");
       context->EnsureTraceCreated(span);
       context->SetTraceVerbosity(req->trace_context().verbosity());
-      tserver_trace_vars.trace_level = req->trace_context().verbosity();
     } else if (1 == req->trace_context().verbosity() + 1) {
-      if (context->GetStartSpan()) {
-        auto span = StartSpanFromParentId(
-          req->trace_context().trace_id(), req->trace_context().span_id(), "Write");
-        context->EnsureTraceCreated(span);
-        context->SetTraceVerbosity(req->trace_context().verbosity());
-        context->SetStartSpan(false);
-      }
-      if (req->trace_context().last_request()) {
-        context->SetEndSpan(true);
-      }
+      // if (context->GetStartSpan()) {
+      //   auto span = StartSpanFromParentId(
+      //     req->trace_context().trace_id(), req->trace_context().span_id(), "Write");
+      //   context->EnsureTraceCreated(span);
+      //   context->SetTraceVerbosity(req->trace_context().verbosity());
+      //   context->SetStartSpan(false);
+      // }
+      // if (req->trace_context().last_request()) {
+      //   context->SetEndSpan(true);
+      // }
     }
   } else if (req->include_trace()) {
     context->EnsureTraceCreated();

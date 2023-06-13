@@ -967,6 +967,7 @@ Status PgClientSession::DoPerform(const DataPtr& data, CoarseTimePoint deadline,
       } else {
         context->trace()->set_must_print(true);
       }
+      LOG(INFO) << " PG_CLIENT_SESSION verbosity : " << options.trace_context().verbosity();
     }
     ADOPT_TRACE(context->trace());
     session->SetTrace(context->trace());

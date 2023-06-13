@@ -394,14 +394,11 @@ AsyncRpcBase<Req, Resp>::AsyncRpcBase(
 
     trace_context.set_trace_id(trace_id, kTraceIdSize);
     trace_context.set_span_id(span_id, kSpanIdSize);
-    trace_context.set_verbosity(trace_vars.trace_level);
-    std::ofstream fptr;
-    fptr.open("/home/asaha/code/log.txt", std::ios_base::app);
-    fptr << "setting verbosity: " << trace_vars.trace_level << std::endl;
-    fptr.close();
+    trace_context.set_verbosity(trace->GetVerbosity());
     LOG(INFO) << "Set trace context. Trace ID: "
               << std::string_view(trace_id, kTraceIdSize)
-              << ", Span ID:" << std::string_view(span_id, kSpanIdSize);
+              << ", Span ID:" << std::string_view(span_id, kSpanIdSize)
+              << ", verbosity: " << trace->GetVerbosity();
   } else {
     LOG(INFO) << "OTEL Tracing NOT setup. Trace: " << Trace::CurrentTrace();
   }

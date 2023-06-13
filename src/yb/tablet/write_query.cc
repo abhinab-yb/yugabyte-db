@@ -575,11 +575,11 @@ Status WriteQuery::DoExecute() {
       [this](const Result<HybridTime>& result) {
         if (!result.ok()) {
           ExecuteDone(result.status());
-          VTRACE_AND_END_SPAN(0, T_ConflictResolver);
+          VTRACE_AND_END_SPAN(2, T_ConflictResolver);
           return;
         }
         TransactionalConflictsResolved();
-        VTRACE_AND_END_SPAN(0, T_ConflictResolver);
+        VTRACE_AND_END_SPAN(2, T_ConflictResolver);
       });
 }
 
