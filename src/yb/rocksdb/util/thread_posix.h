@@ -114,6 +114,7 @@ class ThreadPool {
   bool low_io_priority_ = false;
   Env::Priority priority_ = static_cast<Env::Priority>(0);
   Env* env_ = nullptr;
+  std::vector<std::string> wait_events_;
 
   void SetBackgroundThreadsInternal(int num, bool allow_reduce);
 };

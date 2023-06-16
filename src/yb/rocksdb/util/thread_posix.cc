@@ -62,6 +62,7 @@ void ThreadPool::JoinAllThreads() {
   for (const auto& thread : bgthreads_) {
     thread->Join();
   }
+  wait_events_.clear();
   bgthreads_.clear();
 }
 
@@ -91,6 +92,7 @@ void ThreadPool::BGThread(size_t thread_id) {
       // Current thread is the last generated one and is excessive.
       // We always terminate excessive thread in the reverse order of
       // generation time.
+      wait_events_.pop_back();
       bgthreads_.pop_back();
       if (HasExcessiveThread()) {
         // There is still at least more excessive thread to terminate.
@@ -130,7 +132,9 @@ void ThreadPool::BGThread(size_t thread_id) {
 #else
     (void)decrease_io_priority;  // avoid 'unused variable' error
 #endif
+    wait_events_[thread_id] = "STARTING";
     (*function)(arg);
+    wait_events_[thread_id] = "ENDING";
   }
 }
 
@@ -173,6 +177,7 @@ void ThreadPool::StartBGThreads() {
         category_name, std::move(thread_name),
         [this, tid]() { this->BGThread(tid); }, &thread));
 
+    wait_events_.push_back("INIT");
     bgthreads_.push_back(thread);
   }
 }
@@ -210,7 +215,7 @@ void ThreadPool::Schedule(void (*function)(void* arg1), void* arg, void* tag,
 }
 
 std::vector<std::string> ThreadPool::GetBGWaitEvents() {
-
+  return wait_events_;
 }
 
 int ThreadPool::UnSchedule(void* arg) {

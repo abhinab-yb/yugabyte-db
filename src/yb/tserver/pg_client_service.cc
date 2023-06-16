@@ -467,6 +467,8 @@ class PgClientServiceImpl::Impl {
       call->set_state(rpc::RpcCallState_descriptor()->FindValueByNumber(calls.state())->name());
     }
 
+    auto BGWaitEvnets = tablet_server_.GetBGWaitEvents();
+
     return Status::OK();
   }
 

@@ -339,7 +339,6 @@ class Env {
                         void (*unschedFunction)(void* arg) = 0) = 0;
 
   virtual std::vector<std::string> GetBGWaitEvents() = 0;
-  virtual void SetBGWaitEvent() = 0;
 
   // Arrange to remove jobs for given arg from the queue_ if they are not
   // already scheduled. Caller is expected to have exclusive lock on arg.
