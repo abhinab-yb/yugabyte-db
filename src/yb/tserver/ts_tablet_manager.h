@@ -217,6 +217,8 @@ class TSTabletManager : public tserver::TabletPeerLookupIf, public tablet::Table
   tablet::TabletPeerPtr LookupTablet(const TabletId& tablet_id) const;
   tablet::TabletPeerPtr LookupTablet(const Slice& tablet_id) const;
 
+  std::vector<std::string> GetBGWaitEvents() const;
+
   // Lookup the given tablet peer by its ID.
   // Returns NotFound error if the tablet is not found.
   Result<tablet::TabletPeerPtr> GetTablet(const TabletId& tablet_id) const;

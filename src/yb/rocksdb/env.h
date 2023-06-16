@@ -338,6 +338,9 @@ class Env {
                         Priority pri = LOW, void* tag = nullptr,
                         void (*unschedFunction)(void* arg) = 0) = 0;
 
+  virtual std::vector<std::string> GetBGWaitEvents() = 0;
+  virtual void SetBGWaitEvent() = 0;
+
   // Arrange to remove jobs for given arg from the queue_ if they are not
   // already scheduled. Caller is expected to have exclusive lock on arg.
   virtual int UnSchedule(void* arg, Priority pri) { return 0; }
@@ -678,6 +681,10 @@ class EnvWrapper : public Env {
 
   int UnSchedule(void* tag, Priority pri) override {
     return target_->UnSchedule(tag, pri);
+  }
+
+  std::vector<std::string> GetBGWaitEvents() override {
+    return target_->GetBGWaitEvents();
   }
 
   void StartThread(void (*f)(void*), void* a) override {

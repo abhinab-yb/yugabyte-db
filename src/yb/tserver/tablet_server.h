@@ -160,6 +160,8 @@ class TabletServer : public DbServerBase, public TabletServerIf {
   Status GetLiveTServers(
       std::vector<master::TSInformationPB> *live_tservers) const override;
 
+  std::vector<std::string> GetBGWaitEvents() const override;
+
   Status GetTabletStatus(const GetTabletStatusRequestPB* req,
                          GetTabletStatusResponsePB* resp) const override;
 

@@ -73,6 +73,8 @@ class TabletServerIf : public LocalTabletServer {
 
   virtual void RegisterCertificateReloader(CertificateReloader reloader) = 0;
 
+  virtual std::vector<std::string> GetBGWaitEvents() const = 0;
+
   client::YBClient* client() const {
     return client_future().get();
   }

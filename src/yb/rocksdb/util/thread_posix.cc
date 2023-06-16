@@ -209,6 +209,10 @@ void ThreadPool::Schedule(void (*function)(void* arg1), void* arg, void* tag,
   PthreadCall("unlock", pthread_mutex_unlock(&mu_));
 }
 
+std::vector<std::string> ThreadPool::GetBGWaitEvents() {
+
+}
+
 int ThreadPool::UnSchedule(void* arg) {
   int count = 0;
   PthreadCall("lock", pthread_mutex_lock(&mu_));

@@ -1876,6 +1876,10 @@ std::string TSTabletManager::LogPrefix() const {
   return "P " + fs_manager_->uuid() + ": ";
 }
 
+std::vector<std::string> TSTabletManager::GetBGWaitEvents() const {
+  return tablet_options_.rocksdb_env->GetBGWaitEvents();
+}
+
 std::string TSTabletManager::TabletLogPrefix(const TabletId& tablet_id) const {
   return tserver::LogPrefix(tablet_id, fs_manager_->uuid());
 }

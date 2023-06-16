@@ -672,6 +672,10 @@ Status TabletServer::GetLiveTServers(
   return Status::OK();
 }
 
+std::vector<std::string> TabletServer::GetBGWaitEvents() const {
+  return tablet_manager_->GetBGWaitEvents();
+}
+
 Status TabletServer::GetTabletStatus(const GetTabletStatusRequestPB* req,
                                      GetTabletStatusResponsePB* resp) const {
   VLOG(3) << "GetTabletStatus called for tablet " << req->tablet_id();

@@ -346,6 +346,8 @@ class PosixEnv : public Env {
                         Priority pri = LOW, void* tag = nullptr,
                         void (*unschedFunction)(void* arg) = 0) override;
 
+  virtual std::vector<std::string> GetBGWaitEvents() override;
+
   int UnSchedule(void* arg, Priority pri) override;
 
   void StartThread(void (*function)(void* arg), void* arg) override;
@@ -779,6 +781,17 @@ void PosixEnv::Schedule(void (*function)(void* arg1), void* arg, Priority pri,
                         void* tag, void (*unschedFunction)(void* arg)) {
   assert(pri >= Priority::LOW && pri <= Priority::HIGH);
   thread_pools_[pri].Schedule(function, arg, tag, unschedFunction);
+}
+
+std::vector<std::string> PosixEnv::GetBGWaitEvents() {
+  std::vector<std::string> res;
+  auto low_priority_wait_events = thread_pools_[Priority::LOW].GetBGWaitEvents();
+  auto high_priority_wait_events = thread_pools_[Priority::HIGH].GetBGWaitEvents();
+  auto total_priority_wait_events = thread_pools_[Priority::TOTAL].GetBGWaitEvents();
+  res.insert(res.end(), low_priority_wait_events.begin(), low_priority_wait_events.end());
+  res.insert(res.end(), high_priority_wait_events.begin(), high_priority_wait_events.end());
+  res.insert(res.end(), total_priority_wait_events.begin(), total_priority_wait_events.end());
+  return res;
 }
 
 int PosixEnv::UnSchedule(void* arg, Priority pri) {
