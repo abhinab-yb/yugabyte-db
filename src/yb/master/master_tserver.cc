@@ -177,6 +177,10 @@ const std::shared_ptr<MemTracker>& MasterTabletServer::mem_tracker() const {
 void MasterTabletServer::SetPublisher(rpc::Publisher service) {
 }
 
+std::vector<std::string> MasterTabletServer::GetBGWaitEvents() const {
+  return {};
+}
+
 client::TransactionPool& MasterTabletServer::TransactionPool() {
   LOG(FATAL) << "Unexpected call of TransactionPool()";
   client::TransactionPool* temp = nullptr;
