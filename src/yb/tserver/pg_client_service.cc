@@ -469,6 +469,16 @@ class PgClientServiceImpl::Impl {
 
     auto BGWaitEvnets = tablet_server_.GetBGWaitEvents();
 
+    // for (auto wait_event : BGWaitEvnets) {
+    //   auto call = resp->add_calls_in_flight();
+    //   call->mutable_header()->set_call_id(-1);
+    //   call->mutable_header()->mutable_remote_method()->set_service_name(wait_event);
+    //   call->mutable_header()->mutable_remote_method()->set_method_name(wait_event);
+    //   call->set_elapsed_millis(1);
+    //   call->set_sending_bytes(1);
+    //   call->set_state("READY");
+    // }
+
     return Status::OK();
   }
 
