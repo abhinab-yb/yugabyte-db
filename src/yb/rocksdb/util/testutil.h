@@ -362,7 +362,7 @@ class SleepingBackgroundTask {
     done_with_sleep_ = false;
   }
 
-  static void DoSleepTask(void* arg) {
+  static void DoSleepTask(void* arg, int thread_id) {
     reinterpret_cast<SleepingBackgroundTask*>(arg)->DoSleep();
   }
 

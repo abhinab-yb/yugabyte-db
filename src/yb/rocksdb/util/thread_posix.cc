@@ -101,7 +101,7 @@ void ThreadPool::BGThread(size_t thread_id) {
       PthreadCall("unlock", pthread_mutex_unlock(&mu_));
       break;
     }
-    void (*function)(void*) = queue_.front().function;
+    void (*function)(void*, int) = queue_.front().function;
     void* arg = queue_.front().arg;
     queue_.pop_front();
     queue_len_.store(static_cast<unsigned int>(queue_.size()),
@@ -132,9 +132,13 @@ void ThreadPool::BGThread(size_t thread_id) {
 #else
     (void)decrease_io_priority;  // avoid 'unused variable' error
 #endif
+    PthreadCall("lock", pthread_mutex_lock(&mu_));
     wait_events_[thread_id] = "STARTING";
-    (*function)(arg);
+    PthreadCall("unlock", pthread_mutex_lock(&mu_));
+    (*function)(arg, (int)thread_id);
+    PthreadCall("lock", pthread_mutex_lock(&mu_));
     wait_events_[thread_id] = "ENDING";
+    PthreadCall("unlock", pthread_mutex_lock(&mu_));
   }
 }
 
@@ -182,7 +186,7 @@ void ThreadPool::StartBGThreads() {
   }
 }
 
-void ThreadPool::Schedule(void (*function)(void* arg1), void* arg, void* tag,
+void ThreadPool::Schedule(void (*function)(void* arg1, int thread_id), void* arg, void* tag,
                           void (*unschedFunction)(void* arg)) {
   PthreadCall("lock", pthread_mutex_lock(&mu_));
 
@@ -214,13 +218,6 @@ void ThreadPool::Schedule(void (*function)(void* arg1), void* arg, void* tag,
   PthreadCall("unlock", pthread_mutex_unlock(&mu_));
 }
 
-std::vector<std::string> ThreadPool::GetBGWaitEvents() {
-  PthreadCall("lock", pthread_mutex_lock(&mu_));
-  auto res = wait_events_;
-  PthreadCall("unlock", pthread_mutex_unlock(&mu_));
-  return res;
-}
-
 int ThreadPool::UnSchedule(void* arg) {
   int count = 0;
   PthreadCall("lock", pthread_mutex_lock(&mu_));
@@ -244,6 +241,19 @@ int ThreadPool::UnSchedule(void* arg) {
                    std::memory_order_relaxed);
   PthreadCall("unlock", pthread_mutex_unlock(&mu_));
   return count;
+}
+
+std::vector<std::string> ThreadPool::GetBGWaitEvents() {
+  PthreadCall("lock", pthread_mutex_lock(&mu_));
+  auto res = wait_events_;
+  PthreadCall("unlock", pthread_mutex_unlock(&mu_));
+  return res;
+}
+
+void ThreadPool::UpdateWaitEvent(int thread_id, std::string &&wait_event) {
+  PthreadCall("lock", pthread_mutex_lock(&mu_));
+  wait_events_[thread_id] = wait_event;
+  PthreadCall("unlock", pthread_mutex_unlock(&mu_));
 }
 
 }  // namespace rocksdb

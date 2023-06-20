@@ -3005,6 +3005,7 @@ Status DBImpl::RunManualCompaction(ColumnFamilyData* cfd, int input_level,
         ca = new CompactionArg;
         ca->db = this;
         ca->m = &manual_compaction;
+        LOG(INFO) << "------------------------- BG WORK COMPACTION: " << ca << " " << this;
         env_->Schedule(&DBImpl::BGWorkCompaction, ca, Env::Priority::LOW, this,
                        &DBImpl::UnscheduleCallback);
       }
@@ -3144,6 +3145,7 @@ void DBImpl::MaybeScheduleFlushOrCompaction() {
          bg_flush_scheduled_ < db_options_.max_background_flushes) {
     unscheduled_flushes_--;
     bg_flush_scheduled_++;
+    LOG(INFO) << "------------------------- BG WORK FLUSH: " << this;
     env_->Schedule(&DBImpl::BGWorkFlush, this, Env::Priority::HIGH, this);
   }
 
@@ -3157,6 +3159,7 @@ void DBImpl::MaybeScheduleFlushOrCompaction() {
                bg_compactions_allowed) {
       unscheduled_flushes_--;
       bg_flush_scheduled_++;
+      LOG(INFO) << "------------------------- BG WORK FLUSH: " << this;
       env_->Schedule(&DBImpl::BGWorkFlush, this, Env::Priority::LOW, this);
     }
   }
@@ -3177,6 +3180,7 @@ void DBImpl::MaybeScheduleFlushOrCompaction() {
     CompactionArg* ca = new CompactionArg;
     ca->db = this;
     ca->m = nullptr;
+    LOG(INFO) << "------------------------- BG WORK COMPACTION: " << ca << " " << this;
     env_->Schedule(&DBImpl::BGWorkCompaction, ca, Env::Priority::LOW, this,
                    &DBImpl::UnscheduleCallback);
   }
@@ -3285,19 +3289,19 @@ void DBImpl::SchedulePendingCompaction(ColumnFamilyData* cfd) {
   TEST_SYNC_POINT("DBImpl::SchedulePendingCompaction:Done");
 }
 
-void DBImpl::BGWorkFlush(void* db) {
+void DBImpl::BGWorkFlush(void* db, int thread_id) {
   IOSTATS_SET_THREAD_POOL_ID(Env::Priority::HIGH);
   TEST_SYNC_POINT("DBImpl::BGWorkFlush");
-  reinterpret_cast<DBImpl*>(db)->BackgroundCallFlush(nullptr /* cfd */);
+  reinterpret_cast<DBImpl*>(db)->BackgroundCallFlush(nullptr /* cfd */, thread_id);
   TEST_SYNC_POINT("DBImpl::BGWorkFlush:done");
 }
 
-void DBImpl::BGWorkCompaction(void* arg) {
+void DBImpl::BGWorkCompaction(void* arg, int thread_id) {
   CompactionArg ca = *(reinterpret_cast<CompactionArg*>(arg));
   delete reinterpret_cast<CompactionArg*>(arg);
   IOSTATS_SET_THREAD_POOL_ID(Env::Priority::LOW);
   TEST_SYNC_POINT("DBImpl::BGWorkCompaction");
-  reinterpret_cast<DBImpl*>(ca.db)->BackgroundCallCompaction(ca.m);
+  reinterpret_cast<DBImpl*>(ca.db)->BackgroundCallCompaction(ca.m, nullptr, nullptr, thread_id);
 }
 
 void DBImpl::UnscheduleCallback(void* arg) {
@@ -3427,7 +3431,7 @@ void DBImpl::BackgroundJobComplete(
   }
 }
 
-void DBImpl::BackgroundCallFlush(ColumnFamilyData* cfd) {
+void DBImpl::BackgroundCallFlush(ColumnFamilyData* cfd, int thread_id) {
   bool made_progress = false;
   JobContext job_context(next_job_id_.fetch_add(1), true);
 
@@ -3459,7 +3463,7 @@ void DBImpl::BackgroundCallFlush(ColumnFamilyData* cfd) {
 }
 
 void DBImpl::BackgroundCallCompaction(ManualCompaction* m, std::unique_ptr<Compaction> compaction,
-                                      CompactionTask* compaction_task) {
+                                      CompactionTask* compaction_task, int thread_id) {
   bool made_progress = false;
   JobContext job_context(next_job_id_.fetch_add(1), true);
   LogBuffer log_buffer(InfoLogLevel::INFO_LEVEL, db_options_.info_log.get());

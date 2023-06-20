@@ -334,15 +334,17 @@ class Env {
   // serialized.
   // When the UnSchedule function is called, the unschedFunction
   // registered at the time of Schedule is invoked with arg as a parameter.
-  virtual void Schedule(void (*function)(void* arg), void* arg,
+  virtual void Schedule(void (*function)(void* arg, int thread_id), void* arg,
                         Priority pri = LOW, void* tag = nullptr,
                         void (*unschedFunction)(void* arg) = 0) = 0;
-
-  virtual std::vector<std::string> GetBGWaitEvents() = 0;
 
   // Arrange to remove jobs for given arg from the queue_ if they are not
   // already scheduled. Caller is expected to have exclusive lock on arg.
   virtual int UnSchedule(void* arg, Priority pri) { return 0; }
+
+  virtual std::vector<std::string> GetBGWaitEvents() = 0;
+
+  virtual void UpdateWaiEvent(Priority pri, int thread_id, std::string &&wait_event) = 0;
 
   // Start a new thread, invoking "function(arg)" within the new thread.
   // When "function(arg)" returns, the thread will be destroyed.
@@ -673,9 +675,13 @@ class EnvWrapper : public Env {
 
   Status UnlockFile(FileLock* l) override;
 
-  void Schedule(void (*f)(void* arg), void* a, Priority pri,
+  void Schedule(void (*f)(void* arg, int thread_id), void* a, Priority pri,
                 void* tag = nullptr, void (*u)(void* arg) = 0) override {
-    return target_->Schedule(f, a, pri, tag, u);
+    return target_->Schedule(f, a,  pri, tag, u);
+  }
+
+  void UpdateWaiEvent(Priority pri, int thread_id, std::string &&wait_event) override {
+    return target_->UpdateWaiEvent(pri, thread_id, std::move(wait_event));
   }
 
   int UnSchedule(void* tag, Priority pri) override {
