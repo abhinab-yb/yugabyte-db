@@ -56,8 +56,8 @@ class ThreadPool {
   void IncBackgroundThreadsIfNeeded(int num);
   void SetBackgroundThreads(int num);
   void StartBGThreads();
-  void Schedule(void (*function)(void* arg1, int thread_id), void* arg, void* tag,
-                void (*unschedFunction)(void* arg));
+  void Schedule(void (*function)(void* arg1, int pri, int thread_id), void* arg, void* tag,
+                void (*unschedFunction)(void* arg), int pri);
   int UnSchedule(void* arg);
   std::vector<std::string> GetBGWaitEvents();
   void UpdateWaitEvent(int thread_id, std::string &&wait_event);
@@ -99,9 +99,10 @@ class ThreadPool {
   // Entry per Schedule() call
   struct BGItem {
     void* arg;
-    void (*function)(void*, int);
+    void (*function)(void*, int, int);
     void* tag;
     void (*unschedFunction)(void*);
+    int pri;
   };
   typedef std::deque<BGItem> BGQueue;
 

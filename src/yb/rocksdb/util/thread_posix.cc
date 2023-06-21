@@ -101,8 +101,9 @@ void ThreadPool::BGThread(size_t thread_id) {
       PthreadCall("unlock", pthread_mutex_unlock(&mu_));
       break;
     }
-    void (*function)(void*, int) = queue_.front().function;
+    void (*function)(void*, int, int) = queue_.front().function;
     void* arg = queue_.front().arg;
+    int pri = queue_.front().pri;
     queue_.pop_front();
     queue_len_.store(static_cast<unsigned int>(queue_.size()),
                      std::memory_order_relaxed);
@@ -135,7 +136,7 @@ void ThreadPool::BGThread(size_t thread_id) {
     PthreadCall("lock", pthread_mutex_lock(&mu_));
     wait_events_[thread_id] = "STARTING";
     PthreadCall("unlock", pthread_mutex_lock(&mu_));
-    (*function)(arg, (int)thread_id);
+    (*function)(arg, pri, (int)thread_id);
     PthreadCall("lock", pthread_mutex_lock(&mu_));
     wait_events_[thread_id] = "ENDING";
     PthreadCall("unlock", pthread_mutex_lock(&mu_));
@@ -186,8 +187,8 @@ void ThreadPool::StartBGThreads() {
   }
 }
 
-void ThreadPool::Schedule(void (*function)(void* arg1, int thread_id), void* arg, void* tag,
-                          void (*unschedFunction)(void* arg)) {
+void ThreadPool::Schedule(void (*function)(void* arg1, int pri, int thread_id), void* arg, void* tag,
+                          void (*unschedFunction)(void* arg), int pri) {
   PthreadCall("lock", pthread_mutex_lock(&mu_));
 
   if (exit_all_threads_) {
@@ -203,6 +204,7 @@ void ThreadPool::Schedule(void (*function)(void* arg1, int thread_id), void* arg
   queue_.back().arg = arg;
   queue_.back().tag = tag;
   queue_.back().unschedFunction = unschedFunction;
+  queue_.back().pri = pri;
   queue_len_.store(static_cast<unsigned int>(queue_.size()),
                    std::memory_order_relaxed);
 
@@ -244,10 +246,7 @@ int ThreadPool::UnSchedule(void* arg) {
 }
 
 std::vector<std::string> ThreadPool::GetBGWaitEvents() {
-  PthreadCall("lock", pthread_mutex_lock(&mu_));
-  auto res = wait_events_;
-  PthreadCall("unlock", pthread_mutex_unlock(&mu_));
-  return res;
+  return wait_events_;
 }
 
 void ThreadPool::UpdateWaitEvent(int thread_id, std::string &&wait_event) {

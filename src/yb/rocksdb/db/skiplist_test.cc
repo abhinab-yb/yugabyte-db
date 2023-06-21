@@ -435,7 +435,7 @@ class TestState {
   port::CondVar state_cv_;
 };
 
-static void ConcurrentReader(void* arg, int thread_id) {
+static void ConcurrentReader(void* arg, int pri, int thread_id) {
   TestState* state = reinterpret_cast<TestState*>(arg);
   Random rnd(state->seed_);
   state->Change(TestState::RUNNING);

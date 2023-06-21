@@ -1978,7 +1978,9 @@ Result<FileNumbersHolder> DBImpl::FlushMemTableToOutputFile(
   // Note that flush_job.Run will unlock and lock the db_mutex,
   // and EventListener callback will be called when the db_mutex
   // is unlocked by the current thread.
+  env_->UpdateWaitEvent(static_cast<Env::Priority>(pri_), thread_id_, "RUNNING FLUSH JOB");
   auto file_number_holder = flush_job.Run(&file_meta);
+  env_->UpdateWaitEvent(static_cast<Env::Priority>(pri_), thread_id_, "INSIDE FlushMemTableToOutputFile");
 
   if (file_number_holder.ok()) {
     InstallSuperVersionAndScheduleWorkWrapper(cfd, job_context,
@@ -2121,7 +2123,9 @@ void DBImpl::NotifyOnFlushCompleted(ColumnFamilyData* cfd,
   } else {
     mutex_.Unlock();
   }
+  env_->UpdateWaitEvent(static_cast<Env::Priority>(pri_), thread_id_, "Setting SST File trackers");
   SetSSTFileTickers();
+  env_->UpdateWaitEvent(static_cast<Env::Priority>(pri_), thread_id_, "Inside NotifyOnFlushCompleted");
   mutex_.Lock();
   // no need to signal bg_cv_ as it will be signaled at the end of the
   // flush process.
@@ -3289,19 +3293,23 @@ void DBImpl::SchedulePendingCompaction(ColumnFamilyData* cfd) {
   TEST_SYNC_POINT("DBImpl::SchedulePendingCompaction:Done");
 }
 
-void DBImpl::BGWorkFlush(void* db, int thread_id) {
+void DBImpl::BGWorkFlush(void* db, int pri, int thread_id) {
   IOSTATS_SET_THREAD_POOL_ID(Env::Priority::HIGH);
   TEST_SYNC_POINT("DBImpl::BGWorkFlush");
-  reinterpret_cast<DBImpl*>(db)->BackgroundCallFlush(nullptr /* cfd */, thread_id);
+  reinterpret_cast<DBImpl*>(db)->thread_id_ = thread_id;
+  reinterpret_cast<DBImpl*>(db)->pri_ = pri;
+  reinterpret_cast<DBImpl*>(db)->BackgroundCallFlush(nullptr /* cfd */);
   TEST_SYNC_POINT("DBImpl::BGWorkFlush:done");
 }
 
-void DBImpl::BGWorkCompaction(void* arg, int thread_id) {
+void DBImpl::BGWorkCompaction(void* arg, int pri, int thread_id) {
   CompactionArg ca = *(reinterpret_cast<CompactionArg*>(arg));
   delete reinterpret_cast<CompactionArg*>(arg);
   IOSTATS_SET_THREAD_POOL_ID(Env::Priority::LOW);
   TEST_SYNC_POINT("DBImpl::BGWorkCompaction");
-  reinterpret_cast<DBImpl*>(ca.db)->BackgroundCallCompaction(ca.m, nullptr, nullptr, thread_id);
+  reinterpret_cast<DBImpl*>(ca.db)->thread_id_ = thread_id;
+  reinterpret_cast<DBImpl*>(ca.db)->pri_ = pri;
+  reinterpret_cast<DBImpl*>(ca.db)->BackgroundCallCompaction(ca.m, nullptr, nullptr);
 }
 
 void DBImpl::UnscheduleCallback(void* arg) {
@@ -3431,7 +3439,7 @@ void DBImpl::BackgroundJobComplete(
   }
 }
 
-void DBImpl::BackgroundCallFlush(ColumnFamilyData* cfd, int thread_id) {
+void DBImpl::BackgroundCallFlush(ColumnFamilyData* cfd) {
   bool made_progress = false;
   JobContext job_context(next_job_id_.fetch_add(1), true);
 
@@ -3463,7 +3471,7 @@ void DBImpl::BackgroundCallFlush(ColumnFamilyData* cfd, int thread_id) {
 }
 
 void DBImpl::BackgroundCallCompaction(ManualCompaction* m, std::unique_ptr<Compaction> compaction,
-                                      CompactionTask* compaction_task, int thread_id) {
+                                      CompactionTask* compaction_task) {
   bool made_progress = false;
   JobContext job_context(next_job_id_.fetch_add(1), true);
   LogBuffer log_buffer(InfoLogLevel::INFO_LEVEL, db_options_.info_log.get());

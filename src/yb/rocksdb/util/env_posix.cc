@@ -342,7 +342,7 @@ class PosixEnv : public Env {
     return result;
   }
 
-  virtual void Schedule(void (*function)(void* arg1, int thread_id), void* arg,
+  virtual void Schedule(void (*function)(void* arg1, int pri, int thread_id), void* arg,
                         Priority pri = LOW, void* tag = nullptr,
                         void (*unschedFunction)(void* arg) = 0) override;
 
@@ -350,7 +350,7 @@ class PosixEnv : public Env {
 
   virtual std::vector<std::string> GetBGWaitEvents() override;
 
-  virtual void UpdateWaiEvent(Priority pri, int thread_id, std::string &&wait_event) override;
+  virtual void UpdateWaitEvent(Priority pri, int thread_id, std::string &&wait_event) override;
 
   void StartThread(void (*function)(void* arg), void* arg) override;
 
@@ -779,10 +779,10 @@ PosixEnv::PosixEnv(std::unique_ptr<RocksDBFileFactory> file_factory) :
   }
 }
 
-void PosixEnv::Schedule(void (*function)(void* arg1, int thread_id), void* arg, Priority pri,
+void PosixEnv::Schedule(void (*function)(void* arg1, int pri, int thread_id), void* arg, Priority pri,
                         void* tag, void (*unschedFunction)(void* arg)) {
   assert(pri >= Priority::LOW && pri <= Priority::HIGH);
-  thread_pools_[pri].Schedule(function, arg, tag, unschedFunction);
+  thread_pools_[pri].Schedule(function, arg, tag, unschedFunction, pri);
 }
 
 int PosixEnv::UnSchedule(void* arg, Priority pri) {
@@ -798,7 +798,7 @@ std::vector<std::string> PosixEnv::GetBGWaitEvents() {
   return res;
 }
 
-void PosixEnv::UpdateWaiEvent(Priority pri, int thread_id, std::string &&wait_event) {
+void PosixEnv::UpdateWaitEvent(Priority pri, int thread_id, std::string &&wait_event) {
   thread_pools_[pri].UpdateWaitEvent(thread_id, std::move(wait_event));
 }
 

@@ -529,6 +529,9 @@ class DBImpl : public DB {
   Status WriteImpl(const WriteOptions& options, WriteBatch* updates,
                    WriteCallback* callback);
 
+  int thread_id_;
+  int pri_;
+
  private:
   friend class DB;
   friend class InternalStats;
@@ -613,14 +616,14 @@ class DBImpl : public DB {
   void MaybeScheduleFlushOrCompaction();
   void SchedulePendingFlush(ColumnFamilyData* cfd);
   void SchedulePendingCompaction(ColumnFamilyData* cfd);
-  static void BGWorkCompaction(void* arg, int thread_id);
-  static void BGWorkFlush(void* db, int thread_id);
+  static void BGWorkCompaction(void* arg, int pri, int thread_id);
+  static void BGWorkFlush(void* db, int pri, int thread_id);
   static void UnscheduleCallback(void* arg);
   void WaitAfterBackgroundError(const Status& s, const char* job_name, LogBuffer* log_buffer);
   void BackgroundCallCompaction(
       ManualCompaction* manual_compaction, std::unique_ptr<Compaction> compaction = nullptr,
-      CompactionTask* compaction_task = nullptr, int thread_id = -1);
-  void BackgroundCallFlush(ColumnFamilyData* cfd, int thread_id = -1);
+      CompactionTask* compaction_task = nullptr);
+  void BackgroundCallFlush(ColumnFamilyData* cfd);
   Result<FileNumbersHolder> BackgroundCompaction(
       bool* made_progress, JobContext* job_context, LogBuffer* log_buffer,
       ManualCompaction* manual_compaction = nullptr,
@@ -994,8 +997,6 @@ class DBImpl : public DB {
   mutable std::mutex files_changed_listener_mutex_;
 
   std::function<void()> files_changed_listener_ GUARDED_BY(files_changed_listener_mutex_);
-
-  int bg_thread_id_;
 
   // No copying allowed
   DBImpl(const DBImpl&) = delete;
