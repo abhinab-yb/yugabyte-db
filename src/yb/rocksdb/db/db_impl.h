@@ -618,7 +618,9 @@ class DBImpl : public DB {
   void SchedulePendingCompaction(ColumnFamilyData* cfd);
   static void BGWorkCompaction(void* arg, int pri, int thread_id);
   static void BGWorkFlush(void* db, int pri, int thread_id);
+  static void UpdateWaitEventCallback(void *db, std::string &&wait_event);
   static void UnscheduleCallback(void* arg);
+  void UpdateWaitEvent(std::string &&wait_event);
   void WaitAfterBackgroundError(const Status& s, const char* job_name, LogBuffer* log_buffer);
   void BackgroundCallCompaction(
       ManualCompaction* manual_compaction, std::unique_ptr<Compaction> compaction = nullptr,

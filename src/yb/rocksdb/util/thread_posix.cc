@@ -133,13 +133,13 @@ void ThreadPool::BGThread(size_t thread_id) {
 #else
     (void)decrease_io_priority;  // avoid 'unused variable' error
 #endif
-    PthreadCall("lock", pthread_mutex_lock(&mu_));
-    wait_events_[thread_id] = "STARTING";
-    PthreadCall("unlock", pthread_mutex_lock(&mu_));
+    // PthreadCall("lock", pthread_mutex_lock(&mu_));
+    // wait_events_[thread_id] = "STARTING";
+    // PthreadCall("unlock", pthread_mutex_lock(&mu_));
     (*function)(arg, pri, (int)thread_id);
-    PthreadCall("lock", pthread_mutex_lock(&mu_));
-    wait_events_[thread_id] = "ENDING";
-    PthreadCall("unlock", pthread_mutex_lock(&mu_));
+    // PthreadCall("lock", pthread_mutex_lock(&mu_));
+    // wait_events_[thread_id] = "ENDING";
+    // PthreadCall("unlock", pthread_mutex_unlock(&mu_));
   }
 }
 

@@ -442,7 +442,7 @@ void CompactionJob::GenSubcompactionBoundaries() {
   }
 }
 
-Result<FileNumbersHolder> CompactionJob::Run() {
+Result<FileNumbersHolder> CompactionJob::Run(void (*f)(void* arg1, std::string &&arg2), void* arg) {
   TEST_SYNC_POINT("CompactionJob::Run():Start");
   log_buffer_->FlushBufferToLog();
   LogCompaction();
@@ -451,6 +451,7 @@ Result<FileNumbersHolder> CompactionJob::Run() {
   assert(num_threads > 0);
   const uint64_t start_micros = env_->NowMicros();
 
+  (*f)(arg, "Launch subcompaction threads");
   // Launch a thread for each of subcompactions 1...num_threads-1
   std::vector<scoped_refptr<yb::Thread>> thread_pool;
   thread_pool.reserve(num_threads - 1);
@@ -468,6 +469,7 @@ Result<FileNumbersHolder> CompactionJob::Run() {
   // others) in the current thread to be efficient with resources
   ProcessKeyValueCompaction(&file_numbers_holder, &compact_->sub_compact_states[0]);
 
+  (*f)(arg, "Wait for subcompaction threads");
   // Wait for all other threads (if there are any) to finish execution
   for (auto& thread : thread_pool) {
     RETURN_NOT_OK(yb::ThreadJoiner(thread.get()).Join());
@@ -499,6 +501,7 @@ Result<FileNumbersHolder> CompactionJob::Run() {
   }
   compact_->compaction->SetOutputTableProperties(std::move(tp));
 
+  (*f)(arg, "Update compaction stats");
   // Finish up all book-keeping to unify the subcompaction results
   AggregateStatistics();
   UpdateCompactionStats();

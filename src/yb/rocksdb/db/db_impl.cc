@@ -1978,9 +1978,8 @@ Result<FileNumbersHolder> DBImpl::FlushMemTableToOutputFile(
   // Note that flush_job.Run will unlock and lock the db_mutex,
   // and EventListener callback will be called when the db_mutex
   // is unlocked by the current thread.
-  env_->UpdateWaitEvent(static_cast<Env::Priority>(pri_), thread_id_, "RUNNING FLUSH JOB");
-  auto file_number_holder = flush_job.Run(&file_meta);
-  env_->UpdateWaitEvent(static_cast<Env::Priority>(pri_), thread_id_, "INSIDE FlushMemTableToOutputFile");
+  UpdateWaitEvent("Running Flush Job");
+  auto file_number_holder = flush_job.Run(&file_meta, &DBImpl::UpdateWaitEventCallback, this);
 
   if (file_number_holder.ok()) {
     InstallSuperVersionAndScheduleWorkWrapper(cfd, job_context,
@@ -2003,6 +2002,7 @@ Result<FileNumbersHolder> DBImpl::FlushMemTableToOutputFile(
   RETURN_NOT_OK(file_number_holder);
   MAYBE_FAULT(FLAGS_fault_crash_after_rocksdb_flush);
   // may temporarily unlock and lock the mutex.
+  // UpdateWaitEvent("Notifying new file creation");
   NotifyOnFlushCompleted(cfd, &file_meta, mutable_cf_options,
                          job_context->job_id, flush_job.GetTableProperties());
   auto sfm =
@@ -2123,9 +2123,9 @@ void DBImpl::NotifyOnFlushCompleted(ColumnFamilyData* cfd,
   } else {
     mutex_.Unlock();
   }
-  env_->UpdateWaitEvent(static_cast<Env::Priority>(pri_), thread_id_, "Setting SST File trackers");
+  // UpdateWaitEvent("Setting SST File trackers");
   SetSSTFileTickers();
-  env_->UpdateWaitEvent(static_cast<Env::Priority>(pri_), thread_id_, "Inside NotifyOnFlushCompleted");
+  // UpdateWaitEvent("Inside NotifyOnFlushCompleted");
   mutex_.Lock();
   // no need to signal bg_cv_ as it will be signaled at the end of the
   // flush process.
@@ -3149,7 +3149,7 @@ void DBImpl::MaybeScheduleFlushOrCompaction() {
          bg_flush_scheduled_ < db_options_.max_background_flushes) {
     unscheduled_flushes_--;
     bg_flush_scheduled_++;
-    LOG(INFO) << "------------------------- BG WORK FLUSH: " << this;
+    // LOG(INFO) << "------------------------- BG WORK FLUSH: " << this;
     env_->Schedule(&DBImpl::BGWorkFlush, this, Env::Priority::HIGH, this);
   }
 
@@ -3163,7 +3163,7 @@ void DBImpl::MaybeScheduleFlushOrCompaction() {
                bg_compactions_allowed) {
       unscheduled_flushes_--;
       bg_flush_scheduled_++;
-      LOG(INFO) << "------------------------- BG WORK FLUSH: " << this;
+      // LOG(INFO) << "------------------------- BG WORK FLUSH: " << this;
       env_->Schedule(&DBImpl::BGWorkFlush, this, Env::Priority::LOW, this);
     }
   }
@@ -3184,7 +3184,7 @@ void DBImpl::MaybeScheduleFlushOrCompaction() {
     CompactionArg* ca = new CompactionArg;
     ca->db = this;
     ca->m = nullptr;
-    LOG(INFO) << "------------------------- BG WORK COMPACTION: " << ca << " " << this;
+    // LOG(INFO) << "------------------------- BG WORK COMPACTION: " << ca << " " << this;
     env_->Schedule(&DBImpl::BGWorkCompaction, ca, Env::Priority::LOW, this,
                    &DBImpl::UnscheduleCallback);
   }
@@ -3309,7 +3309,15 @@ void DBImpl::BGWorkCompaction(void* arg, int pri, int thread_id) {
   TEST_SYNC_POINT("DBImpl::BGWorkCompaction");
   reinterpret_cast<DBImpl*>(ca.db)->thread_id_ = thread_id;
   reinterpret_cast<DBImpl*>(ca.db)->pri_ = pri;
-  reinterpret_cast<DBImpl*>(ca.db)->BackgroundCallCompaction(ca.m, nullptr, nullptr);
+  reinterpret_cast<DBImpl*>(ca.db)->BackgroundCallCompaction(ca.m);
+}
+
+void DBImpl::UpdateWaitEventCallback(void* db, std::string &&wait_event) {
+  reinterpret_cast<DBImpl*>(db)->UpdateWaitEvent(std::move(wait_event));
+}
+
+void DBImpl::UpdateWaitEvent(std::string &&wait_event) {
+  env_->UpdateWaitEvent(static_cast<Env::Priority>(pri_), thread_id_, std::move(wait_event));
 }
 
 void DBImpl::UnscheduleCallback(void* arg) {
@@ -3440,6 +3448,7 @@ void DBImpl::BackgroundJobComplete(
 }
 
 void DBImpl::BackgroundCallFlush(ColumnFamilyData* cfd) {
+  UpdateWaitEvent("Starting BG Flush");
   bool made_progress = false;
   JobContext job_context(next_job_id_.fetch_add(1), true);
 
@@ -3472,6 +3481,7 @@ void DBImpl::BackgroundCallFlush(ColumnFamilyData* cfd) {
 
 void DBImpl::BackgroundCallCompaction(ManualCompaction* m, std::unique_ptr<Compaction> compaction,
                                       CompactionTask* compaction_task) {
+  UpdateWaitEvent("Starting BG Compaction");
   bool made_progress = false;
   JobContext job_context(next_job_id_.fetch_add(1), true);
   LogBuffer log_buffer(InfoLogLevel::INFO_LEVEL, db_options_.info_log.get());
@@ -3516,6 +3526,7 @@ void DBImpl::BackgroundCallCompaction(ManualCompaction* m, std::unique_ptr<Compa
 
   versions_->GetColumnFamilySet()->FreeDeadColumnFamilies();
 
+  UpdateWaitEvent("Maybe schedule BG jobs");
   // See if there's more work to be done
   MaybeScheduleFlushOrCompaction();
   if (made_progress || (bg_compaction_scheduled_ + compaction_tasks_.size()) == 0 ||
@@ -3613,9 +3624,11 @@ Result<FileNumbersHolder> DBImpl::BackgroundCompaction(
       is_large_compaction = IsLargeCompaction(*c);
     } else if (!large_compaction_queue_.empty() && BGCompactionsAllowed() >
           num_running_large_compactions() + db_options_.num_reserved_small_compaction_threads) {
+      UpdateWaitEvent("Get compaction job from large queue");
       c = PopFirstFromLargeCompactionQueue();
       is_large_compaction = true;
     } else if (!small_compaction_queue_.empty()) {
+      UpdateWaitEvent("Get compaction job from small queue");
       c = PopFirstFromSmallCompactionQueue();
       is_large_compaction = false;
     } else {
@@ -3664,6 +3677,7 @@ Result<FileNumbersHolder> DBImpl::BackgroundCompaction(
       // compaction, we might be able to execute it in parallel, so we add it
       // to the queue and schedule a new thread.
 
+      UpdateWaitEvent("Schedule compaction job");
       SchedulePendingCompaction(cfd);
       MaybeScheduleFlushOrCompaction();
     }
@@ -3682,7 +3696,7 @@ Result<FileNumbersHolder> DBImpl::BackgroundCompaction(
            kCompactionStyleFIFO);
 
     compaction_job_stats.num_input_files = c->num_input_files(0);
-
+    UpdateWaitEvent("Deleting files");
     for (const auto& f : *c->inputs(0)) {
       c->edit()->DeleteFile(c->level(), f->fd.GetNumber());
     }
@@ -3699,7 +3713,7 @@ Result<FileNumbersHolder> DBImpl::BackgroundCompaction(
     TEST_SYNC_POINT("DBImpl::BackgroundCompaction:TrivialMove");
 
     compaction_job_stats.num_input_files = c->num_input_files(0);
-
+    UpdateWaitEvent("Moving files to next level");
     // Move files to next level
     int32_t moved_files = 0;
     int64_t moved_bytes = 0;
@@ -3764,6 +3778,8 @@ Result<FileNumbersHolder> DBImpl::BackgroundCompaction(
         c->mutable_cf_options()->paranoid_file_checks,
         c->mutable_cf_options()->compaction_measure_io_stats, dbname_,
         &compaction_job_stats);
+
+    UpdateWaitEvent("Preparing compaction job");
     compaction_job.Prepare();
 
     mutex_.Unlock();

@@ -133,7 +133,7 @@ void FlushJob::RecordFlushIOStats() {
   IOSTATS_RESET(bytes_written);
 }
 
-Result<FileNumbersHolder> FlushJob::Run(FileMetaData* file_meta) {
+Result<FileNumbersHolder> FlushJob::Run(FileMetaData* file_meta, void (*f)(void* arg1, std::string &&arg2), void* arg) {
   if (PREDICT_FALSE(yb::GetAtomicFlag(&FLAGS_TEST_rocksdb_crash_on_flush))) {
     CHECK(false) << "a flush should not have been scheduled.";
   }
@@ -181,7 +181,8 @@ Result<FileNumbersHolder> FlushJob::Run(FileMetaData* file_meta) {
   edit->SetColumnFamily(cfd_->GetID());
 
   // This will release and re-acquire the mutex.
-  auto fnum = WriteLevel0Table(mems, edit, &meta);
+  (*f)(arg, "Writing Memtable to files");
+  auto fnum = WriteLevel0Table(mems, edit, &meta, f, arg);
 
   if (fnum.ok() && ((shutting_down_->load(std::memory_order_acquire) &&
                      disable_flush_on_shutdown_->load(std::memory_order_acquire)) ||
@@ -190,8 +191,10 @@ Result<FileNumbersHolder> FlushJob::Run(FileMetaData* file_meta) {
   }
 
   if (!fnum.ok()) {
+    (*f)(arg, "Rollback memtable");
     cfd_->imm()->RollbackMemtableFlush(mems, meta.fd.GetNumber());
   } else {
+    (*f)(arg, "Installing results");
     TEST_SYNC_POINT("FlushJob::InstallResults");
     // Replace immutable memtable with the generated Table
     Status s = cfd_->imm()->InstallMemtableFlushResults(
@@ -207,6 +210,7 @@ Result<FileNumbersHolder> FlushJob::Run(FileMetaData* file_meta) {
     *file_meta = meta;
   }
 
+  (*f)(arg, "Recording Flush stats");
   // This includes both SST and MANIFEST files IO.
   RecordFlushIOStats();
 
@@ -225,7 +229,7 @@ Result<FileNumbersHolder> FlushJob::Run(FileMetaData* file_meta) {
 }
 
 Result<FileNumbersHolder> FlushJob::WriteLevel0Table(
-    const autovector<MemTable*>& mems, VersionEdit* edit, FileMetaData* meta) {
+    const autovector<MemTable*>& mems, VersionEdit* edit, FileMetaData* meta, void (*f)(void* arg1, std::string &&arg2), void* arg) {
   db_mutex_->AssertHeld();
   const uint64_t start_micros = db_options_.env->NowMicros();
   auto file_number_holder = file_numbers_provider_->NewFileNumber();
@@ -235,6 +239,7 @@ Result<FileNumbersHolder> FlushJob::WriteLevel0Table(
 
   Status s;
   {
+    (*f)(arg, "Unlocking mutex");
     db_mutex_->Unlock();
     if (log_buffer_) {
       log_buffer_->FlushBufferToLog();
@@ -329,6 +334,7 @@ Result<FileNumbersHolder> FlushJob::WriteLevel0Table(
       RETURN_NOT_OK(output_file_directory_->Fsync());
     }
     TEST_SYNC_POINT("FlushJob::WriteLevel0Table");
+    (*f)(arg, "Locking mutex");
     db_mutex_->Lock();
   }
 
@@ -342,6 +348,8 @@ Result<FileNumbersHolder> FlushJob::WriteLevel0Table(
     // Add file to L0
     edit->AddCleanedFile(0 /* level */, *meta);
   }
+
+  (*f)(arg, "Recording stats");
 
   InternalStats::CompactionStats stats(1);
   stats.micros = db_options_.env->NowMicros() - start_micros;

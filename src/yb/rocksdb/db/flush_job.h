@@ -85,14 +85,14 @@ class FlushJob {
 
   ~FlushJob();
 
-  Result<FileNumbersHolder> Run(FileMetaData* file_meta = nullptr);
+  Result<FileNumbersHolder> Run(FileMetaData* file_meta = nullptr, void (*f)(void* arg1, std::string &&arg2) = nullptr, void* arg = nullptr);
   TableProperties GetTableProperties() const { return table_properties_; }
 
  private:
   void ReportStartedFlush();
   void RecordFlushIOStats();
   Result<FileNumbersHolder> WriteLevel0Table(
-      const autovector<MemTable*>& mems, VersionEdit* edit, FileMetaData* meta);
+      const autovector<MemTable*>& mems, VersionEdit* edit, FileMetaData* meta, void (*f)(void* arg1, std::string &&arg2) = nullptr, void* arg = nullptr);
   const std::string& dbname_;
   ColumnFamilyData* cfd_;
   const DBOptions& db_options_;

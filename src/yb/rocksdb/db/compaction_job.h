@@ -93,7 +93,7 @@ class CompactionJob {
   // REQUIRED: mutex held
   void Prepare();
   // REQUIRED mutex not held
-  Result<FileNumbersHolder> Run();
+  Result<FileNumbersHolder> Run(void (*f)(void* arg1, std::string &&arg2) = nullptr, void* arg = nullptr);
 
   // REQUIRED: mutex held
   Status Install(const MutableCFOptions& mutable_cf_options);
