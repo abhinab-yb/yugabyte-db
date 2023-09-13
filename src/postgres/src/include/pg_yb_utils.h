@@ -101,7 +101,7 @@ typedef struct PGProcAUHEntryList
   int64	queryid;
 } PGProcAUHEntryList;
 
-typedef struct PgProcAuhNode 
+typedef struct PgProcAuhNode
 {
   PGProcAUHEntryList data;
   struct PgProcAuhNode *next;
@@ -931,14 +931,14 @@ uint32 remote_host_port_to_uint(const char *remote_host);
 void client_node_ip_to_string(uint32 client_node_host, uint16 client_node_port, char *client_node_ip);
 
 /*
- * Increments a tally of sticky objects (TEMP TABLES/WITH HOLD CURSORS) 
- * maintained for every transaction. 
+ * Increments a tally of sticky objects (TEMP TABLES/WITH HOLD CURSORS)
+ * maintained for every transaction.
  */
 extern void increment_sticky_object_count();
 
 /*
- * Decrements a tally of sticky objects (TEMP TABLES/WITH HOLD CURSORS) 
- * maintained for every transaction. 
+ * Decrements a tally of sticky objects (TEMP TABLES/WITH HOLD CURSORS)
+ * maintained for every transaction.
  */
 extern void decrement_sticky_object_count();
 

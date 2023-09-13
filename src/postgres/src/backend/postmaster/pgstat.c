@@ -3252,7 +3252,7 @@ pgstat_report_activity(BackendState state, const char *cmd_str)
 			beentry->st_activity_start_timestamp = 0;
 			/* st_xact_start_timestamp and wait_event_info are also disabled */
 			beentry->st_xact_start_timestamp = 0;
-			proc->wait_event_info = 0;
+			pg_atomic_write_u32(&proc->wait_event_info, 0);
 			PGSTAT_END_WRITE_ACTIVITY(beentry);
 		}
 		return;

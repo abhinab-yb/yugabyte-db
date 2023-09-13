@@ -444,7 +444,7 @@ ybauh_ExecutorEnd(QueryDesc *queryDesc)
   MyProc->queryid = 0;
   YBCSetQueryId(0);
   MyProc->top_level_request_id[0] = '\0';
-  MyProc->wait_event_info = 0;
+  pg_atomic_write_u32(&MyProc->wait_event_info, 0);
 
 	if (prev_ExecutorEnd)
 		prev_ExecutorEnd(queryDesc);

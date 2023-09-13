@@ -276,12 +276,12 @@ PGProcAUHEntryList fetch_proc_entry(volatile PGPROC *proc)
 {
 	PGProcAUHEntryList procEntry;
 	int index = 0;
-	for (index = 0; index < 2; index++) 
+	for (index = 0; index < 2; index++)
 	{
         procEntry.top_level_request_id[index] = proc->top_level_request_id[index];
         procEntry.top_level_node_id[index] = proc->top_level_node_id[index];
     }
-	procEntry.wait_event_info = proc->wait_event_info;
+	procEntry.wait_event_info = pg_atomic_read_u32(&proc->wait_event_info);
 	procEntry.client_node_host = proc->client_node_host;
 	procEntry.client_node_port = proc->client_node_port;
 	procEntry.queryid = proc->queryid;
@@ -2834,7 +2834,7 @@ PgProcAuhNode* pg_collect_samples_proc(size_t *procCount)
 	{
 		int 		pgprocno = arrayP->pgprocnos[index];
 		volatile PGPROC *proc  = &allProcs[pgprocno];
-		if(proc != NULL && proc->pid != 0 && proc->wait_event_info != 0)
+		if(proc != NULL && proc->pid != 0 && pg_atomic_read_u32(&proc->wait_event_info) != 0)
 		{
 			PGProcAUHEntryList entry = fetch_proc_entry(proc);
 			(*procCount)++;
@@ -2843,7 +2843,7 @@ PgProcAuhNode* pg_collect_samples_proc(size_t *procCount)
 	}
 	LWLockRelease(ProcArrayLock);
 
-	return head;	
+	return head;
 }
 
 /*

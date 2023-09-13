@@ -1393,7 +1393,7 @@ pgstat_report_wait_start(uint32 wait_event_info)
 	 * Since this is a four-byte field which is always read and written as
 	 * four-bytes, updates are atomic.
 	 */
-	proc->wait_event_info = wait_event_info;
+	pg_atomic_write_u32(&proc->wait_event_info, wait_event_info);
 }
 
 /* ----------
@@ -1416,9 +1416,9 @@ pgstat_report_wait_end_for_proc(volatile PGPROC *proc)
 	 * four-bytes, updates are atomic.
 	 */
 	if (proc->top_level_request_id[0] != '\0')
-		proc->wait_event_info = WAIT_EVENT_CPU;
+		pg_atomic_write_u32(&proc->wait_event_info, WAIT_EVENT_CPU);
 	else
-	 	proc->wait_event_info = 0;
+	 	pg_atomic_write_u32(&proc->wait_event_info, 0);
 }
 
 

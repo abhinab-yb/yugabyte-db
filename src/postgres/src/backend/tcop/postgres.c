@@ -5439,7 +5439,7 @@ PostgresMain(int argc, char *argv[],
 		if (IsYugaByteEnabled())
 		{
 			YBCSetTopLevelRequestId();
-			MyProc->wait_event_info = WAIT_EVENT_CPU;
+			pg_atomic_write_u32(&MyProc->wait_event_info, WAIT_EVENT_CPU);
 			yb_pgstat_set_has_catalog_version(true);
 			YBCPgResetCatalogReadTime();
 			YBCheckSharedCatalogCacheVersion();

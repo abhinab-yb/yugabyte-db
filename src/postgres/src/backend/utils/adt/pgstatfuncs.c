@@ -819,8 +819,9 @@ pg_stat_get_activity(PG_FUNCTION_ARGS)
 			if (proc != NULL)
 			{
 				uint32		raw_wait_event;
+				uint32		wait_event_info = pg_atomic_read_u32(&proc->wait_event_info);
 
-				raw_wait_event = UINT32_ACCESS_ONCE(proc->wait_event_info);
+				raw_wait_event = UINT32_ACCESS_ONCE(wait_event_info);
 				wait_event_type = pgstat_get_wait_event_type(raw_wait_event);
 				wait_event = pgstat_get_wait_event(raw_wait_event);
 
@@ -836,9 +837,10 @@ pg_stat_get_activity(PG_FUNCTION_ARGS)
 				if (proc != NULL)
 				{
 					uint32		raw_wait_event;
+					uint32		wait_event_info = pg_atomic_read_u32(&proc->wait_event_info);
 
 					raw_wait_event =
-						UINT32_ACCESS_ONCE(proc->wait_event_info);
+						UINT32_ACCESS_ONCE(wait_event_info);
 					wait_event_type =
 						pgstat_get_wait_event_type(raw_wait_event);
 					wait_event = pgstat_get_wait_event(raw_wait_event);
@@ -1092,7 +1094,7 @@ pg_stat_get_backend_wait_event_type(PG_FUNCTION_ARGS)
 	else if (!has_privs_of_role(GetUserId(), beentry->st_userid))
 		wait_event_type = "<insufficient privilege>";
 	else if ((proc = BackendPidGetProc(beentry->st_procpid)) != NULL)
-		wait_event_type = pgstat_get_wait_event_type(proc->wait_event_info);
+		wait_event_type = pgstat_get_wait_event_type(pg_atomic_read_u32(&proc->wait_event_info));
 
 	if (!wait_event_type)
 		PG_RETURN_NULL();
@@ -1113,7 +1115,7 @@ pg_stat_get_backend_wait_event(PG_FUNCTION_ARGS)
 	else if (!has_privs_of_role(GetUserId(), beentry->st_userid))
 		wait_event = "<insufficient privilege>";
 	else if ((proc = BackendPidGetProc(beentry->st_procpid)) != NULL)
-		wait_event = pgstat_get_wait_event(proc->wait_event_info);
+		wait_event = pgstat_get_wait_event(pg_atomic_read_u32(&proc->wait_event_info));
 
 	if (!wait_event)
 		PG_RETURN_NULL();

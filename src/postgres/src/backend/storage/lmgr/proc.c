@@ -427,7 +427,7 @@ InitProcess(void)
 	Assert(dlist_is_empty(&MyProc->lockGroupMembers));
 
 	/* Initialize wait event information. */
-	MyProc->wait_event_info = 0;
+	pg_atomic_write_u32(&MyProc->wait_event_info, 0);
 
 	/* Initialize fields for group transaction status update. */
 	MyProc->clogGroupMember = false;

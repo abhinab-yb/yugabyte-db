@@ -173,7 +173,7 @@ struct PGPROC
 	 */
 	TransactionId procArrayGroupMemberXid;
 
-	uint32		wait_event_info;	/* proc's wait information */
+	pg_atomic_uint32 wait_event_info;	/* proc's wait information */
 
 	/* Support for group transaction status update. */
 	bool		clogGroupMember;	/* true, if member of clog group */
