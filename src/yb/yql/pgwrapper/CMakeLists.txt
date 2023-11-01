@@ -151,6 +151,7 @@ ADD_YB_TEST(pg_tablet_split-test)
 ADD_YB_TEST(pg_txn-test)
 ADD_YB_TEST(pg_txn_status-test)
 ADD_YB_TEST(pg_wait_on_conflict-test)
+ADD_YB_TEST(pg_auh-test)
 ADD_YB_TEST(pg_wrapper-test)
 
 # This is really a tool, not a test, but uses a lot of existing test infrastructure.

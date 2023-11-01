@@ -723,6 +723,13 @@ class PgApiImpl {
                                 PgStatement **handle);
   Status ExecDropReplicationSlot(PgStatement *handle);
 
+  //------------------------------------------------------------------------------------------------
+  // Active Universe History
+  Status GetLocalTserverUuid(unsigned char *local_tserver_uuid);
+  Status SetAuhTopLevelNodeId(unsigned char *top_level_node_id);
+  Status SetAuhTopLevelRequestId();
+  Status SetAuhQueryId(int64_t query_id);
+
  private:
   class Interrupter;
 

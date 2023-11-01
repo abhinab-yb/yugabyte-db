@@ -184,6 +184,8 @@ class PgClient {
 
   Result<tserver::PgListReplicationSlotsResponsePB> ListReplicationSlots();
 
+  Result<std::string> GetLocalTserverUuid();
+
   using ActiveTransactionCallback = LWFunction<Status(
       const tserver::PgGetActiveTransactionListResponsePB_EntryPB&, bool is_last)>;
   Status EnumerateActiveTransactions(

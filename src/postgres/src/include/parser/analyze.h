@@ -46,4 +46,6 @@ extern void applyLockingClause(Query *qry, Index rtindex,
 extern List *BuildOnConflictExcludedTargetlist(Relation targetrel,
 								  Index exclRelIndex);
 
+extern void YbSetAuhQueryIdAfterPostParseAnalyze(Query *query);
+
 #endif							/* ANALYZE_H */

@@ -1045,6 +1045,11 @@ PostmasterMain(int argc, char *argv[])
 	process_shared_preload_libraries();
 
 	/*
+	 * Cache the value of enable_yb_auh gflag
+	 */
+	enable_yb_auh = getenv("FLAGS_enable_yb_auh");
+
+	/*
 	 * Now that loadable modules have had their chance to register background
 	 * workers, calculate MaxBackends.
 	 */

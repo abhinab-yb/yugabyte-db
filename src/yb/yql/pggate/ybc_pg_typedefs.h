@@ -364,6 +364,13 @@ typedef struct PgCallbacks {
   void (*ConstructArrayDatum)(YBCPgOid oid, const char **, const int, char **, size_t *);
   /* hba.c */
   int (*CheckUserMap)(const char *, const char *, const char *, bool case_insensitive);
+  void (*YbProcSetAuhTopLevelNodeId)(unsigned char *);
+  void (*YbProcSetAuhTopLevelRequestId)(unsigned char *);
+  void (*YbProcSetAuhCurrentRequestId)(int64_t);
+  unsigned char* (*YbProcGetAuhTopLevelNodeId)();
+  unsigned char* (*YbProcGetAuhTopLevelRequestId)();
+  int64_t (*YbProcGetAuhCurrentRequestId)();
+  uint64_t (*YbProcGetAuhQueryId)();
 } YBCPgCallbacks;
 
 typedef struct PgGFlagsAccessor {

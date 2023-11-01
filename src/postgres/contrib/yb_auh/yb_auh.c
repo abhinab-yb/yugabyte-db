@@ -16,19 +16,20 @@
  */
 
 #include "postgres.h"
-
+#include "access/hash.h"
+#include "parser/analyze.h"
 #include "postmaster/bgworker.h"
-
 #include "storage/ipc.h"
 #include "storage/latch.h"
 #include "storage/lwlock.h"
 #include "storage/shmem.h"
-
 #include "utils/guc.h"
 #include "utils/timestamp.h"
-
+#include "funcapi.h"
 #include "miscadmin.h"
 #include "pgstat.h"
+
+#include "yb/yql/pggate/ybc_pggate.h"
 
 PG_MODULE_MAGIC;
 PG_FUNCTION_INFO_V1(yb_active_universe_history);

@@ -815,6 +815,16 @@ class PgClient::Impl {
     return resp;
   }
 
+  Result<std::string> GetLocalTserverUuid() {
+    tserver::PgGetLocalTserverUuidRequestPB req;
+    tserver::PgGetLocalTserverUuidResponsePB resp;
+
+    RETURN_NOT_OK(proxy_->GetLocalTserverUuid(req, &resp, PrepareController()));
+    RETURN_NOT_OK(ResponseStatus(resp));
+
+    return resp.local_tserver_uuid();
+  }
+
  private:
   std::string LogPrefix() const {
     return Format("Session id $0: ", session_id_);
@@ -1071,6 +1081,10 @@ Status PgClient::CancelTransaction(const unsigned char* transaction_id) {
 
 Result<tserver::PgListReplicationSlotsResponsePB> PgClient::ListReplicationSlots() {
   return impl_->ListReplicationSlots();
+}
+
+Result<std::string> PgClient::GetLocalTserverUuid() {
+  return impl_->GetLocalTserverUuid();
 }
 
 }  // namespace pggate

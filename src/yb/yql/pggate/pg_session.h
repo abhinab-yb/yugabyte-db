@@ -33,6 +33,7 @@
 #include "yb/util/lw_function.h"
 #include "yb/util/oid_generator.h"
 #include "yb/util/result.h"
+#include "yb/auh/wait_state.h"
 
 #include "yb/yql/pggate/pg_client.h"
 #include "yb/yql/pggate/pg_doc_metrics.h"
@@ -359,6 +360,12 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
 
   Result<yb::tserver::PgListReplicationSlotsResponsePB> ListReplicationSlots();
 
+  Status GetLocalTserverUuid(unsigned char *local_tserver_uuid);
+  Status SetAuhTopLevelNodeId(unsigned char *top_level_node_id);
+  Status SetAuhTopLevelRequestId();
+  Status SetAuhQueryId(int64_t query_id);
+  bool IsAuhMetadataOkay();
+
  private:
   Result<PgTableDescPtr> DoLoadTable(const PgObjectId& table_id, bool fail_on_cache_hit);
   Result<PerformFuture> FlushOperations(BufferableOperations ops, bool transactional);
@@ -420,6 +427,8 @@ class PgSession : public RefCountedThreadSafe<PgSession> {
 
   const YBCPgCallbacks& pg_callbacks_;
   bool has_write_ops_in_ddl_mode_ = false;
+
+  auh::AUHMetadata auh_metadata_;
 };
 
 }  // namespace yb::pggate

@@ -1828,6 +1828,23 @@ YBCStatus YBCPgNewDropReplicationSlot(const char *slot_name,
 YBCStatus YBCPgExecDropReplicationSlot(YBCPgStatement handle) {
   return ToYBCStatus(pgapi->ExecDropReplicationSlot(handle));
 }
+YBCStatus YBCGetLocalTserverUuid(unsigned char **local_tserver_uuid) {
+  *local_tserver_uuid = static_cast<unsigned char *>(
+      YBCPAlloc(sizeof(unsigned char) * 16));
+  return ToYBCStatus(pgapi->GetLocalTserverUuid(*local_tserver_uuid));
+}
+
+YBCStatus YBCSetAuhTopLevelNodeId(unsigned char *top_level_node_id) {
+  return ToYBCStatus(pgapi->SetAuhTopLevelNodeId(top_level_node_id));
+}
+
+YBCStatus YBCSetAuhTopLevelRequestId() {
+  return ToYBCStatus(pgapi->SetAuhTopLevelRequestId());
+}
+
+YBCStatus YBCSetAuhQueryId(int64_t query_id) {
+  return ToYBCStatus(pgapi->SetAuhQueryId(query_id));
+}
 
 } // extern "C"
 

@@ -811,6 +811,9 @@ pg_analyze_and_rewrite_params(RawStmt *parsetree,
 	if (post_parse_analyze_hook)
 		(*post_parse_analyze_hook) (pstate, query);
 
+	if (IsYugaByteEnabled() && enable_yb_auh)
+		YbSetAuhQueryIdAfterPostParseAnalyze(query);
+
 	free_parsestate(pstate);
 
 	if (log_parser_stats)
@@ -5339,6 +5342,9 @@ PostgresMain(int argc, char *argv[],
 		 */
 		firstchar = ReadCommand(&input_message);
 
+		if (IsYugaByteEnabled() && enable_yb_auh)
+			YBCSetAuhTopLevelRequestId();
+
 		/*
 		 * (4) disable async signal conditions again.
 		 *
@@ -5923,6 +5929,9 @@ PostgresMain(int argc, char *argv[],
 						 errmsg("invalid frontend message type %d",
 								firstchar)));
 		}
+		/* Reset AUH query id */
+		MyProc->auh_metadata.query_id = -1; /* atomic */
+		YBCSetAuhQueryId(-1);
 	}							/* end of input-reading loop */
 }
 

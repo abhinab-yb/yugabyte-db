@@ -94,6 +94,9 @@ service PgClientService {
   rpc GetNewObjectId(PgGetNewObjectIdRequestPB)
       returns (PgGetNewObjectIdResponsePB);
 
+  rpc GetLocalTserverUuid (PgGetLocalTserverUuidRequestPB)
+      returns (PgGetLocalTserverUuidResponsePB);
+
   // DEPRECATED
   rpc SetActiveSubTransaction(PgSetActiveSubTransactionRequestPB)
       returns (PgSetActiveSubTransactionResponsePB);
@@ -499,6 +502,8 @@ message PgPerformOptionsPB {
   bool trace_requested = 19;
   bool yb_non_ddl_txn_for_sys_tables_allowed = 21;
   int64 pg_txn_start_us = 22;
+
+  AUHMetadataPB auh_metadata = 23;
 }
 
 message PgPerformRequestPB {
@@ -776,4 +781,12 @@ message PgGetNewObjectIdRequestPB {
 message PgGetNewObjectIdResponsePB {
   AppStatusPB status = 1;
   uint32 new_oid = 2;
+}
+
+message PgGetLocalTserverUuidRequestPB {
+}
+
+message PgGetLocalTserverUuidResponsePB {
+  AppStatusPB status = 1;
+  bytes local_tserver_uuid = 2;
 }

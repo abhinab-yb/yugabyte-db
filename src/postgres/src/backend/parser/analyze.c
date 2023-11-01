@@ -129,6 +129,9 @@ parse_analyze(RawStmt *parseTree, const char *sourceText,
 	if (post_parse_analyze_hook)
 		(*post_parse_analyze_hook) (pstate, query);
 
+	if (IsYugaByteEnabled() && enable_yb_auh)
+		YbSetAuhQueryIdAfterPostParseAnalyze(query);
+
 	free_parsestate(pstate);
 
 	return query;
@@ -168,6 +171,9 @@ parse_analyze_varparams(RawStmt *parseTree, const char *sourceText,
 
 	if (post_parse_analyze_hook)
 		(*post_parse_analyze_hook) (pstate, query);
+
+	if (IsYugaByteEnabled() && enable_yb_auh)
+		YbSetAuhQueryIdAfterPostParseAnalyze(query);
 
 	free_parsestate(pstate);
 
@@ -3027,3 +3033,11 @@ test_raw_expression_coverage(Node *node, void *context)
 }
 
 #endif							/* RAW_EXPRESSION_COVERAGE_TEST */
+
+extern void
+YbSetAuhQueryIdAfterPostParseAnalyze(Query *query)
+{
+	int64		query_id = query->queryId;
+	MyProc->auh_metadata.query_id = query_id; /* atomic */
+	YBCSetAuhQueryId(query_id);
+}

@@ -22,6 +22,7 @@
 #include <optional>
 #include <utility>
 
+#include <boost/algorithm/hex.hpp>
 #include <boost/functional/hash.hpp>
 
 #include "yb/client/table_info.h"
@@ -755,6 +756,12 @@ Result<PerformFuture> PgSession::Perform(BufferableOperations&& ops, PerformOpti
 
   DCHECK(!options.has_read_time() || options.isolation() != IsolationLevel::SERIALIZABLE_ISOLATION);
 
+  if (FLAGS_enable_yb_auh) {
+    pg_callbacks_.YbProcSetAuhCurrentRequestId(++auh_metadata_.current_request_id);
+    // DCHECK(IsAuhMetadataOkay());
+    auh_metadata_.ToPB(options.mutable_auh_metadata());
+  }
+
   pg_client_.PerformAsync(&options, &ops.operations, [promise](const PerformResult& result) {
     promise->set_value(result);
   });
@@ -988,6 +995,73 @@ Result<boost::container::small_vector<RefCntSlice, 2>> PgSession::GetTableKeyRan
 
 Result<tserver::PgListReplicationSlotsResponsePB> PgSession::ListReplicationSlots() {
   return pg_client_.ListReplicationSlots();
+}
+
+Status PgSession::GetLocalTserverUuid(unsigned char *local_tserver_uuid) {
+  auto result = VERIFY_RESULT(pg_client_.GetLocalTserverUuid());
+
+  // convert hex string to raw bytes
+  std::string hash = boost::algorithm::unhex(result);
+  std::copy(hash.begin(), hash.end(), local_tserver_uuid);
+
+  return Status::OK();
+}
+
+Status PgSession::SetAuhTopLevelNodeId(unsigned char *top_level_node_id) {
+  Slice top_level_node_id_slice(top_level_node_id, 16);
+  auh_metadata_.top_level_node_id = VERIFY_RESULT(Uuid::FromSlice(top_level_node_id_slice));
+  pg_callbacks_.YbProcSetAuhTopLevelNodeId(top_level_node_id);
+  return Status::OK();
+}
+
+Status PgSession::SetAuhTopLevelRequestId() {
+  // Generate random 16 bytes hex string
+  std::stringstream ss;
+  for (int i = 0; i < 2; ++i) {
+    ss << std::setw(16) << std::setfill('0') << std::hex << RandomUniformInt<uint64_t>();
+  }
+
+  auh_metadata_.top_level_request_id = VERIFY_RESULT(Uuid::FromHexString(ss.str()));
+  auh_metadata_.current_request_id = 0;
+
+  unsigned char top_level_request_id_bytes[16];
+  auh_metadata_.top_level_request_id.ToBytes((void *)top_level_request_id_bytes);
+  pg_callbacks_.  YbProcSetAuhTopLevelRequestId(top_level_request_id_bytes);
+
+  return Status::OK();
+}
+
+Status PgSession::SetAuhQueryId(int64_t query_id) {
+  auh_metadata_.query_id = query_id;
+  return Status::OK();
+}
+
+bool PgSession::IsAuhMetadataOkay() {
+  // Check that the auh metadata is set properly in PgSession
+  DCHECK(!auh_metadata_.top_level_request_id.IsNil());
+  DCHECK(!auh_metadata_.top_level_node_id.IsNil());
+  DCHECK_NE(auh_metadata_.current_request_id, 0);
+
+  // Check that the auh metadata in PgSession is the same as that in PGPROC
+  unsigned char pg_session_top_level_request_id[16];
+  auh_metadata_.top_level_request_id.ToBytes(pg_session_top_level_request_id);
+  unsigned char *pg_proc_top_level_request_id = pg_callbacks_.YbProcGetAuhTopLevelRequestId();
+
+  unsigned char pg_session_top_level_node_id[16];
+  auh_metadata_.top_level_request_id.ToBytes(pg_session_top_level_node_id);
+  unsigned char *pg_proc_top_level_node_id = pg_callbacks_.YbProcGetAuhTopLevelNodeId();
+
+  for (int i = 0; i < 16; ++i) {
+    DCHECK_EQ(static_cast<unsigned int>(pg_session_top_level_request_id[i]),
+        static_cast<unsigned int>(pg_proc_top_level_request_id[i]));
+    DCHECK_EQ(static_cast<unsigned int>(pg_session_top_level_node_id[i]),
+        static_cast<unsigned int>(pg_proc_top_level_node_id[i]));
+  }
+
+  DCHECK_EQ(pg_callbacks_.YbProcGetAuhCurrentRequestId(), auh_metadata_.current_request_id);
+  DCHECK_EQ(pg_callbacks_.YbProcGetAuhQueryId(), auh_metadata_.query_id);
+
+  return true;
 }
 
 }  // namespace yb::pggate

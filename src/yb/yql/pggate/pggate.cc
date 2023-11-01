@@ -2174,5 +2174,21 @@ Status PgApiImpl::ExecDropReplicationSlot(PgStatement *handle) {
   return pg_stmt->Exec();
 }
 
+Status PgApiImpl::GetLocalTserverUuid(unsigned char *local_tserver_uuid) {
+  return pg_session_->GetLocalTserverUuid(local_tserver_uuid);
+}
+
+Status PgApiImpl::SetAuhTopLevelNodeId(unsigned char *top_level_node_id) {
+  return pg_session_->SetAuhTopLevelNodeId(top_level_node_id);
+}
+
+Status PgApiImpl::SetAuhTopLevelRequestId() {
+  return pg_session_->SetAuhTopLevelRequestId();
+}
+
+Status PgApiImpl::SetAuhQueryId(int64_t query_id) {
+  return pg_session_->SetAuhQueryId(query_id);
+}
+
 } // namespace pggate
 } // namespace yb

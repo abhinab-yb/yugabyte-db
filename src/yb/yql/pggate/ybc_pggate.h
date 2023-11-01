@@ -748,6 +748,13 @@ YBCStatus YBCPgExecDropReplicationSlot(YBCPgStatement handle);
 // Get a new OID from the OID allocator of database db_oid.
 YBCStatus YBCGetNewObjectId(YBCPgOid db_oid, YBCPgOid* new_oid);
 
+//--------------------------------------------------------------------------------------------------
+// Active Universe History.
+YBCStatus YBCGetLocalTserverUuid(unsigned char **local_tserver_uuid);
+YBCStatus YBCSetAuhTopLevelNodeId(unsigned char *top_level_node_id);
+YBCStatus YBCSetAuhTopLevelRequestId();
+YBCStatus YBCSetAuhQueryId(int64_t query_id);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

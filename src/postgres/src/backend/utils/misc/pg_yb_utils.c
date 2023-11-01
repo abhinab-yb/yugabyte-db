@@ -835,6 +835,12 @@ YBInitPostgresBackend(
 		callbacks.UnixEpochToPostgresEpoch = &YbUnixEpochToPostgresEpoch;
 		callbacks.ConstructArrayDatum = &YbConstructArrayDatum;
 		callbacks.CheckUserMap = &check_usermap;
+		callbacks.YbProcSetAuhTopLevelRequestId = &YbProcSetAuhTopLevelRequestId;
+		callbacks.YbProcSetAuhCurrentRequestId = &YbProcSetAuhCurrentRequestId;
+		callbacks.YbProcGetAuhTopLevelNodeId = &YbProcGetAuhTopLevelNodeId;
+		callbacks.YbProcGetAuhTopLevelRequestId = &YbProcGetAuhTopLevelRequestId;
+		callbacks.YbProcGetAuhCurrentRequestId = &YbProcGetAuhCurrentRequestId;
+		callbacks.YbProcGetAuhQueryId = &YbProcGetAuhQueryId;
 		YBCInitPgGate(type_table, count, callbacks);
 		YBCInstallTxnDdlHook();
 
@@ -4019,4 +4025,54 @@ YbReadWholeFile(const char *filename, int* length, int elevel)
 
 	buf[*length] = '\0';
 	return buf;
+}
+
+bool enable_yb_auh = false;
+unsigned char *local_tserver_uuid = NULL;
+
+void
+YbProcSetAuhTopLevelNodeId(unsigned char *top_level_node_id)
+{
+	LWLockAcquire(&MyProc->auh_metadata.lock, LW_EXCLUSIVE);
+	memcpy(MyProc->auh_metadata.top_level_node_id, top_level_node_id, 16);
+	LWLockRelease(&MyProc->auh_metadata.lock);
+}
+
+void
+YbProcSetAuhTopLevelRequestId(unsigned char *top_level_request_id)
+{
+	LWLockAcquire(&MyProc->auh_metadata.lock, LW_EXCLUSIVE);
+	memcpy(MyProc->auh_metadata.top_level_request_id, top_level_request_id, 16);
+	MyProc->auh_metadata.current_request_id = 0; /* Reset current request id */
+	LWLockRelease(&MyProc->auh_metadata.lock);
+}
+
+void
+YbProcSetAuhCurrentRequestId(int64_t current_request_id)
+{
+	MyProc->auh_metadata.current_request_id = current_request_id; /* atomic */
+}
+
+unsigned char*
+YbProcGetAuhTopLevelNodeId()
+{
+	return (unsigned char *) MyProc->auh_metadata.top_level_node_id;
+}
+
+unsigned char*
+YbProcGetAuhTopLevelRequestId()
+{
+	return (unsigned char *) MyProc->auh_metadata.top_level_request_id;
+}
+
+int64_t
+YbProcGetAuhCurrentRequestId()
+{
+	return MyProc->auh_metadata.current_request_id;
+}
+
+uint64_t
+YbProcGetAuhQueryId()
+{
+	return MyProc->auh_metadata.query_id;
 }

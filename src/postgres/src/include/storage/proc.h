@@ -77,6 +77,38 @@ struct XidCache
 #define INVALID_PGPROCNO		PG_INT32_MAX
 
 /*
+ * We use this structure to keep track of Active Universe History metadata
+ * for each PG process.
+ */
+typedef struct YbAuhMetadata
+{
+	/* Lock to protect the non-atomic reads and writes */
+	LWLock		lock;
+
+	/* A unique id corresponding to a YSQL query */
+	unsigned char top_level_request_id[16];
+
+	/* Id of the node where the YSQL query originated */
+	unsigned char top_level_node_id[16];
+
+	/* Query id as seen on pg_stat_statements */
+	int64		query_id;
+
+	/* A single YSQL query can generate multiple internal requests, each
+	 * internal request will have this unique id. Note that it is not 
+	 * globally unique. */
+	int64		current_request_id;
+
+	/* ipv4 address of the PG process where the YSQL query originated.
+	 * Stored as uint32 since ipv4 has 32 bits, and it makes it possible
+	 * store it in compact form */
+	uint32		client_node_host;
+
+	/* Port of the PG process where the YSQL query originated */
+	uint16		client_node_port;
+} YbAuhMetadata;
+
+/*
  * Each backend has a PGPROC struct in shared memory.  There is also a list of
  * currently-unused PGPROC structs that will be reallocated to new backends.
  *
@@ -211,6 +243,8 @@ struct PGPROC
 	 * pg_buffercache extension locks all buffer partitions simultaneously.
 	 */
 	bool 		ybAnyLockAcquired;
+
+	YbAuhMetadata auh_metadata;
 };
 
 /* NOTE: "typedef struct PGPROC PGPROC" appears in storage/lock.h. */

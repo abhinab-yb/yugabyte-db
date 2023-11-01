@@ -1160,6 +1160,14 @@ class PgClientServiceImpl::Impl {
     return Status::OK();
   }
 
+  Status GetLocalTserverUuid(
+      const PgGetLocalTserverUuidRequestPB& req,
+      PgGetLocalTserverUuidResponsePB* resp,
+      rpc::RpcContext* context) {
+    resp->set_local_tserver_uuid(client().proxy_uuid());
+    return Status::OK();
+  }
+
   #define PG_CLIENT_SESSION_METHOD_FORWARD(r, data, method) \
   Status method( \
       const BOOST_PP_CAT(BOOST_PP_CAT(Pg, method), RequestPB)& req, \

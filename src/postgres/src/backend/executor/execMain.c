@@ -136,6 +136,10 @@ ExecutorStart(QueryDesc *queryDesc, int eflags)
 		(*ExecutorStart_hook) (queryDesc, eflags);
 	else
 		standard_ExecutorStart(queryDesc, eflags);
+
+	int64		query_id = queryDesc->plannedstmt->queryId;
+	MyProc->auh_metadata.query_id = query_id; /* atomic */
+	YBCSetAuhQueryId(query_id);
 }
 
 void
@@ -295,6 +299,10 @@ ExecutorRun(QueryDesc *queryDesc,
 		(*ExecutorRun_hook) (queryDesc, direction, count, execute_once);
 	else
 		standard_ExecutorRun(queryDesc, direction, count, execute_once);
+
+	int64		query_id = queryDesc->plannedstmt->queryId;
+	MyProc->auh_metadata.query_id = query_id; /* atomic */
+	YBCSetAuhQueryId(query_id);
 }
 
 void

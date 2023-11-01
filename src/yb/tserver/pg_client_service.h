@@ -81,6 +81,7 @@ class PgMutationCounter;
     (WaitForBackendsCatalogVersion) \
     (CancelTransaction) \
     (GetActiveTransactionList) \
+    (GetLocalTserverUuid) \
     /**/
 
 // Forwards call to corresponding PgClientSession async method (see

@@ -85,6 +85,9 @@
 #include "catalog/pg_yb_tablegroup.h"
 #include "catalog/yb_catalog_version.h"
 #include "utils/yb_inheritscache.h"
+#include <arpa/inet.h>
+#include "common/ip.h"
+#include "utils/builtins.h"
 
 static HeapTuple GetDatabaseTuple(const char *dbname);
 static HeapTuple GetDatabaseTupleByOid(Oid dboid);
@@ -98,6 +101,7 @@ static void IdleInTransactionSessionTimeoutHandler(void);
 static bool ThereIsAtLeastOneRole(void);
 static void process_startup_options(Port *port, bool am_superuser);
 static void process_settings(Oid databaseid, Oid roleid);
+static void YbGetClientNodeIp(char *remote_host, char *remote_port);
 
 /*** InitPostgres support ***/
 
@@ -686,6 +690,27 @@ InitPostgresImpl(const char *in_dbname, Oid dboid, const char *username,
 		YBInitPostgresBackend("postgres", "", username);
 	else
 		YBInitPostgresBackend("postgres", in_dbname, username);
+
+	/* Setting some AUH metadata one time, even if AUH is turned off */
+	if (IsYugaByteEnabled())
+	{
+		if (!local_tserver_uuid) /* Fetch the local tserver uuid once */
+			YBCGetLocalTserverUuid(&local_tserver_uuid);
+		
+		HandleYBStatus(YBCSetAuhTopLevelRequestId()); /* top level request id for
+												       * catalog requests not tied
+													   * to any SQL query. */
+		HandleYBStatus(YBCSetAuhTopLevelNodeId(local_tserver_uuid));
+		char		remote_host[NI_MAXHOST];
+		char		remote_port[NI_MAXSERV];
+		YbGetClientNodeIp(remote_host, remote_port);
+		LWLockAcquire(&MyProc->auh_metadata.lock, LW_EXCLUSIVE);
+		MyProc->auh_metadata.client_node_host = ntohl(inet_addr(remote_host));
+		MyProc->auh_metadata.client_node_port = atoi(remote_port);
+		LWLockRelease(&MyProc->auh_metadata.lock);
+		YBCSetAuhQueryId(-1); /* Query id as -1 for catalog requests which don't
+							   * have a query id yet */
+	}
 
 	if (IsYugaByteEnabled() && !bootstrap)
 	{
@@ -1362,4 +1387,70 @@ ThereIsAtLeastOneRole(void)
 	heap_close(pg_authid_rel, AccessShareLock);
 
 	return result;
+}
+
+static void
+YbGetClientNodeIp(char *remote_host, char *remote_port)
+{
+	int	num_backends = pgstat_fetch_stat_numbackends();
+	PgBackendStatus *beentry;
+	SockAddr		zero_clientaddr;
+
+	remote_host[0] = '\0';
+	remote_port[0] = '\0';
+
+	for (int curr_backend = 1; curr_backend <= num_backends; curr_backend++)
+	{
+		beentry = pgstat_fetch_stat_beentry(curr_backend);
+
+		if (beentry->st_procpid != MyProcPid)
+			continue;
+
+		/* A zeroed client addr means we don't know */
+		memset(&zero_clientaddr, 0, sizeof(zero_clientaddr));
+		if (memcmp(&(beentry->st_clientaddr), &zero_clientaddr,
+					sizeof(zero_clientaddr)) == 0)
+		{
+			ereport(LOG,
+					(errmsg("zeroed client addr found")));
+		}
+		else
+		{
+			if (beentry->st_clientaddr.addr.ss_family == AF_INET)
+			{
+
+				int ret = pg_getnameinfo_all(&beentry->st_clientaddr.addr,
+											beentry->st_clientaddr.salen,
+											remote_host, sizeof(remote_host),
+											remote_port, sizeof(remote_port),
+											NI_NUMERICHOST | NI_NUMERICSERV);
+
+				if (ret != 0)
+					ereport(LOG,
+							(errmsg("non-zero pg_getnameinfo_all value")));
+			}
+			else if (beentry->st_clientaddr.addr.ss_family == AF_INET6)
+			{
+				ereport(LOG,
+						(errmsg("client addr type is ipv6")));
+			}
+			else if (beentry->st_clientaddr.addr.ss_family == AF_UNIX)
+			{
+				/*
+				 * Unix sockets always reports NULL for host and -1 for
+				 * port, so it's possible to tell the difference to
+				 * connections we have no permissions to view, or with
+				 * errors.
+				 */
+				ereport(LOG,
+						(errmsg("client addr type is unix")));
+			}
+			else
+			{
+				/* Unknown address type, should never happen */
+				ereport(LOG,
+						(errmsg("unknown addr type, should never happen")));
+			}
+		}
+	}
 }

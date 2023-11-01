@@ -1004,4 +1004,30 @@ extern void** YbPtrListToArray(const List* str_list, size_t* length);
  */
 extern char* YbReadWholeFile(const char *filename, int* length, int elevel);
 
+/*
+ * Cache the value of FLAGS_enable_yb_auh
+ */
+extern bool enable_yb_auh;
+
+/*
+ * Cache the local tserver uuid
+ */
+unsigned char *local_tserver_uuid;
+
+/*
+ * Set AUH metadata in PGPROC
+ */
+void YbProcSetAuhTopLevelNodeId(unsigned char *top_level_node_id);
+void YbProcSetAuhTopLevelRequestId(unsigned char *top_level_request_id);
+void YbProcSetAuhCurrentRequestId(int64_t current_request_id);
+
+/*
+ * Get AUH metadata from PGPROC
+ */
+unsigned char *YbProcGetAuhTopLevelNodeId();
+unsigned char *YbProcGetAuhTopLevelRequestId();
+int64_t YbProcGetAuhCurrentRequestId();
+uint64_t YbProcGetAuhQueryId();
+
+
 #endif /* PG_YB_UTILS_H */

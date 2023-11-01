@@ -235,6 +235,7 @@ InitProcGlobal(void)
 			procs[i].sem = PGSemaphoreCreate();
 			InitSharedLatch(&(procs[i].procLatch));
 			LWLockInitialize(&(procs[i].backendLock), LWTRANCHE_PROC);
+			LWLockInitialize(&(procs[i].auh_metadata.lock), LWTRANCHE_YB_AUH_METADATA);
 		}
 		procs[i].pgprocno = i;
 
@@ -438,6 +439,13 @@ InitProcess(void)
 	Assert(pg_atomic_read_u32(&MyProc->clogGroupNext) == INVALID_PGPROCNO);
 
 	MyProc->ybAnyLockAcquired = false;
+
+	MyProc->auh_metadata.top_level_request_id[0] = 0;
+	MyProc->auh_metadata.top_level_node_id[0] = 0;
+	MyProc->auh_metadata.query_id = -1;
+	MyProc->auh_metadata.current_request_id = 0;
+	MyProc->auh_metadata.client_node_host = 0;
+	MyProc->auh_metadata.client_node_port = 0;
 
 	/*
 	 * Acquire ownership of the PGPROC's latch, so that we can use WaitLatch
