@@ -44,6 +44,7 @@ package yb;
 option java_package = "org.yb";
 
 import "yb/common/common_types.proto";
+import "yb/common/common_net.proto";
 import "yb/common/transaction.proto";
 import "yb/common/value.proto";
 
@@ -619,4 +620,48 @@ message PgDatumPB {
     bytes datum_bytes = 7;
     bool datum_missing = 8;
   }
+}
+
+message AUHMetadataPB {
+  // The top level request-id. i.e. the request id
+  // corresponding to the call from the application to Pg/CQL
+  // if set, should be 16 bytes in length.
+  optional bytes top_level_request_id = 1;
+  // The client which sent the request to Pg/CQL.
+  optional HostPortPB client_host_port = 2;
+  // The node which received the request from the client. i.e.
+  // the node running the Pg backend/CQL proxy.
+  // if set, should be 16 bytes in length.
+  optional bytes top_level_node_id = 3;
+  // The id for the "current" request. This may be different than
+  // the top level request id. e.g. consider a write-rpc sent by the local
+  // TServer to the destination TServer.
+  optional int64 current_request_id = 4;
+  // The query id for the request sent by the client.
+  // The top-level-request-id keeps changing. But the query-id is supposed
+  // to be the same unless the syntax of the pg-statement is changed.
+  // Allows us to group requests together and study the patterns.
+  optional int64 query_id = 5;
+}
+
+// Some optional/additional fields that is collected in addition to the wait statement
+// Depending on the wait-state we may choose to persist at most one of these into
+// the pg_active_universe_history.wait_event_aux field.
+message AUHAuxDataPB {
+  optional string tablet_id = 1;
+  optional string table_id = 2;
+  optional string method = 3;
+}
+
+// Represents the wait-state tracked for a given incoming rpc/request.
+message WaitStateInfoPB {
+  // The metadata is rarely modified.
+  optional AUHMetadataPB metadata = 1;
+  // Represents the state of the curreent rpc/request when it was polled.
+  optional uint64 wait_status_code = 2;
+  // Some additional information that may be persisted as
+  // pg_active_universe_history.wait_event_aux
+  optional AUHAuxDataPB aux_info = 3;
+  // A string representation of wait_status_code for easy human consumption.
+  optional string wait_status_code_as_string = 4;
 }
