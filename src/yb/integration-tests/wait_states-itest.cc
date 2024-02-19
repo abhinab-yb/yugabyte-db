@@ -406,7 +406,7 @@ class AshTestPg : public WaitStateTestCheckMethodCounts {
   }
 };
 
-TEST_F_EX(WaitStateITest, YB_DISABLE_TEST_IN_TSAN(AshPg), AshTestPg) {
+TEST_F_EX(WaitStateITest, AshPg, AshTestPg) {
   RunTestsAndFetchAshMethodCounts();
 }
 
@@ -428,7 +428,7 @@ class AshTestCql : public WaitStateTestCheckMethodCounts {
   }
 };
 
-TEST_F_EX(WaitStateITest, YB_DISABLE_TEST_IN_TSAN(AshCql), AshTestCql) {
+TEST_F_EX(WaitStateITest, AshCql, AshTestCql) {
   RunTestsAndFetchAshMethodCounts();
 }
 
@@ -487,7 +487,7 @@ void AshTestWithCompactions::DoCompactionsAndFlushes(std::atomic<bool>& stop) {
   }
 }
 
-TEST_F_EX(WaitStateITest, YB_DISABLE_TEST_IN_TSAN(AshFlushAndCompactions), AshTestWithCompactions) {
+TEST_F_EX(WaitStateITest, AshFlushAndCompactions, AshTestWithCompactions) {
   RunTestsAndFetchAshMethodCounts();
 }
 
@@ -699,7 +699,7 @@ INSTANTIATE_TEST_SUITE_P(
       ash::WaitStateCode::kYBC_LookingUpTablet
       ), WaitStateCodeToString);
 
-TEST_P(AshTestVerifyOccurrence, YB_DISABLE_TEST_IN_TSAN(VerifyWaitStateEntered)) {
+TEST_P(AshTestVerifyOccurrence, VerifyWaitStateEntered) {
   RunTestsAndFetchAshMethodCounts();
 }
 
@@ -752,7 +752,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Bool()),
     WaitStateCodeAndBoolToString);
 
-TEST_P(AshTestWithPriorityQueue, YB_DISABLE_TEST_IN_TSAN(VerifyWaitStateEntered)) {
+TEST_P(AshTestWithPriorityQueue, VerifyWaitStateEntered) {
   RunTestsAndFetchAshMethodCounts();
 }
 

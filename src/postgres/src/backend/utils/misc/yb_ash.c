@@ -31,6 +31,7 @@
 #include "funcapi.h"
 #include "miscadmin.h"
 #include "parser/analyze.h"
+#include "parser/scansup.h"
 #include "pgstat.h"
 #include "postmaster/bgworker.h"
 #include "storage/ipc.h"
@@ -48,6 +49,9 @@
 #include "yb/yql/pggate/ybc_pg_typedefs.h"
 #include "yb/yql/pggate/ybc_pggate.h"
 #include "yb/yql/pggate/util/ybc_util.h"
+
+// #include <sys/types.h>
+// #include <unistd.h>
 
 /* GUC variables */
 int yb_ash_circular_buffer_size;
@@ -77,7 +81,8 @@ static YbAsh *yb_ash = NULL;
 static int yb_ash_cb_max_entries(void);
 static void yb_set_ash_metadata(uint64 query_id);
 static void yb_unset_ash_metadata();
-static uint64 yb_ash_utility_query_id(const char *str, int len);
+static uint64 yb_ash_utility_query_id(const char *query, int query_len,
+									  int query_location);
 static void YbAshAcquireBufferLock(bool exclusive);
 static void YbAshReleaseBufferLock();
 
@@ -107,7 +112,7 @@ YbAshRegister(void)
 	sprintf(worker.bgw_name, "yb_ash collector");
 	sprintf(worker.bgw_type, "yb_ash collector");
 	worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
-	worker.bgw_start_time = BgWorkerStart_ConsistentState;
+	worker.bgw_start_time = BgWorkerStart_RecoveryFinished;
 	/* Value of 1 allows the background worker for yb_ash to restart */
 	worker.bgw_restart_time = 1;
 	sprintf(worker.bgw_library_name, "postgres");
@@ -205,7 +210,8 @@ yb_ash_post_parse_analyze(ParseState *pstate, Query *query)
 	 */
 	uint64 query_id = query->queryId != 0
 					  ? query->queryId
-					  : yb_ash_utility_query_id(pstate->p_sourcetext, query->stmt_len);
+					  : yb_ash_utility_query_id(pstate->p_sourcetext, query->stmt_len,
+					  							query->stmt_location);
 	yb_set_ash_metadata(query_id);
 }
 
@@ -218,11 +224,8 @@ yb_ash_ExecutorStart(QueryDesc *queryDesc, int eflags)
 	 */
 	if (MyProc->yb_is_ash_metadata_set == false)
 	{
-		uint64 query_id = queryDesc->plannedstmt->queryId != 0
-						  ? queryDesc->plannedstmt->queryId
-						  : yb_ash_utility_query_id(queryDesc->sourceText,
-					   								queryDesc->plannedstmt->stmt_len);
-		yb_set_ash_metadata(query_id);
+		Assert(queryDesc->plannedstmt->queryId != 0);
+		yb_set_ash_metadata(queryDesc->plannedstmt->queryId);
 	}
 
 	if (prev_ExecutorStart)
@@ -299,13 +302,41 @@ yb_unset_ash_metadata()
  * Calculate the query id for utility statements like pg_stat_statements.
  */
 static uint64
-yb_ash_utility_query_id(const char *str, int len)
+yb_ash_utility_query_id(const char *query, int query_len, int query_location)
 {
 	const char *redacted_query;
 	int			redacted_query_len;
 
-	Assert(str != NULL);
-	YbGetRedactedQueryString(str, len, &redacted_query, &redacted_query_len);
+	Assert(query != NULL);
+
+	if (query_location >= 0)
+	{
+		Assert(query_location <= strlen(query));
+		query += query_location;
+		/* Length of 0 (or -1) means "rest of string" */
+		if (query_len <= 0)
+			query_len = strlen(query);
+		else
+			Assert(query_len <= strlen(query));
+	}
+	else
+	{
+		/* If query location is unknown, distrust query_len as well */
+		query_location = 0;
+		query_len = strlen(query);
+	}
+
+	/*
+	 * Discard leading and trailing whitespace, too.  Use scanner_isspace()
+	 * not libc's isspace(), because we want to match the lexer's behavior.
+	 */
+	while (query_len > 0 && scanner_isspace(query[0]))
+		query++, query_location++, query_len--;
+	while (query_len > 0 && scanner_isspace(query[query_len - 1]))
+		query_len--;
+
+	YbGetRedactedQueryString(query, query_len, &redacted_query,
+							 &redacted_query_len);
 	return DatumGetUInt64(hash_any_extended((const unsigned char *) redacted_query,
 											redacted_query_len, 0));
 }
@@ -329,7 +360,10 @@ yb_ash_sigterm(SIGNAL_ARGS)
 
 	got_sigterm = true;
 	SetLatch(MyLatch);
-
+	// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "ASH sigterm\n");
+	// 		fflush(fptr);
+	// fclose(fptr);
 	errno = save_errno;
 }
 
@@ -341,15 +375,28 @@ yb_ash_sighup(SIGNAL_ARGS)
 	got_sighup = true;
 	SetLatch(MyLatch);
 
+
+
 	errno = save_errno;
 }
 
 void
 YbAshMain(Datum main_arg)
 {
+	MemoryContext ash_context = AllocSetContextCreate(TopMemoryContext,
+													  "ASH",
+													  ALLOCSET_DEFAULT_SIZES);
+	MemoryContextSwitchTo(ash_context);
+
 	ereport(LOG,
 			(errmsg("starting bgworker yb_ash collector with max buffer entries %d",
 					yb_ash->max_entries)));
+
+
+	// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "starting ASH\n");
+	// 		fflush(fptr);
+	// fclose(fptr);
 
 	/* Register functions for SIGTERM/SIGHUP management */
 	pqsignal(SIGHUP, yb_ash_sighup);
@@ -357,6 +404,11 @@ YbAshMain(Datum main_arg)
 
 	/* We're now ready to receive signals */
 	BackgroundWorkerUnblockSignals();
+
+	// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "unblocked ASH signals\n");
+	// 		fflush(fptr);
+	// fclose(fptr);
 
 	BackgroundWorkerInitializeConnection(NULL, NULL, 0);
 

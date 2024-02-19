@@ -73,6 +73,10 @@ const char* GetDebugQueryStringStub() {
   return "GetDebugQueryString not implemented in test";
 }
 
+uint32_t PgstatReportWaitStartNoOp(uint32_t wait_event) {
+  return wait_event;
+}
+
 } // namespace
 
 PggateTest::PggateTest()
@@ -148,6 +152,7 @@ Status PggateTest::Init(const char *test_name,
   memset(session_stats, 0, sizeof(YBCPgExecStatsState));
   callbacks.GetCurrentYbMemctx = &GetCurrentTestYbMemctx;
   callbacks.GetDebugQueryString = &GetDebugQueryStringStub;
+  callbacks.PgstatReportWaitStart = &PgstatReportWaitStartNoOp;
 
   {
     auto proxy = cluster_->GetProxy<tserver::TabletServerServiceProxy>(cluster_->tablet_server(0));

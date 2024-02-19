@@ -1248,7 +1248,8 @@ char *
 libpq_gettext(const char *msgid)
 {
 	libpq_binddomain();
-	return dgettext(PG_TEXTDOMAIN("libpq"), msgid);
+	return (char *)msgid;
+	// return dgettext(PG_TEXTDOMAIN("libpq"), msgid);
 }
 
 char *

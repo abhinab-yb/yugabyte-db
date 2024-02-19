@@ -306,9 +306,9 @@ class PgCatalogWithStaleResponseCacheTest : public PgCatalogWithUnlimitedCachePe
   }
 };
 
-constexpr uint64_t kFirstConnectionRPCCountDefault = 5;
-constexpr uint64_t kFirstConnectionRPCCountWithAdditionalTables = 6;
-constexpr uint64_t kFirstConnectionRPCCountWithSmallPreload = 5;
+constexpr uint64_t kFirstConnectionRPCCountDefault = 6;
+constexpr uint64_t kFirstConnectionRPCCountWithAdditionalTables = 7;
+constexpr uint64_t kFirstConnectionRPCCountWithSmallPreload = 6;
 constexpr uint64_t kSubsequentConnectionRPCCount = 2;
 static_assert(kFirstConnectionRPCCountDefault <= kFirstConnectionRPCCountWithAdditionalTables);
 

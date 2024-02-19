@@ -1075,7 +1075,8 @@ typedef union PGAlignedXLogBlock
 #define dngettext(d,s,p,n) ((n) == 1 ? (s) : (p))
 #endif
 
-#define _(x) gettext(x)
+// #define _(x) gettext(x)
+#define _(x) (x)
 
 /*
  *	Use this to mark string constants as needing translation at some later

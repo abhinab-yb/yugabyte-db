@@ -16,7 +16,7 @@ SELECT datname, usename, state, query, backend_type,
           |               |        |     FROM pg_stat_activity;                                                 |                |
  yugabyte | yugabyte_test | idle   | SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ | client backend | f
           |               |        |                                                                            | checkpointer   | f
-(3 rows)
+(4 rows)
 
 -- Test yb_pg_stat_get_backend_catalog_version.
 SELECT beid, yb_pg_stat_get_backend_catalog_version(beid) IS NOT null
@@ -25,9 +25,10 @@ SELECT beid, yb_pg_stat_get_backend_catalog_version(beid) IS NOT null
  beid | has_catalog_snapshot
 ------+----------------------
     1 | f
-    2 | t
-    3 | f
-(3 rows)
+    2 | f
+    3 | t
+    4 | f
+(4 rows)
 
 -- Test that yb_pg_stat_get_backend_catalog_version for this backend matches
 -- yb_catalog_version.
@@ -37,7 +38,7 @@ SELECT beid, yb_catalog_version() - be_catalog_version AS catalog_version_diff
     WHERE be_catalog_version IS NOT null;
  beid | catalog_version_diff
 ------+----------------------
-    2 |                    0
+    3 |                    0
 (1 row)
 
 -- Test pg_stat_get_backend_dbid for backends with yugabyte database.
@@ -48,8 +49,8 @@ SELECT beid, datname
     WHERE datname = current_database() ORDER BY beid;
  beid | datname
 ------+----------
-    1 | yugabyte
     2 | yugabyte
+    3 | yugabyte
 (2 rows)
 
 -- Test pg_stat_get_backend_dbid for backends with postgres database after
@@ -62,7 +63,7 @@ SELECT beid, datname
     WHERE datname = current_database();
  beid | datname
 ------+----------
-    2 | postgres
+    3 | postgres
 (1 row)
 
 -- Test yb_pg_stat_get_backend_catalog_version follows yb_catalog_version

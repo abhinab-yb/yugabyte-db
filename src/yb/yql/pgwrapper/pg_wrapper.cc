@@ -54,6 +54,7 @@
 #include "ybgate/ybgate_cpp_util.h"
 
 DECLARE_bool(enable_ysql_conn_mgr);
+DECLARE_bool(TEST_yb_enable_ash);
 
 DEFINE_UNKNOWN_string(pg_proxy_bind_address, "", "Address for the PostgreSQL proxy to bind to");
 DEFINE_UNKNOWN_string(postmaster_cgroup, "", "cgroup to add postmaster process to");
@@ -685,6 +686,9 @@ Status PgWrapper::Start() {
 
   proc_->SetEnv("YB_ALLOW_CLIENT_SET_TSERVER_KEY_AUTH",
       FLAGS_enable_ysql_conn_mgr ? "1" : "0");
+
+  proc_->SetEnv("FLAGS_TEST_yb_enable_ash",
+      FLAGS_TEST_yb_enable_ash ? "1" : "0");
 
   rpc::SetOpenSSLEnv(&*proc_);
 

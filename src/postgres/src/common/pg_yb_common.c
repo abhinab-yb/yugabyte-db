@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdatomic.h>
 
 #include "postgres_fe.h"
 
@@ -59,7 +60,7 @@ YBCIsEnvVarTrueWithDefault(const char* env_var_name, bool default_value)
 bool
 YBIsEnabledInPostgresEnvVar()
 {
-	static int cached_value = -1;
+	static atomic_int cached_value = -1;
 	if (cached_value == -1)
 	{
 		cached_value = YBCIsEnvVarTrue("YB_ENABLED_IN_POSTGRES");

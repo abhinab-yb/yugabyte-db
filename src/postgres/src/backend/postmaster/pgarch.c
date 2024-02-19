@@ -159,6 +159,12 @@ pgarch_start(void)
 			/* Drop our connection to postmaster's shared memory, as well */
 			dsm_detach_all();
 			PGSharedMemoryDetach();
+	// 	{
+	// 			FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "pg arch start pid:  %d\n", MyProcPid);
+	// fflush(fptr);
+	// fclose(fptr);
+	// 	}
 
 			PgArchiverMain(0, NULL);
 			break;

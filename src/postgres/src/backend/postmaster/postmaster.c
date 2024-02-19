@@ -615,6 +615,11 @@ PostmasterMain(int argc, char *argv[])
 
 	MyProcPid = PostmasterPid = getpid();
 
+	// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "postmaster pid:  %d\n", MyProcPid);
+	// fflush(fptr);
+	// fclose(fptr);
+
 	MyStartTime = time(NULL);
 
 	IsPostmasterEnvironment = true;
@@ -1700,7 +1705,10 @@ ServerLoop(void)
 		fd_set		rmask;
 		int			selres;
 		time_t		now;
-
+		// FILE* fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp1\n");
+		// fflush(fptr);
+		// fclose(fptr);
 		/*
 		 * Wait for a connection request to arrive.
 		 *
@@ -1736,7 +1744,10 @@ ServerLoop(void)
 
 			PG_SETMASK(&BlockSig);
 		}
-
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp2\n");
+		// fflush(fptr);
+		// fclose(fptr);
 		/* Now check the select() result */
 		if (selres < 0)
 		{
@@ -1748,7 +1759,10 @@ ServerLoop(void)
 				return STATUS_ERROR;
 			}
 		}
-
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp3\n");
+		// fflush(fptr);
+		// fclose(fptr);
 		/*
 		 * New connection pending on any of our sockets? If so, fork a child
 		 * process to deal with it.
@@ -1787,11 +1801,18 @@ ServerLoop(void)
 				}
 			}
 		}
-
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp4\n");
+		// fflush(fptr);
+		// fclose(fptr);
 		/* If we have lost the log collector, try to start a new one */
 		if (SysLoggerPID == 0 && Logging_collector)
 			SysLoggerPID = SysLogger_Start();
 
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp5\n");
+		// fflush(fptr);
+		// fclose(fptr);
 		/*
 		 * If no background writer process is running, and we are not in a
 		 * state that prevents it, start one.  It doesn't matter if this
@@ -1806,6 +1827,10 @@ ServerLoop(void)
 				BgWriterPID = StartBackgroundWriter();
 		}
 
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp6\n");
+		// fflush(fptr);
+		// fclose(fptr);
 		/*
 		 * Likewise, if we have lost the walwriter process, try to start a new
 		 * one.  But this is needed only in normal operation (else we cannot
@@ -1814,6 +1839,10 @@ ServerLoop(void)
 		if (WalWriterPID == 0 && pmState == PM_RUN)
 			WalWriterPID = StartWalWriter();
 
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp7\n");
+		// fflush(fptr);
+		// fclose(fptr);
 		/*
 		 * If we have lost the autovacuum launcher, try to start a new one. We
 		 * don't want autovacuum to run in binary upgrade mode because
@@ -1829,14 +1858,30 @@ ServerLoop(void)
 				start_autovac_launcher = false; /* signal processed */
 		}
 
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp8\n");
+		// fflush(fptr);
+		// fclose(fptr);
+
 		/* If we have lost the stats collector, try to start a new one */
 		if (PgStatPID == 0 &&
 			(pmState == PM_RUN || pmState == PM_HOT_STANDBY))
 			PgStatPID = pgstat_start();
 
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp9\n");
+		// fflush(fptr);
+		// fclose(fptr);
+
 		/* If we have lost the archiver, try to start a new one. */
 		if (PgArchPID == 0 && PgArchStartupAllowed())
 			PgArchPID = pgarch_start();
+
+
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp10\n");
+		// fflush(fptr);
+		// fclose(fptr);
 
 		/* If we need to signal the autovacuum launcher, do so now */
 		if (avlauncher_needs_signal)
@@ -1846,14 +1891,27 @@ ServerLoop(void)
 				kill(AutoVacPID, SIGUSR2);
 		}
 
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp11\n");
+		// fflush(fptr);
+		// fclose(fptr);
+
 		/* If we need to start a WAL receiver, try to do that now */
 		if (WalReceiverRequested)
 			MaybeStartWalReceiver();
 
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp12\n");
+		// fflush(fptr);
+		// fclose(fptr);
 		/* Get other worker processes running, if needed */
 		if (StartWorkerNeeded || HaveCrashedWorker)
 			maybe_start_bgworkers();
 
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp13\n");
+		// fflush(fptr);
+		// fclose(fptr);
 #ifdef HAVE_PTHREAD_IS_THREADED_NP
 
 		/*
@@ -1881,6 +1939,10 @@ ServerLoop(void)
 		 *
 		 * Note we also do this during recovery from a process crash.
 		 */
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp14\n");
+		// fflush(fptr);
+		// fclose(fptr);
 		if ((Shutdown >= ImmediateShutdown || (FatalError && !SendStop)) &&
 			AbortStartTime != 0 &&
 			(now - AbortStartTime) >= SIGKILL_CHILDREN_AFTER_SECS)
@@ -1911,6 +1973,10 @@ ServerLoop(void)
 			}
 			last_lockfile_recheck_time = now;
 		}
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp15\n");
+		// fflush(fptr);
+		// fclose(fptr);
 
 		/*
 		 * Touch Unix socket and lock files every 58 minutes, to ensure that
@@ -1923,6 +1989,10 @@ ServerLoop(void)
 			TouchSocketLockFiles();
 			last_touch_time = now;
 		}
+		// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "postmaster cp16\n");
+		// fflush(fptr);
+		// fclose(fptr);
 	}
 }
 
@@ -2729,10 +2799,15 @@ pmdie(SIGNAL_ARGS)
 			(errmsg_internal("postmaster received signal %d",
 							 postgres_signal_arg)));
 
+	// FILE *fptr;
+
 	switch (postgres_signal_arg)
 	{
 		case SIGTERM:
-
+			// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+			// fprintf(fptr, "postmaster sigterm at %ld\n",  GetCurrentTimestamp());
+			// fflush(fptr);
+			// fclose(fptr);
 			/*
 			 * Smart Shutdown:
 			 *
@@ -2789,6 +2864,11 @@ pmdie(SIGNAL_ARGS)
 			break;
 
 		case SIGINT:
+
+			// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+			// fprintf(fptr, "postmaster sigint at %ld\n", GetCurrentTimestamp());
+			// fflush(fptr);
+			// fclose(fptr);
 
 			/*
 			 * Fast Shutdown:
@@ -2856,6 +2936,11 @@ pmdie(SIGNAL_ARGS)
 
 		case SIGQUIT:
 
+			// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+			// fprintf(fptr, "postmaster sigquit at %ld\n",  GetCurrentTimestamp());
+			// fflush(fptr);
+			// fclose(fptr);
+
 			/*
 			 * Immediate Shutdown:
 			 *
@@ -2911,6 +2996,13 @@ reaper(SIGNAL_ARGS)
 
 	while ((pid = waitpid(-1, &exitstatus, WNOHANG)) > 0)
 	{
+	// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "reaper with pid %d\n", pid);
+	// 		fflush(fptr);
+	// fclose(fptr);
+
+
+
 		/*
 		 * We perform the following tasks when a process crashes
 		 * 1. If the killed process held no locks during a crash, we avoid
@@ -3108,8 +3200,8 @@ reaper(SIGNAL_ARGS)
 			maybe_start_bgworkers();
 
 			/* at this point we are really open for business */
-			ereport(LOG,
-					(errmsg("database system is ready to accept connections")));
+			// ereport(LOG,
+			// 		(errmsg("database system is ready to accept connections")));
 
 			/* Report status */
 			AddToDataDirLockFile(LOCK_FILE_LINE_PM_STATUS, PM_STATUS_READY);
@@ -3301,9 +3393,9 @@ reaper(SIGNAL_ARGS)
 		if (!foundProcStruct && !EXIT_STATUS_0(exitstatus) && !EXIT_STATUS_1(exitstatus))
 		{
 			YbCrashInUnmanageableState = true;
-			ereport(WARNING,
-					(errmsg("terminating active server processes due to backend crash of a "
-							"partially initialized process")));
+			// ereport(WARNING,
+			// 		(errmsg("terminating active server processes due to backend crash of a "
+			// 				"partially initialized process")));
 		}
 
 		CleanupBackend(pid, exitstatus);
@@ -3425,6 +3517,11 @@ CleanupBackgroundWorker(int pid,
 		rw->rw_child_slot = 0;
 		ReportBackgroundWorkerExit(&iter);	/* report child death */
 
+	// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "log child exit %s with pid %d and exit status %d\n", namebuf, pid, exitstatus);
+	// 		fflush(fptr);
+	// fclose(fptr);
+
 		LogChildExit(EXIT_STATUS_0(exitstatus) ? DEBUG1 : LOG,
 					 namebuf, pid, exitstatus);
 
@@ -3494,17 +3591,17 @@ CleanupBackend(int pid,
 {
 	dlist_mutable_iter iter;
 
-	if (YBIsEnabledInPostgresEnvVar())
-	{
-		LogChildExit(EXIT_STATUS_0(exitstatus) ? DEBUG2 : WARNING, _("server process"), pid, exitstatus);
+	// if (YBIsEnabledInPostgresEnvVar())
+	// {
+	// 	LogChildExit(EXIT_STATUS_0(exitstatus) ? DEBUG2 : WARNING, _("server process"), pid, exitstatus);
 
-		if (WTERMSIG(exitstatus) == SIGKILL)
-			pgstat_report_query_termination("Terminated by SIGKILL", pid);
-		else if (WTERMSIG(exitstatus) == SIGSEGV)
-			pgstat_report_query_termination("Terminated by SIGSEGV", pid);
-	}
-	else
-		LogChildExit(DEBUG2, _("server process"), pid, exitstatus);
+	// 	if (WTERMSIG(exitstatus) == SIGKILL)
+	// 		pgstat_report_query_termination("Terminated by SIGKILL", pid);
+	// 	else if (WTERMSIG(exitstatus) == SIGSEGV)
+	// 		pgstat_report_query_termination("Terminated by SIGSEGV", pid);
+	// }
+	// else
+	// 	LogChildExit(DEBUG2, _("server process"), pid, exitstatus);
 
 	/*
 	 * If a backend dies in an ugly way then we must signal all other backends
@@ -3613,8 +3710,8 @@ HandleChildCrash(int pid, int exitstatus, const char *procname)
 	{
 		int level = YBIsEnabledInPostgresEnvVar() ? INFO : LOG;
 		LogChildExit(level, procname, pid, exitstatus);
-		ereport(level,
-				(errmsg("terminating any other active server processes")));
+		// ereport(level,
+		// 		(errmsg("terminating any other active server processes")));
 	}
 
 	/* Process background workers. */
@@ -3854,6 +3951,7 @@ HandleChildCrash(int pid, int exitstatus, const char *procname)
 static void
 LogChildExit(int lev, const char *procname, int pid, int exitstatus)
 {
+	return;
 	/*
 	 * size of activity_buffer is arbitrary, but set equal to default
 	 * track_activity_query_size
@@ -3929,6 +4027,10 @@ LogChildExit(int lev, const char *procname, int pid, int exitstatus)
 static void
 PostmasterStateMachine(void)
 {
+	// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "pm state: %d\n", pmState);
+	// fflush(fptr);
+	// fclose(fptr);
 	if (pmState == PM_WAIT_BACKUP)
 	{
 		/*
@@ -3964,6 +4066,11 @@ PostmasterStateMachine(void)
 	 */
 	if (pmState == PM_WAIT_BACKENDS)
 	{
+			// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+			// fprintf(fptr, "postmaster pm wait backends at %ld bgworkers: %d normal: %d\n", GetCurrentTimestamp(),
+			// 		CountChildren(BACKEND_TYPE_WORKER), CountChildren(BACKEND_TYPE_NORMAL));
+			// 	fflush(fptr);
+			// fclose(fptr);
 		/*
 		 * PM_WAIT_BACKENDS state ends when we have no regular backends
 		 * (including autovac workers), no bgworkers (including unconnected
@@ -3987,6 +4094,10 @@ PostmasterStateMachine(void)
 		{
 			if (Shutdown >= ImmediateShutdown || FatalError)
 			{
+			// 				FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+			// fprintf(fptr, "postmaster to pm wait dead end at %ld\n", GetCurrentTimestamp());
+			// 	fflush(fptr);
+			// fclose(fptr);
 				/*
 				 * Start waiting for dead_end children to die.  This state
 				 * change causes ServerLoop to stop creating new ones.
@@ -4001,6 +4112,10 @@ PostmasterStateMachine(void)
 			}
 			else
 			{
+			// 				FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+			// fprintf(fptr, "postmaster pm not wait dead end at %ld\n", GetCurrentTimestamp());
+			// 	fflush(fptr);
+			// fclose(fptr);
 				/*
 				 * If we get here, we are proceeding with normal shutdown. All
 				 * the regular children are gone, and it's time to tell the
@@ -4058,6 +4173,10 @@ PostmasterStateMachine(void)
 
 	if (pmState == PM_WAIT_DEAD_END)
 	{
+			// 		FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+			// fprintf(fptr, "postmaster pm wait dead ends at %ld\n", GetCurrentTimestamp());
+			// 	fflush(fptr);
+			// fclose(fptr);
 		/*
 		 * PM_WAIT_DEAD_END state ends when the BackendList is entirely empty
 		 * (ie, no dead_end children remain), and the archiver and stats
@@ -4100,6 +4219,10 @@ PostmasterStateMachine(void)
 	 */
 	if (Shutdown > NoShutdown && pmState == PM_NO_CHILDREN)
 	{
+			// 		FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+			// fprintf(fptr, "postmaster pm no children  at %ld\n", GetCurrentTimestamp());
+			// 	fflush(fptr);
+			// fclose(fptr);
 		if (FatalError)
 		{
 			ereport(LOG, (errmsg("abnormal database system shutdown")));
@@ -4120,6 +4243,10 @@ PostmasterStateMachine(void)
 				CancelBackup();
 
 			/* Normal exit from the postmaster is here */
+			// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+			// fprintf(fptr, "postmaster exiting at %ld\n", GetCurrentTimestamp());
+			// 	fflush(fptr);
+			// fclose(fptr);
 			ExitPostmaster(0);
 		}
 	}
@@ -4183,8 +4310,16 @@ PostmasterStateMachine(void)
 static void
 signal_child(pid_t pid, int signal)
 {
+		// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "kill(%ld,%d)\n", (long) pid, signal);
+		// 	fflush(fptr);
+		// fclose(fptr);
+
 	if (kill(pid, signal) < 0)
+	{
+
 		elog(DEBUG3, "kill(%ld,%d) failed: %m", (long) pid, signal);
+	}
 #ifdef HAVE_SETSID
 	switch (signal)
 	{
@@ -4215,6 +4350,10 @@ SignalSomeChildren(int signal, int target)
 	dlist_foreach(iter, &BackendList)
 	{
 		Backend    *bp = dlist_container(Backend, elem, iter.cur);
+
+		// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "signal child backend pid: %d\n", bp->pid);
+		// fclose(fptr);
 
 		if (bp->dead_end)
 			continue;
@@ -4395,7 +4534,6 @@ BackendStartup(Port *port)
 
 		/* Perform additional initialization and collect startup packet */
 		BackendInitialize(port);
-
 		/* And run the backend */
 		BackendRun(port);
 	}
@@ -4421,6 +4559,10 @@ BackendStartup(Port *port)
 			(errmsg_internal("forked new backend, pid=%d socket=%d",
 							 (int) pid, (int) port->sock)));
 
+	// 		FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "backend started with pid:  %d\n", pid);
+	// fflush(fptr);
+	// fclose(fptr);
 	/*
 	 * Everything's been successful, it's safe to add this backend to our list
 	 * of backends.
@@ -4862,6 +5004,12 @@ internal_forkexec(int argc, char *argv[], Port *port)
 	/* Fire off execv in child */
 	if ((pid = fork_process()) == 0)
 	{
+	// 			{
+	// 			FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "internal_forkexec pid:  %d\n", pid);
+	// fflush(fptr);
+	// fclose(fptr);
+	// 	}
 		if (execv(postgres_exec_path, argv) < 0)
 		{
 			ereport(LOG,
@@ -5350,6 +5498,10 @@ SubPostmasterMain(int argc, char *argv[])
 static void
 ExitPostmaster(int status)
 {
+	// 	FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "exiting postmaster\n");
+	// 		fflush(fptr);
+	// fclose(fptr);
 #ifdef HAVE_PTHREAD_IS_THREADED_NP
 
 	/*
@@ -5759,6 +5911,12 @@ StartChildProcess(AuxProcType type)
 			ExitPostmaster(1);
 		return 0;
 	}
+	// 	{
+	// 			FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "aux process start pid:  %d and type : %d\n", pid, type);
+	// fflush(fptr);
+	// fclose(fptr);
+	// 	}
 
 	/*
 	 * in parent, successful fork
@@ -6098,6 +6256,13 @@ do_start_bgworker(RegisteredBgWorker *rw)
 			break;
 #endif
 		default:
+// {
+
+// 	FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+// 	fprintf(fptr, "starting bgworker %s with pid %d\n", rw->rw_worker.bgw_name, worker_pid);
+// 	fflush(fptr);
+// 	fclose(fptr);
+// }
 			/* in postmaster, fork successful ... */
 			rw->rw_pid = worker_pid;
 			rw->rw_backend->pid = rw->rw_pid;

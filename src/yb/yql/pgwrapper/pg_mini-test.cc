@@ -203,7 +203,8 @@ TEST_F_EX(PgMiniTest, VerifyPgClientServiceCleanupQueue, PgMiniPgClientServiceCl
   }
   auto* client_service =
       cluster_->mini_tablet_server(0)->server()->TEST_GetPgClientService();
-  ASSERT_EQ(connections.size(), client_service->TEST_SessionsCount());
+  // +1 for ASH collector
+  ASSERT_EQ(connections.size() + 1, client_service->TEST_SessionsCount());
 
   connections.erase(connections.begin() + connections.size() / 2, connections.end());
   ASSERT_OK(WaitFor([client_service, expected_count = connections.size()]() {
@@ -397,7 +398,7 @@ class PgMiniAsh : public PgMiniTestSingleNode {
   }
 };
 
-TEST_F(PgMiniAsh, YB_DISABLE_TEST_IN_TSAN(Ash)) {
+TEST_F(PgMiniAsh, Ash) {
   auto conn = ASSERT_RESULT(Connect());
   ASSERT_OK(conn.Execute("CREATE TABLE t (key INT PRIMARY KEY, value TEXT)"));
   ANNOTATE_UNPROTECTED_WRITE(FLAGS_TEST_inject_mvcc_delay_add_leader_pending_ms) = 5;

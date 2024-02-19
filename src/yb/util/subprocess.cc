@@ -58,6 +58,8 @@
 #include "yb/util/status.h"
 #include "yb/util/status_format.h"
 #include "yb/util/status_log.h"
+// #include "yb/util/debug-util.h"
+
 
 using std::string;
 using std::vector;
@@ -467,7 +469,18 @@ Status Subprocess::DoWait(int* ret, int options) {
 
   CHECK_NE(child_pid, 0);
 
+	// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "starting wait for pid : %d\n", child_pid);
+	// fflush(fptr);
+	// fclose(fptr);
+
   int waitpid_ret_val = waitpid(child_pid, ret, options);
+
+	// fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "wait finished for pid %d with ret val : %d\n", child_pid, waitpid_ret_val);
+	// fflush(fptr);
+	// fclose(fptr);
+
   if (waitpid_ret_val == -1) {
     return STATUS(RuntimeError, "Unable to wait on child", Errno(errno));
   }
@@ -502,7 +515,10 @@ Status Subprocess::KillInternal(int signal, bool must_be_running) {
     return STATUS(IllegalState, "Child process has exited, cannot send signal");
   }
   CHECK_NE(child_pid_, 0);
-
+  // FILE* fptr = fopen("/home/asaha/code/logs/subprocess.txt", "a");
+  // fprintf(fptr, "kill pid : %d signal : %d\n %s\n\n\n\n", child_pid_, signal, yb::GetStackTrace().c_str());
+  // fflush(fptr);
+  // fclose(fptr);
   if (kill(child_pid_, signal) != 0) {
     return STATUS(RuntimeError, "Unable to kill", Errno(errno));
   }

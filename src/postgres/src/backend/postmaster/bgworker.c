@@ -434,7 +434,7 @@ ForgetBackgroundWorker(slist_mutable_iter *cur)
 					rw->rw_worker.bgw_name)));
 
 	slist_delete_current(cur);
-	free(rw);
+	// free(rw);
 }
 
 /*
@@ -842,6 +842,11 @@ StartBackgroundWorker(void)
 	 */
 
 	MyProc->ybInitializationCompleted = true;
+
+	// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "starting %s at %ld\n", MyBgworkerEntry->bgw_name, GetCurrentTimestamp());
+	// fflush(fptr);
+	// fclose(fptr);
 
 	/*
 	 * Now invoke the user-defined worker code

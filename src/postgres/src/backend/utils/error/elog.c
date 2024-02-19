@@ -449,14 +449,15 @@ in_error_recursion_trouble(void)
 static inline const char *
 err_gettext(const char *str)
 {
-#ifdef ENABLE_NLS
-	if (in_error_recursion_trouble())
-		return str;
-	else
-		return gettext(str);
-#else
 	return str;
-#endif
+// #ifdef ENABLE_NLS
+// 	if (in_error_recursion_trouble())
+// 		return str;
+// 	else
+// 		return gettext(str);
+// #else
+// 	return str;
+// #endif
 }
 
 
@@ -997,7 +998,8 @@ errcode_for_socket_access(void)
 		StringInfoData	buf; \
 		/* Internationalize the error format string */ \
 		if ((translateit) && !in_error_recursion_trouble()) \
-			fmt = dgettext((domain), fmt);				  \
+			fmt = fmt; \
+			/* fmt = dgettext((domain), fmt); */ \
 		/* Expand %m in format string */ \
 		fmtbuf = expand_fmt_string(fmt, edata); \
 		initStringInfo(&buf); \
@@ -4749,7 +4751,8 @@ yb_message_from_status_data(StringInfo buf, const char *fmt, const size_t nargs,
 		\
 		/* Internationalize the error format string */ \
 		if (!in_error_recursion_trouble()) \
-			fmt = dgettext(edata->domain, fmt); \
+			fmt = fmt; \
+			/* fmt = dgettext(edata->domain, fmt); \ */ \
 		initStringInfo(&buf); \
 		yb_message_from_status_data(&buf, fmt, nargs, args); \
 		if (dump_stacks && IsYugaByteEnabled() && \

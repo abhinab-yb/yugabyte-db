@@ -8458,11 +8458,19 @@ ShutdownXLOG(int code, Datum arg)
 	/* Don't be chatty in standalone mode */
 	ereport(IsPostmasterEnvironment ? LOG : NOTICE,
 			(errmsg("shutting down")));
-
+	// FILE *fptr = fopen("/home/asaha/code/logs/checkpointer.txt", "a");
+	// fprintf(fptr, "checkpointer signaling wal\n");
+	// fflush(fptr);
+	// fclose(fptr);
 	/*
 	 * Signal walsenders to move to stopping state.
 	 */
 	WalSndInitStopping();
+
+	// fptr = fopen("/home/asaha/code/logs/checkpointer.txt", "a");
+	// fprintf(fptr, "checkpointer waiting for wal\n");
+	// fflush(fptr);
+	// fclose(fptr);
 
 	/*
 	 * Wait for WAL senders to be in stopping state.  This prevents commands
@@ -8485,10 +8493,39 @@ ShutdownXLOG(int code, Datum arg)
 
 		CreateCheckPoint(CHECKPOINT_IS_SHUTDOWN | CHECKPOINT_IMMEDIATE);
 	}
+
+	// fptr = fopen("/home/asaha/code/logs/checkpointer.txt", "a");
+	// fprintf(fptr, "checkpointer shutting clog\n");
+	// fflush(fptr);
+	// fclose(fptr);
+
 	ShutdownCLOG();
+
+	// fptr = fopen("/home/asaha/code/logs/checkpointer.txt", "a");
+	// fprintf(fptr, "checkpointer shutting committs\n");
+	// fflush(fptr);
+	// fclose(fptr);
+
 	ShutdownCommitTs();
+
+	// fptr = fopen("/home/asaha/code/logs/checkpointer.txt", "a");
+	// fprintf(fptr, "checkpointer shutting subtrans\n");
+	// fflush(fptr);
+	// fclose(fptr);
+
 	ShutdownSUBTRANS();
+
+	// fptr = fopen("/home/asaha/code/logs/checkpointer.txt", "a");
+	// fprintf(fptr, "checkpointer shutting multixact\n");
+	// fflush(fptr);
+	// fclose(fptr);
+
 	ShutdownMultiXact();
+
+	// fptr = fopen("/home/asaha/code/logs/checkpointer.txt", "a");
+	// fprintf(fptr, "checkpointer shutdown complete\n");
+	// fflush(fptr);
+	// fclose(fptr);
 }
 
 /*

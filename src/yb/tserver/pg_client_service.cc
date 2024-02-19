@@ -1225,7 +1225,7 @@ class PgClientServiceImpl::Impl {
       const PgActiveSessionHistoryRequestPB& req, ServerType type, tserver::WaitStatesPB* resp) {
     auto* messenger = tablet_server_.GetMessenger(type);
     if (!messenger) {
-      LOG_WITH_FUNC(ERROR) << "got no messenger for " << yb::ToString(type);
+      // LOG_WITH_FUNC(ERROR) << "got no messenger for " << yb::ToString(type);
       return;
     }
 

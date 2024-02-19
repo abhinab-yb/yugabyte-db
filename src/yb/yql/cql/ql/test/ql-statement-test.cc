@@ -15,6 +15,8 @@
 
 #include "yb/gutil/strings/substitute.h"
 
+#include "yb/ash/wait_state.h"
+
 #include "yb/client/client.h"
 
 #include "yb/util/async_util.h"
@@ -40,6 +42,13 @@ class TestQLStatement : public QLTestBase {
   }
 
   Status ExecuteAsync(Statement *stmt, QLProcessor *processor, Callback<void(const Status&)> cb) {
+#ifndef NDEBUG
+  // This wait state is not collected. But, having this allows us to have some
+  // DCHECKs in executor.cc that we aren't missing a wait-state where we need it.
+  // TODO(#21055)
+  auto wait_state = std::make_shared<ash::WaitStateInfo>();
+  ADOPT_WAIT_STATE(wait_state);
+#endif
     return stmt->ExecuteAsync(processor, StatementParameters(),
                               Bind(&TestQLStatement::ExecuteAsyncDone, Unretained(this), cb));
   }

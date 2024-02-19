@@ -78,9 +78,10 @@ public class TestPgConnection extends BasePgSQLTest {
       result.next();
       int count = result.getInt("count");
       conn.close();
-      // +2: one for the connection we have just closed, one for the checkpointer process,
+      // +3: one for the connection we have just closed, one for the checkpointer process,
+      // and one for ASH collector process
       // which appears in the pg_stat_activity, but is not counted toward ysql_max_connections.
-      return MAX_CONNECTIONS - count + 2;
+      return MAX_CONNECTIONS - count + 3;
     }
   }
 

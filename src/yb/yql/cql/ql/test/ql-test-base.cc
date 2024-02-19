@@ -146,6 +146,13 @@ void TestQLProcessor::RunAsyncInternal(const std::string& stmt, const StatementP
   if (PREDICT_FALSE(!s.ok())) {
     return cb.Run(s, nullptr /* result */);
   }
+#ifndef NDEBUG
+  // This wait state is not collected. But, having this allows us to have some
+  // DCHECKs in executor.cc that we aren't missing a wait-state where we need it.
+  // TODO(#21055)
+  auto wait_state = std::make_shared<ash::WaitStateInfo>();
+  ADOPT_WAIT_STATE(wait_state);
+#endif
   // Do not make a copy of stmt and params when binding to the RunAsyncDone callback because when
   // error occurs due to stale matadata, the statement needs to be reexecuted. We should pass the
   // original references which are guaranteed to still be alive when the statement is reexecuted.

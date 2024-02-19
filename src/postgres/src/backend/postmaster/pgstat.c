@@ -796,6 +796,12 @@ pgstat_start(void)
 			/* Drop our connection to postmaster's shared memory, as well */
 			dsm_detach_all();
 			PGSharedMemoryDetach();
+	// 	{
+	// 			FILE *fptr = fopen("/home/asaha/code/logs/pgstat.txt", "a");
+	// fprintf(fptr, "pgstat start pid:  %d\n", MyProcPid);
+	// fflush(fptr);
+	// fclose(fptr);
+	// 	}
 
 			PgstatCollectorMain(0, NULL);
 			break;
@@ -4596,6 +4602,10 @@ PgstatCollectorMain(int argc, char *argv[])
 		 */
 		while (!need_exit)
 		{
+	// 						FILE *fptr = fopen("/home/asaha/code/logs/pgstat.txt", "a");
+	// fprintf(fptr, "pgstat loop need exit:  %d\n", need_exit);
+	// fflush(fptr);
+	// fclose(fptr);
 			/*
 			 * Reload configuration if we got SIGHUP from the postmaster.
 			 */

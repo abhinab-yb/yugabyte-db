@@ -513,8 +513,8 @@ ecpg_gettext(const char *msgid)
 		errno = save_errno;
 #endif
 	}
-
-	return dgettext(PG_TEXTDOMAIN("ecpglib"), msgid);
+	return (char *)msgid;
+	// return dgettext(PG_TEXTDOMAIN("ecpglib"), msgid);
 }
 #endif							/* ENABLE_NLS */
 

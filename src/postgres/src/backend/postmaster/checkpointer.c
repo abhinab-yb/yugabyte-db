@@ -349,6 +349,10 @@ CheckpointerMain(void)
 	 */
 	for (;;)
 	{
+		// FILE* fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+		// fprintf(fptr, "checkpointer cp1, shutdown req? %d\n", shutdown_requested);
+		// fflush(fptr);
+		// fclose(fptr);
 		bool		do_checkpoint = false;
 		int			flags = 0;
 		pg_time_t	now;

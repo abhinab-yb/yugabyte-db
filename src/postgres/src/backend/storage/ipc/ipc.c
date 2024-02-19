@@ -105,6 +105,10 @@ static int	on_proc_exit_index,
 void
 proc_exit(int code)
 {
+	// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "inside proc exit code %d with pid %d\n", code, MyProcPid);
+	// fflush(fptr);
+	// fclose(fptr);
 	/* Clean up everything that must be cleaned up */
 	proc_exit_prepare(code);
 
@@ -153,6 +157,11 @@ proc_exit(int code)
 		YBOnPostgresBackendShutdown();
 
 	elog(DEBUG3, "exit(%d)", code);
+
+	// FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "proc exit code: %d with pid %d\n", code, MyProcPid);
+	// fflush(fptr);
+	// fclose(fptr);
 
 	exit(code);
 }

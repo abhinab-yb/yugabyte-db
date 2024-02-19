@@ -114,21 +114,21 @@ INSERT INTO test_temp_tab VALUES (5) RETURNING xmax
 EXPLAIN (VERBOSE, COSTS OFF) SELECT ctid FROM test_temp_tab;
              QUERY PLAN
 -------------------------------------
- Seq Scan on pg_temp_2.test_temp_tab
+ Seq Scan on pg_temp_3.test_temp_tab
    Output: ctid
 (2 rows)
 
 EXPLAIN (VERBOSE, COSTS OFF) SELECT cmin FROM test_temp_tab;
              QUERY PLAN
 -------------------------------------
- Seq Scan on pg_temp_2.test_temp_tab
+ Seq Scan on pg_temp_3.test_temp_tab
    Output: cmin
 (2 rows)
 
 EXPLAIN (VERBOSE, COSTS OFF) SELECT cmax FROM test_temp_tab;
              QUERY PLAN
 -------------------------------------
- Seq Scan on pg_temp_2.test_temp_tab
+ Seq Scan on pg_temp_3.test_temp_tab
    Output: cmax
 (2 rows)
 
@@ -142,7 +142,7 @@ SELECT xmin FROM test_temp_tab
  Aggregate
    Output: count(*)
    CTE yb_with
-     ->  Seq Scan on pg_temp_2.test_temp_tab
+     ->  Seq Scan on pg_temp_3.test_temp_tab
            Output: test_temp_tab.xmin
    ->  CTE Scan on yb_with
          Output: yb_with.xmin
@@ -157,7 +157,7 @@ SELECT xmax FROM test_temp_tab
  Aggregate
    Output: count(*)
    CTE yb_with
-     ->  Seq Scan on pg_temp_2.test_temp_tab
+     ->  Seq Scan on pg_temp_3.test_temp_tab
            Output: test_temp_tab.xmax
    ->  CTE Scan on yb_with
          Output: yb_with.xmax

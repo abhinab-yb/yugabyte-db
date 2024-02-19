@@ -204,6 +204,10 @@ TEST_P(PgPackedRowTest, AlterTable) {
 }
 
 TEST_P(PgPackedRowTest, UpdateReturning) {
+  // 	FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "\n\n\n\nstarting test\n\n\n\n");
+	// 		fflush(fptr);
+	// fclose(fptr);
   // Test UPDATE...RETURNING with packed row enabled.
   ANNOTATE_UNPROTECTED_WRITE(FLAGS_ysql_enable_pack_full_row_update) = true;
 

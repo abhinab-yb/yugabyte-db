@@ -210,6 +210,13 @@ MonoDelta SystemQueryCache::GetStaleness() {
 
 void SystemQueryCache::RefreshCache() {
   VLOG(1) << "Refreshing system query cache";
+#ifndef NDEBUG
+  // This wait state is not collected. But, having this allows us to have some
+  // DCHECKs in executor.cc that we aren't missing a wait-state where we need it.
+  // TODO(#21055)
+  auto wait_state = std::make_shared<ash::WaitStateInfo>();
+  ADOPT_WAIT_STATE(wait_state);
+#endif
   auto new_cache = std::make_unique<std::unordered_map<std::string, RowsResult::SharedPtr>>();
   for (auto query : queries_) {
     Status status;

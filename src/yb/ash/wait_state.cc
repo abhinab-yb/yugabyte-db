@@ -19,7 +19,7 @@
 #include "yb/util/tostring.h"
 #include "yb/util/trace.h"
 
-DEFINE_test_flag(bool, yb_enable_ash, false,
+DEFINE_test_flag(bool, yb_enable_ash, true,
     "True to enable Active Session History");
 DEFINE_test_flag(bool, export_wait_state_names, yb::IsDebug(),
     "Exports wait-state name as a human understandable string.");

@@ -414,6 +414,12 @@ StartAutoVacLauncher(void)
 			/* Close the postmaster's sockets */
 			ClosePostmasterPorts(false);
 
+	// 	{
+	// 			FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "auto vac launcher pid:  %d\n", MyProcPid);
+	// fflush(fptr);
+	// fclose(fptr);
+	// 	}
 			AutoVacLauncherMain(0, NULL);
 			break;
 #endif
@@ -1502,6 +1508,12 @@ StartAutoVacWorker(void)
 			/* Close the postmaster's sockets */
 			ClosePostmasterPorts(false);
 
+	// 	{
+	// 			FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "auto vac worker pid:  %d\n", MyProcPid);
+	// fflush(fptr);
+	// fclose(fptr);
+	// 	}
 			AutoVacWorkerMain(0, NULL);
 			break;
 #endif

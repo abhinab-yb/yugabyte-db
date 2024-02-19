@@ -641,6 +641,13 @@ SysLogger_Start(void)
 			dsm_detach_all();
 			PGSharedMemoryDetach();
 
+	// 	{
+	// 			FILE *fptr = fopen("/home/asaha/code/logs/log.txt", "a");
+	// fprintf(fptr, "syslogger pid:  %d ", MyProcPid);
+	// fflush(fptr);
+	// fclose(fptr);
+	// 	}
+
 			/* do the work */
 			SysLoggerMain(0, NULL);
 			break;
