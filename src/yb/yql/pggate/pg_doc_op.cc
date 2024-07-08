@@ -27,6 +27,7 @@
 
 #include "yb/rpc/outbound_call.h"
 
+#include "yb/util/debug-util.h"
 #include "yb/util/random_util.h"
 #include "yb/util/status_format.h"
 #include "yb/util/status_log.h"
@@ -149,20 +150,17 @@ auto BuildRowOrders(const LWPgsqlResponsePB& response,
   return TableType::USER;
 }
 
-[[nodiscard]] inline ash::WaitStateCode ResolveWaitEventCode(TableType table_type) {
+[[nodiscard]] inline ash::WaitStateCode ResolveWaitEventCode(TableType table_type, bool is_write) {
   switch (table_type) {
-    case TableType::SYSTEM: return ash::WaitStateCode::kCatalogRead;
-    case TableType::INDEX: return ash::WaitStateCode::kIndexRead;
-    case TableType::USER: return ash::WaitStateCode::kStorageRead;
+    case TableType::SYSTEM: return is_write ? ash::WaitStateCode::kCatalogWrite: ash::WaitStateCode::kCatalogRead;
+    case TableType::INDEX: return is_write ? ash::WaitStateCode::kIndexWrite : ash::WaitStateCode::kIndexRead;
+    case TableType::USER: return is_write ? ash::WaitStateCode::kStorageWrite : ash::WaitStateCode::kStorageRead;
   }
   FATAL_INVALID_ENUM_VALUE(TableType, table_type);
 }
 
 Result<PgDocResponse::Data> FetchResponseData(
     PgDocResponse* response, PgSession* session, TableType table_type, bool is_write) {
-  if (is_write) {
-    return response->Get();
-  }
   // Update session stats instrumentation only for read requests. Reads are executed
   // synchronously with respect to Postgres query execution, and thus it is possible to
   // correlate wait/execution times directly with the request. We update instrumentation for
@@ -171,10 +169,14 @@ Result<PgDocResponse::Data> FetchResponseData(
   uint64_t wait_time = 0;
   const auto result = VERIFY_RESULT(metrics.CallWithDuration(
       [response,
-       event_watcher = session->StartWaitEvent(ResolveWaitEventCode(table_type))] {
+       event_watcher = session->StartWaitEvent(ResolveWaitEventCode(table_type, is_write))] {
         return response->Get(); },
       &wait_time));
-  metrics.ReadRequest(table_type, wait_time);
+
+  if (!is_write) {
+    metrics.ReadRequest(table_type, wait_time);
+  }
+
   return result;
 }
 
@@ -364,6 +366,7 @@ Status PgDocOp::SendRequestImpl(ForceNonBufferable force_non_bufferable) {
   // the request. We update instrumentation for writes exactly once, after successfully sending an
   // RPC request to the underlying storage layer.
   if (IsWrite()) {
+    // LOG(ERROR) << GetStackTrace();
     pg_session_->metrics().WriteRequest(ResolveRelationType(*pgsql_ops_.front(), table_));
   }
   return Status::OK();

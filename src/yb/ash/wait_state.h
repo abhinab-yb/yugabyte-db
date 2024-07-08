@@ -133,6 +133,9 @@ YB_DEFINE_TYPED_ENUM(WaitStateCode, uint32_t,
     (kIndexRead)
     (kStorageRead)
     (kStorageFlush)
+    (kCatalogWrite)
+    (kStorageWrite)
+    (kIndexWrite)
 
     // Common wait states
     ((kOnCpu_Active, YB_ASH_MAKE_EVENT(Common)))

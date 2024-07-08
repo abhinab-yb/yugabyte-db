@@ -39,6 +39,8 @@ void ProcessWrapper::Kill() {
   // TODO(fizaa): Use SIGQUIT in asan build until GH #15168 is fixed.
 #ifdef ADDRESS_SANITIZER
   signal = SIGQUIT;
+#elif THREAD_SANITIZER
+  signal = SIGQUIT;
 #endif
   WARN_NOT_OK(proc_->Kill(signal), "Kill process failed");
 }

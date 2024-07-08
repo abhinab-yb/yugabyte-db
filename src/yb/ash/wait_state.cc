@@ -43,12 +43,22 @@
 // defined here. Both the flags are not defined in pg_wrapper.cc since yb_enable_ash
 // is required in other parts of the code as well like cql_server.cc and yb_rpc.cc.
 
-DEFINE_NON_RUNTIME_PG_PREVIEW_FLAG(bool, yb_ash_enable_infra, false,
+DEFINE_NON_RUNTIME_PG_PREVIEW_FLAG(bool, yb_ash_enable_infra,
+#ifndef THREAD_SANITIZER
+		true,
+#else
+		true,
+#endif
     "Allocate shared memory for ASH, start the background worker, create "
     "instrumentation hooks and enable querying the yb_active_session_history "
     "view.");
 
-DEFINE_RUNTIME_PG_PREVIEW_FLAG(bool, yb_enable_ash, false,
+DEFINE_RUNTIME_PG_PREVIEW_FLAG(bool, yb_enable_ash,
+#ifndef THREAD_SANITIZER
+		true,
+#else
+		true,
+#endif
     "Starts sampling and instrumenting YSQL and YCQL queries, "
     "and various background activities. This does nothing if "
     "ysql_yb_enable_ash_infra is disabled.");
@@ -364,6 +374,9 @@ WaitStateType GetWaitStateType(WaitStateCode code) {
     case WaitStateCode::kIndexRead:
     case WaitStateCode::kStorageRead:
     case WaitStateCode::kStorageFlush:
+    case WaitStateCode::kCatalogWrite:
+    case WaitStateCode::kStorageWrite:
+    case WaitStateCode::kIndexWrite:
       return WaitStateType::kNetwork;
 
     case WaitStateCode::kOnCpu_Active:

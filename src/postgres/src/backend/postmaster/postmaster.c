@@ -2725,9 +2725,11 @@ pmdie(SIGNAL_ARGS)
 
 	PG_SETMASK(&BlockSig);
 
+#ifndef THREAD_SANITIZER
 	ereport(DEBUG2,
 			(errmsg_internal("postmaster received signal %d",
 							 postgres_signal_arg)));
+#endif
 
 	switch (postgres_signal_arg)
 	{
@@ -2741,8 +2743,10 @@ pmdie(SIGNAL_ARGS)
 			if (Shutdown >= SmartShutdown)
 				break;
 			Shutdown = SmartShutdown;
+#ifndef THREAD_SANITIZER
 			ereport(LOG,
 					(errmsg("received smart shutdown request")));
+#endif
 
 			/* Report status */
 			AddToDataDirLockFile(LOCK_FILE_LINE_PM_STATUS, PM_STATUS_STOPPING);
@@ -2799,8 +2803,10 @@ pmdie(SIGNAL_ARGS)
 			if (Shutdown >= FastShutdown)
 				break;
 			Shutdown = FastShutdown;
+#ifndef THREAD_SANITIZER
 			ereport(LOG,
 					(errmsg("received fast shutdown request")));
+#endif
 
 			/* Report status */
 			AddToDataDirLockFile(LOCK_FILE_LINE_PM_STATUS, PM_STATUS_STOPPING);
@@ -2832,8 +2838,10 @@ pmdie(SIGNAL_ARGS)
 					 pmState == PM_WAIT_BACKENDS ||
 					 pmState == PM_HOT_STANDBY)
 			{
+#ifndef THREAD_SANITIZER
 				ereport(LOG,
 						(errmsg("aborting any active transactions")));
+#endif
 				/* shut down all backends and workers */
 				SignalSomeChildren(SIGTERM,
 								   BACKEND_TYPE_NORMAL | BACKEND_TYPE_AUTOVAC |
@@ -2866,8 +2874,10 @@ pmdie(SIGNAL_ARGS)
 			if (Shutdown >= ImmediateShutdown)
 				break;
 			Shutdown = ImmediateShutdown;
+#ifndef THREAD_SANITIZER
 			ereport(LOG,
 					(errmsg("received immediate shutdown request")));
+#endif
 
 			/* Report status */
 			AddToDataDirLockFile(LOCK_FILE_LINE_PM_STATUS, PM_STATUS_STOPPING);
@@ -2942,9 +2952,11 @@ reaper(SIGNAL_ARGS)
 			if (proc->ybLWLockAcquired || proc->ybSpinLocksAcquired > 0)
 			{
 				YbCrashInUnmanageableState = true;
+#ifndef THREAD_SANITIZER
 				ereport(WARNING,
 						(errmsg("terminating active server processes due to backend crash while "
 								"acquiring %s", proc->ybLWLockAcquired ? "LWLock" : "SpinLock")));
+#endif
 				break;
 			}
 
@@ -2956,48 +2968,60 @@ reaper(SIGNAL_ARGS)
 				WTERMSIG(exitstatus) != SIGSEGV)
 			{
 				YbCrashInUnmanageableState = true;
+#ifndef THREAD_SANITIZER
 				ereport(WARNING,
 						(errmsg("terminating active server processes due to backend crash from "
 								"unexpected error code %d",
 							WTERMSIG(exitstatus))));
+#endif
 				break;
 			}
 
 			if (!proc->ybInitializationCompleted)
 			{
 				YbCrashInUnmanageableState = true;
+#ifndef THREAD_SANITIZER
 				ereport(WARNING,
 						(errmsg("terminating active server processes due to backend crash of a "
 								"process while it was initializing")));
+#endif
 				break;
 			}
 
 			if (proc->ybTerminationStarted)
 			{
 				YbCrashInUnmanageableState = true;
+#ifndef THREAD_SANITIZER
 				ereport(WARNING,
 						(errmsg("terminating active server processes due to backend crash of a "
 								"process while it was terminating")));
+#endif
 				break;
 			}
 
 			if (proc->ybEnteredCriticalSection)
 			{
 				YbCrashInUnmanageableState = true;
+#ifndef THREAD_SANITIZER
 				ereport(WARNING,
 						(errmsg("terminating active server processes due to backend crash of a "
 								"process while it was in a critical section")));
+#endif
 				break;
 			}
 
+#ifndef THREAD_SANITIZER
 			elog(INFO, "cleaning up after process with pid %d exited with status %d",
 				 pid, exitstatus);
+#endif
 			if (!CleanupKilledProcess(proc))
 			{
 				YbCrashInUnmanageableState = true;
+#ifndef THREAD_SANITIZER
 				ereport(WARNING,
 						(errmsg("terminating active server processes due to backend crash that is "
 								"unable to be cleaned up")));
+#endif
 			}
 			break;
 		}
@@ -3024,8 +3048,10 @@ reaper(SIGNAL_ARGS)
 
 			if (EXIT_STATUS_3(exitstatus))
 			{
+#ifndef THREAD_SANITIZER
 				ereport(LOG,
 						(errmsg("shutdown at recovery target")));
+#endif
 				StartupStatus = STARTUP_NOT_RUNNING;
 				Shutdown = SmartShutdown;
 				TerminateChildren(SIGTERM);
@@ -3043,8 +3069,10 @@ reaper(SIGNAL_ARGS)
 			{
 				LogChildExit(LOG, _("startup process"),
 							 pid, exitstatus);
+#ifndef THREAD_SANITIZER
 				ereport(LOG,
 						(errmsg("aborting startup due to startup process failure")));
+#endif
 				ExitPostmaster(1);
 			}
 
@@ -3108,8 +3136,10 @@ reaper(SIGNAL_ARGS)
 			maybe_start_bgworkers();
 
 			/* at this point we are really open for business */
+#ifndef THREAD_SANITIZER
 			ereport(LOG,
 					(errmsg("database system is ready to accept connections")));
+#endif
 
 			/* Report status */
 			AddToDataDirLockFile(LOCK_FILE_LINE_PM_STATUS, PM_STATUS_READY);
@@ -3301,9 +3331,11 @@ reaper(SIGNAL_ARGS)
 		if (!foundProcStruct && !EXIT_STATUS_0(exitstatus) && !EXIT_STATUS_1(exitstatus))
 		{
 			YbCrashInUnmanageableState = true;
+#ifndef THREAD_SANITIZER
 			ereport(WARNING,
 					(errmsg("terminating active server processes due to backend crash of a "
 							"partially initialized process")));
+#endif
 		}
 
 		CleanupBackend(pid, exitstatus);

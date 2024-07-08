@@ -35,6 +35,7 @@
 #include "yb/gutil/casts.h"
 #include "yb/gutil/port.h"
 
+#include "yb/util/debug-util.h"
 #include "yb/util/lw_function.h"
 #include "yb/util/status.h"
 
@@ -162,6 +163,7 @@ class FlushFuture {
   Status EnsureCompleted() {
     uint64_t duration = 0;
     auto& metrics = context_->metrics;
+    // LOG(ERROR) << GetStackTrace();
     {
       PgWaitEventWatcher watcher(context_->wait_starter,
                                  ash::WaitStateCode::kStorageFlush);
@@ -450,6 +452,7 @@ class PgOperationBuffer::Impl {
         space_required -= in_flight_ops_.front().keys.size();
         RETURN_NOT_OK(EnsureCompleted(1));
       }
+      // LOG(ERROR) << GetStackTrace();
       in_flight_ops_.push_back(
         InFlightOperation(VERIFY_RESULT(flusher_.Flush(std::move(ops), transactional))));
       return true;

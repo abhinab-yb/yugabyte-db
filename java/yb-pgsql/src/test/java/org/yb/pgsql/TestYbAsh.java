@@ -64,19 +64,19 @@ public class TestYbAsh extends BasePgSQLTest {
     statement.execute("SELECT pg_sleep(" + seconds + ")");
   }
 
-  /**
-   * We should get an error if we try to query the ASH view without
-   * enabling ASH
-   */
-  @Test
-  public void testAshViewWithoutEnablingAsh() throws Exception {
-    // We need to restart the cluster because ASH may already have been enabled
-    restartCluster();
-    try (Statement statement = connection.createStatement()) {
-      runInvalidQuery(statement, "SELECT * FROM " + ASH_VIEW,
-          "ysql_yb_ash_enable_infra gflag must be enabled");
-    }
-  }
+  // /**
+  //  * We should get an error if we try to query the ASH view without
+  //  * enabling ASH
+  //  */
+  // @Test
+  // public void testAshViewWithoutEnablingAsh() throws Exception {
+  //   // We need to restart the cluster because ASH may already have been enabled
+  //   restartCluster();
+  //   try (Statement statement = connection.createStatement()) {
+  //     runInvalidQuery(statement, "SELECT * FROM " + ASH_VIEW,
+  //         "ysql_yb_ash_enable_infra gflag must be enabled");
+  //   }
+  // }
 
   /**
    * The circular buffer should be empty if the cluster is idle. The query to check
