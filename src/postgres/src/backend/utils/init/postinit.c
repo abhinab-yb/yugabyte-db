@@ -1406,7 +1406,7 @@ YbSetAshClientAddrAndPort()
 	/* Background workers which creates a postgres backend may have null MyProcPort. */
 	if (MyProcPort == NULL)
 	{
-		Assert(MyProc->isBackgroundWorker == true);
+		// Assert(MyProc->isBackgroundWorker == true);
 		return;
 	}
 

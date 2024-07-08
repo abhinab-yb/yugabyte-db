@@ -2581,7 +2581,11 @@ static struct config_bool ConfigureNamesBool[] =
 			GUC_NOT_IN_SAMPLE
 		},
 		&yb_ash_enable_infra,
-		false,
+#ifndef THREAD_SANITIZER
+		true,
+#else
+		true,
+#endif
 		NULL, NULL, NULL
 	},
 
@@ -2594,7 +2598,11 @@ static struct config_bool ConfigureNamesBool[] =
 			GUC_NOT_IN_SAMPLE
 		},
 		&yb_enable_ash,
-		false,
+#ifndef THREAD_SANITIZER
+		true,
+#else
+		true,
+#endif
 		yb_enable_ash_check_hook, NULL, NULL
 	},
 

@@ -160,6 +160,8 @@ TEST_F(EMCTest, TestYSQLShutdown) {
   ExternalMiniCluster cluster(opts);
   ASSERT_OK(cluster.Start());
 
+  std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+
   cluster.Shutdown();
   for (const auto& server : cluster.daemons()) {
     if (server) {
