@@ -1179,3 +1179,98 @@ yb_query_diagnostics(PG_FUNCTION_ARGS)
 
 	PG_RETURN_TEXT_P(cstring_to_text(metadata.path));
 }
+
+Datum
+yb_bind_vars(PG_FUNCTION_ARGS)
+{
+	TupleDesc	tupdesc;
+	Tuplestorestate *tupstore;
+	ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
+	MemoryContext per_query_ctx;
+	MemoryContext oldcontext;
+
+	/* Ensure that query diagnostics is enabled */
+	if (!YBIsQueryDiagnosticsEnabled())
+		ereport(ERROR,
+				(errcode(ERRCODE_OBJECT_NOT_IN_PREREQUISITE_STATE),
+				 errmsg("TEST_yb_enable_query_diagnostics gflag must be true")));
+
+	/* check to see if caller supports us returning a tuplestore */
+	if (rsinfo == NULL || !IsA(rsinfo, ReturnSetInfo))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("set-valued function called in context that cannot accept a set")));
+
+	if (!(rsinfo->allowedModes & SFRM_Materialize))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("materialize mode required, but it is not " \
+						"allowed in this context")));
+
+	/* Switch context to construct returned data structures */
+	per_query_ctx = rsinfo->econtext->ecxt_per_query_memory;
+	oldcontext = MemoryContextSwitchTo(per_query_ctx);
+
+	/* Build a tuple descriptor */
+	if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE)
+		ereport(ERROR,
+				(errmsg_internal("return type must be a row type")));
+
+	tupstore = tuplestore_begin_heap(true, false, work_mem);
+	rsinfo->returnMode = SFRM_Materialize;
+	rsinfo->setResult = tupstore;
+	rsinfo->setDesc = tupdesc;
+
+	MemoryContextSwitchTo(oldcontext);
+
+	HASH_SEQ_STATUS	status;
+	YbQueryDiagnosticsEntry *entry;
+	static int ncols = 3;
+
+	LWLockAcquire(bundles_in_progress_lock, LW_SHARED);
+
+	hash_seq_init(&status, bundles_in_progress);
+
+	while ((entry = hash_seq_search(&status)) != NULL)
+	{
+		int			i = 0;
+		int 		last_bind_var_pos = 0;
+		int			last_comma_pos = 0;
+		int			len = strlen(entry->bind_vars);
+		while (i++ < len)
+		{
+			if (entry->bind_vars[i] == ',')
+				last_comma_pos = i;
+
+			if (entry->bind_vars[i] == '\n')
+			{
+				Datum		values[ncols];
+				bool		nulls[ncols];
+				memset(values, 0, sizeof(values));
+				memset(nulls, 0, sizeof(nulls));
+
+				char duration[i - last_comma_pos];
+				memcpy(duration, entry->bind_vars + last_comma_pos + 1, i - last_comma_pos - 1);
+				duration[i - last_comma_pos - 1] = 0; /* null terminator */
+
+				char bind_vars_text[last_comma_pos - last_bind_var_pos + 1];
+				memcpy(bind_vars_text, entry->bind_vars + last_bind_var_pos, last_comma_pos - last_bind_var_pos);
+				bind_vars_text[last_comma_pos - last_bind_var_pos] = 0; /* null terminator */
+
+				values[0] = UInt64GetDatum(entry->metadata.params.query_id);
+				values[1] = Float4GetDatum(atof(duration));
+				values[2] = CStringGetTextDatum(bind_vars_text);
+				tuplestore_putvalues(tupstore, tupdesc, values, nulls);
+
+				last_bind_var_pos = i + 1;
+			}
+		}
+	}
+
+	LWLockRelease(bundles_in_progress_lock);
+
+	/* clean up and return the tuplestore */
+	tuplestore_donestoring(tupstore);
+
+	return (Datum) 0;
+}

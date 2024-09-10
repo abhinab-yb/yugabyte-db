@@ -10530,4 +10530,14 @@
   proargmodes => '{o,o,o,o,o,o,o,o}',
   proargnames => '{status,description,query_id,start_time,diagnostics_interval_sec,bind_var_query_min_duration_ms,explain_params,path}',
   prosrc => 'yb_get_query_diagnostics_status'},
+
+{ oid => '8071',
+  descr => 'Get information about bind variables while running query diagnostics',
+  proname => 'yb_bind_vars', prorows => '100',
+  proretset => 't', provolatile => 'v', proparallel => 'r',
+  prorettype => 'record', proargtypes => '',
+  proallargtypes => '{int8,float4,text}',
+  proargmodes => '{o,o,o}',
+  proargnames => '{query_id,duration,bind_vars}',
+  prosrc => 'yb_bind_vars'},
 ]
