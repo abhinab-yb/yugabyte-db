@@ -41,13 +41,17 @@ CREATE VIEW yb_query_diagnostics_status AS
     SELECT *
     FROM yb_get_query_diagnostics_status();
 
-CREATE VIEW yb_bind_vars AS
+CREATE VIEW yb_live_bind_vars AS
     SELECT *
-    FROM yb_bind_vars();
+    FROM yb_live_bind_vars();
 
-CREATE VIEW yb_explain_plans AS
+CREATE VIEW yb_live_explain_plans AS
     SELECT *
-    FROM yb_explain_plans();
+    FROM yb_live_explain_plans();
+
+CREATE VIEW yb_live_pgss AS
+    SELECT *
+    FROM yb_live_pgss();
 
 CREATE VIEW pg_roles AS
     SELECT

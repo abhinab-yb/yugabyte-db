@@ -1181,7 +1181,7 @@ yb_query_diagnostics(PG_FUNCTION_ARGS)
 }
 
 Datum
-yb_bind_vars(PG_FUNCTION_ARGS)
+yb_live_bind_vars(PG_FUNCTION_ARGS)
 {
 	TupleDesc	tupdesc;
 	Tuplestorestate *tupstore;
@@ -1233,6 +1233,7 @@ yb_bind_vars(PG_FUNCTION_ARGS)
 
 	while ((entry = hash_seq_search(&status)) != NULL)
 	{
+		SpinLockAcquire(&entry->mutex);
 		int			i = 0;
 		int 		last_bind_var_pos = 0;
 		int			last_comma_pos = 0;
@@ -1265,6 +1266,7 @@ yb_bind_vars(PG_FUNCTION_ARGS)
 				last_bind_var_pos = i + 1;
 			}
 		}
+		SpinLockRelease(&entry->mutex);
 	}
 
 	LWLockRelease(bundles_in_progress_lock);
@@ -1276,7 +1278,7 @@ yb_bind_vars(PG_FUNCTION_ARGS)
 }
 
 Datum
-yb_explain_plans(PG_FUNCTION_ARGS)
+yb_live_explain_plans(PG_FUNCTION_ARGS)
 {
 	TupleDesc	tupdesc;
 	Tuplestorestate *tupstore;
@@ -1328,6 +1330,7 @@ yb_explain_plans(PG_FUNCTION_ARGS)
 
 	while ((entry = hash_seq_search(&status)) != NULL)
 	{
+		SpinLockAcquire(&entry->mutex);
 		int			i = 0;
 		int 		duration_ptr_left = -1;
 		int 		duration_ptr_right = -1;
@@ -1370,6 +1373,108 @@ yb_explain_plans(PG_FUNCTION_ARGS)
 				duration_ptr_right = -1;
 			}
 		}
+		SpinLockRelease(&entry->mutex);
+	}
+
+	LWLockRelease(bundles_in_progress_lock);
+
+	/* clean up and return the tuplestore */
+	tuplestore_donestoring(tupstore);
+
+	return (Datum) 0;
+}
+
+Datum
+yb_live_pgss(PG_FUNCTION_ARGS)
+{
+	TupleDesc	tupdesc;
+	Tuplestorestate *tupstore;
+	ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
+	MemoryContext per_query_ctx;
+	MemoryContext oldcontext;
+
+	/* Ensure that query diagnostics is enabled */
+	if (!YBIsQueryDiagnosticsEnabled())
+		ereport(ERROR,
+				(errcode(ERRCODE_OBJECT_NOT_IN_PREREQUISITE_STATE),
+				 errmsg("TEST_yb_enable_query_diagnostics gflag must be true")));
+
+	/* check to see if caller supports us returning a tuplestore */
+	if (rsinfo == NULL || !IsA(rsinfo, ReturnSetInfo))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("set-valued function called in context that cannot accept a set")));
+
+	if (!(rsinfo->allowedModes & SFRM_Materialize))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("materialize mode required, but it is not " \
+						"allowed in this context")));
+
+	/* Switch context to construct returned data structures */
+	per_query_ctx = rsinfo->econtext->ecxt_per_query_memory;
+	oldcontext = MemoryContextSwitchTo(per_query_ctx);
+
+	/* Build a tuple descriptor */
+	if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE)
+		ereport(ERROR,
+				(errmsg_internal("return type must be a row type")));
+
+	tupstore = tuplestore_begin_heap(true, false, work_mem);
+	rsinfo->returnMode = SFRM_Materialize;
+	rsinfo->setResult = tupstore;
+	rsinfo->setDesc = tupdesc;
+
+	MemoryContextSwitchTo(oldcontext);
+
+	HASH_SEQ_STATUS	status;
+	YbQueryDiagnosticsEntry *entry;
+	static int ncols = 20;
+
+	LWLockAcquire(bundles_in_progress_lock, LW_SHARED);
+
+	hash_seq_init(&status, bundles_in_progress);
+
+	while ((entry = hash_seq_search(&status)) != NULL)
+	{
+		Datum		values[ncols];
+		bool		nulls[ncols];
+		int			j = 0;
+		float		stddev;
+		memset(values, 0, sizeof(values));
+		memset(nulls, 0, sizeof(nulls));
+
+		SpinLockAcquire(&entry->mutex);
+
+		values[j++] = UInt64GetDatum(entry->metadata.params.query_id);
+		values[j++] = Float4GetDatum(entry->pgss.counters.calls);
+		values[j++] = Float4GetDatum(entry->pgss.counters.total_time);
+		values[j++] = Float4GetDatum(entry->pgss.counters.min_time);
+		values[j++] = Float4GetDatum(entry->pgss.counters.max_time);
+		values[j++] = Float4GetDatum(entry->pgss.counters.mean_time);
+
+		if (entry->pgss.counters.calls > 1)
+			stddev = sqrt(entry->pgss.counters.sum_var_time / entry->pgss.counters.calls);
+		else
+			stddev = 0.0;
+
+		values[j++] = Float4GetDatum(stddev);
+		values[j++] = Int64GetDatum(entry->pgss.counters.rows);
+		values[j++] = Int64GetDatum(entry->pgss.counters.shared_blks_hit);
+		values[j++] = Int64GetDatum(entry->pgss.counters.shared_blks_read);
+		values[j++] = Int64GetDatum(entry->pgss.counters.shared_blks_dirtied);
+		values[j++] = Int64GetDatum(entry->pgss.counters.shared_blks_written);
+		values[j++] = Int64GetDatum(entry->pgss.counters.local_blks_hit);
+		values[j++] = Int64GetDatum(entry->pgss.counters.local_blks_read);
+		values[j++] = Int64GetDatum(entry->pgss.counters.local_blks_dirtied);
+		values[j++] = Int64GetDatum(entry->pgss.counters.local_blks_written);
+		values[j++] = Int64GetDatum(entry->pgss.counters.temp_blks_read);
+		values[j++] = Int64GetDatum(entry->pgss.counters.temp_blks_written);
+		values[j++] = Float4GetDatum(entry->pgss.counters.blk_read_time);
+		values[j++] = Float4GetDatum(entry->pgss.counters.blk_write_time);
+		SpinLockRelease(&entry->mutex);
+
+		tuplestore_putvalues(tupstore, tupdesc, values, nulls);
 	}
 
 	LWLockRelease(bundles_in_progress_lock);
