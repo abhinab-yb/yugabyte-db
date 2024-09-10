@@ -10540,4 +10540,14 @@
   proargmodes => '{o,o,o}',
   proargnames => '{query_id,duration,bind_vars}',
   prosrc => 'yb_bind_vars'},
+
+{ oid => '8072',
+  descr => 'Get information about explain plans while running query diagnostics',
+  proname => 'yb_explain_plans', prorows => '100',
+  proretset => 't', provolatile => 'v', proparallel => 'r',
+  prorettype => 'record', proargtypes => '',
+  proallargtypes => '{int8,float4,text}',
+  proargmodes => '{o,o,o}',
+  proargnames => '{query_id,duration,explain_plan}',
+  prosrc => 'yb_explain_plans'},
 ]

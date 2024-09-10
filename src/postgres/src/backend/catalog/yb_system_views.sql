@@ -45,6 +45,10 @@ CREATE VIEW yb_bind_vars AS
     SELECT *
     FROM yb_bind_vars();
 
+CREATE VIEW yb_explain_plans AS
+    SELECT *
+    FROM yb_explain_plans();
+
 CREATE VIEW pg_roles AS
     SELECT
         rolname,
