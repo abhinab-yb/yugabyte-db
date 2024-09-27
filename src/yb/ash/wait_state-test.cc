@@ -53,7 +53,6 @@ void testToAndFromPB() {
   ASSERT_EQ(meta1.query_id, meta2.query_id);
   ASSERT_EQ(meta1.pid, meta2.pid);
   ASSERT_EQ(meta1.database_id, meta2.database_id);
-  ASSERT_EQ(meta1.rpc_request_id, meta2.rpc_request_id);
   ASSERT_EQ(meta1.client_host_port, meta2.client_host_port);
 }
 
@@ -77,21 +76,18 @@ TEST(WaitStateTest, TestUpdate) {
   ASSERT_EQ(meta1.query_id, pb1.query_id());
   ASSERT_EQ(meta1.pid, pb1.pid());
   ASSERT_EQ(meta1.database_id, meta1_copy.database_id);
-  ASSERT_EQ(meta1.rpc_request_id, meta1_copy.rpc_request_id);
   ASSERT_EQ(meta1.client_host_port, HostPortFromPB(pb1.client_host_port()));
 
   meta1 = meta1_copy;
-  // Update 2 other fields, rest unset.
+  // Update 1 other field, rest unset.
   AshMetadataPB pb2;
   auto pb2_top_level_node_id = Uuid::Generate();
   pb2_top_level_node_id.ToBytes(pb2.mutable_top_level_node_id());
-  pb2.set_rpc_request_id(RandomUniformInt<int64_t>());
   meta1.UpdateFrom(AshMetadata::FromPB(pb2));
   ASSERT_EQ(meta1.root_request_id, meta1_copy.root_request_id);
   ASSERT_EQ(meta1.top_level_node_id, pb2_top_level_node_id);
   ASSERT_EQ(meta1.query_id, meta1_copy.query_id);
   ASSERT_EQ(meta1.pid, meta1_copy.pid);
-  ASSERT_EQ(meta1.rpc_request_id, pb2.rpc_request_id());
   ASSERT_EQ(meta1.client_host_port, meta1_copy.client_host_port);
 }
 
