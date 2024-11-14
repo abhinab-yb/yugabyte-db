@@ -1155,7 +1155,7 @@ static const char *yb_cache_index_name_table[] = {
 	"pg_yb_tablegroup_oid_index",
 	"pg_constraint_conrelid_contypid_conname_index",
 };
-static_assert(SysCacheSize == sizeof(yb_cache_index_name_table) /
+static_assert(SysCacheNoExtensionSize == sizeof(yb_cache_index_name_table) /
 			  sizeof(const char *), "Wrong catalog cache number");
 
 /* List of all the tables that have caches on them */
@@ -1306,7 +1306,7 @@ static YbCatalogCacheTable yb_catalog_cache_tables[] = {
 	YbCatalogCacheTable_pg_constraint,
 };
 
-static_assert(SysCacheSize ==
+static_assert(SysCacheNoExtensionSize ==
 				  sizeof(yb_catalog_cache_tables) / sizeof(YbCatalogCacheTable),
 			  "yb_catalog_cache_tables size mismatch");
 
@@ -1607,12 +1607,12 @@ InitCatalogCache(void)
 /*
  * InitExtensionCatalogCache - initialize the catcache for extensions
  *
- * This function should be called ONLY ONCE by the extension module before 
- * they start to access their extension catcache. The caller should indicate 
- * the corresponding portion of SysCache that it wants to initialize 
+ * This function should be called ONLY ONCE by the extension module before
+ * they start to access their extension catcache. The caller should indicate
+ * the corresponding portion of SysCache that it wants to initialize
  * (specified by startid + ext_cachelength).
  * XXX: unlike InitCatalogCache, we skip the OID binary search here since the
- * size of extension catcache is rather small. But if it grows larger we 
+ * size of extension catcache is rather small. But if it grows larger we
  * might consider supporting binary search for them as well.
  */
 void

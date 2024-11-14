@@ -500,7 +500,7 @@ CatalogTuplesMultiInsertWithInfo(Relation heapRel, TupleTableSlot **slot,
 			tuple = ExecFetchSlotHeapTuple(slot[i], true, &should_free);
 			tuple->t_tableOid = slot[i]->tts_tableOid;
 
-			CatalogTupleInsertWithInfo(heapRel, tuple, indstate);
+			CatalogTupleInsertWithInfo(heapRel, tuple, indstate, yb_shared_insert);
 
 			if (should_free)
 				heap_freetuple(tuple);

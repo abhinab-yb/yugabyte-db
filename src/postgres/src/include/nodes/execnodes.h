@@ -561,6 +561,9 @@ typedef struct ResultRelInfo
 	 */
 	List	   *ri_ancestorResultRels;
 
+	/* for use by nodeModifyTable.c when performing batch-inserts */
+	struct ModifyTableState *ri_ModifyTableState;
+
 	/*
 	 * YB batch insert stuff:
 	 * - batching mode:

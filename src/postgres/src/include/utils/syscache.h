@@ -129,7 +129,7 @@ enum SysCacheIdentifier
 	PROCNSPSIGNATURE,
 };
 
-#define SysCacheNoExtensionSize (USERMAPPINGUSERSERVER+ 1)
+#define SysCacheNoExtensionSize (YBCONSTRAINTRELIDTYPIDNAME+ 1)
 #define SysCacheSize (PROCNSPSIGNATURE + 1)
 
 /*
@@ -195,7 +195,7 @@ typedef enum YbCatalogCacheTable
 	YbCatalogCacheTable_pg_ts_template,
 	YbCatalogCacheTable_pg_type,
 	YbCatalogCacheTable_pg_user_mapping,
-	YbCatalogCacheTable_pg_yb_tablegroup
+	YbCatalogCacheTable_pg_yb_tablegroup,
 
 #define YbNumCatalogCacheTables (YbCatalogCacheTable_pg_yb_tablegroup + 1)
 } YbCatalogCacheTable;

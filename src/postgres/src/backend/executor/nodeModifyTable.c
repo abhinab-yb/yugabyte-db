@@ -957,8 +957,6 @@ ExecInsert(ModifyTableContext *context,
 		 */
 		if (resultRelInfo->ri_BatchSize > 1)
 		{
-			bool		flushed = false;
-
 			/*
 			 * YB: moved PG code into helper function because it is shared with
 			 * YB.
