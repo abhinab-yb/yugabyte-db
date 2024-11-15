@@ -2174,7 +2174,7 @@ YbCheckCatalogCacheIndexNameTable()
 	if (!YBCIsInitDbModeEnvVarSet())
 		return true;
 	int	cache_id;
-	for (cache_id = 0; cache_id < SysCacheSize; cache_id++)
+	for (cache_id = 0; cache_id < SysCacheNoExtensionSize; cache_id++)
 	{
 		const char* index_name = yb_cache_index_name_table[cache_id];
 		Oid indoid = cacheinfo[cache_id].indoid;
