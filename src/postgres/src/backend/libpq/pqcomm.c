@@ -1050,8 +1050,6 @@ pq_getbyte(void)
 static int
 pq_peekbyte_impl(void)
 {
-	Assert(PqCommReadingMsg || IsNonLibpqClient);
-
 	while (PqRecvPointer >= PqRecvLength)
 	{
 		if (pq_recvbuf())		/* If nothing in buffer, then recv some */
@@ -1063,7 +1061,7 @@ pq_peekbyte_impl(void)
 int
 pq_peekbyte(void)
 {
-	Assert(PqCommReadingMsg);
+	Assert(PqCommReadingMsg || IsNonLibpqClient);
 
 	return pq_peekbyte_impl();
 }
