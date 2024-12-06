@@ -1,30 +1,30 @@
 #include "postgres.h"
 #include "fmgr.h"
 #include "mb/pg_wchar.h"
-#include "src/backend/utils/mb/Unicode/utf8_to_win1250.map"
-#include "src/backend/utils/mb/Unicode/utf8_to_win1251.map"
-#include "src/backend/utils/mb/Unicode/utf8_to_win1252.map"
-#include "src/backend/utils/mb/Unicode/utf8_to_win1253.map"
-#include "src/backend/utils/mb/Unicode/utf8_to_win1254.map"
-#include "src/backend/utils/mb/Unicode/utf8_to_win1255.map"
-#include "src/backend/utils/mb/Unicode/utf8_to_win1256.map"
-#include "src/backend/utils/mb/Unicode/utf8_to_win1257.map"
-#include "src/backend/utils/mb/Unicode/utf8_to_win1258.map"
-#include "src/backend/utils/mb/Unicode/utf8_to_win866.map"
-#include "src/backend/utils/mb/Unicode/utf8_to_win874.map"
-#include "src/backend/utils/mb/Unicode/win1250_to_utf8.map"
-#include "src/backend/utils/mb/Unicode/win1251_to_utf8.map"
-#include "src/backend/utils/mb/Unicode/win1252_to_utf8.map"
-#include "src/backend/utils/mb/Unicode/win1253_to_utf8.map"
-#include "src/backend/utils/mb/Unicode/win1254_to_utf8.map"
-#include "src/backend/utils/mb/Unicode/win1255_to_utf8.map"
-#include "src/backend/utils/mb/Unicode/win1256_to_utf8.map"
-#include "src/backend/utils/mb/Unicode/win1257_to_utf8.map"
-#include "src/backend/utils/mb/Unicode/win866_to_utf8.map"
-#include "src/backend/utils/mb/Unicode/win874_to_utf8.map"
-#include "src/backend/utils/mb/Unicode/win1258_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_win1250.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_win1251.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_win1252.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_win1253.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_win1254.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_win1255.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_win1256.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_win1257.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_win1258.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_win866.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_win874.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/win1250_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/win1251_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/win1252_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/win1253_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/win1254_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/win1255_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/win1256_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/win1257_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/win866_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/win874_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/win1258_to_utf8.map"
 
-#include "src/encoding/encoding.h"
+#include "../../../encoding.h"
 
 typedef struct
 {
@@ -48,7 +48,7 @@ static const pg_conv_map maps[] = {
 };
 
 /* ----------
- * utf8_to_win: 
+ * utf8_to_win:
  *		src_encoding,	-- source encoding id
  *		dest_encoding,	-- destination encoding id
  *		src,			-- source string (null terminated C string)

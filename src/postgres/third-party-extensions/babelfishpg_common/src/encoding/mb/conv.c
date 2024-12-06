@@ -1,7 +1,7 @@
 #include "postgres.h"
 #include "mb/pg_wchar.h"
 
-#include "src/encoding/encoding.h"
+#include "../../../encoding.h"
 
 /*
  * comparison routine for bsearch()
@@ -196,7 +196,7 @@ pg_mb_radix_conv(const pg_mb_radix_tree *rt,
  * For each character, the cmap (if provided) is consulted first; if no match,
  * the map is consulted next; if still no match, the conv_func (if provided)
  * is applied.  An error is raised if no match is found.
- * 
+ *
  * Returns byte length of result string encoded in desired encoding
  *
  * See pg_wchar.h for more details about the data structures used here.
@@ -212,7 +212,7 @@ TsqlUtfToLocal(const unsigned char *utf, int len,
 	uint32	iutf;
 	int		l;
 	const	pg_utf_to_local_combined *cp;
-	int		encodedByteLen = 0;	
+	int		encodedByteLen = 0;
 
 	if (!PG_VALID_ENCODING(encoding))
 		ereport(ERROR,

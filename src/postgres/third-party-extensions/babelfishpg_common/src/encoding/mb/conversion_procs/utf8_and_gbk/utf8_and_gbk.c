@@ -1,13 +1,13 @@
 #include "postgres.h"
 #include "fmgr.h"
 #include "mb/pg_wchar.h"
-#include "utils/mb/Unicode/gbk_to_utf8.map"
-#include "utils/mb/Unicode/utf8_to_gbk.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/gbk_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_gbk.map"
 
-#include "src/encoding/encoding.h"
+#include "../../../encoding.h"
 
 /* ----------
- * utf8_to_gbk: 
+ * utf8_to_gbk:
  *		src_encoding,	-- source encoding id
  *		dest_encoding,	-- destination encoding id
  *		src,			-- source string (null terminated C string)

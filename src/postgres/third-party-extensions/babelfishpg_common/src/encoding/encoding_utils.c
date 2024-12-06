@@ -7,13 +7,13 @@
 #include "utils/memutils.h"
 #include "utils/syscache.h"
 
-#include "src/encoding/encoding.h"
+#include "../../../encoding.h"
 
 static unsigned char *do_encoding_conversion(unsigned char *src, int len, int src_encoding, int dest_encoding, int *encodedByteLen);
 
 /*
  * Convert server encoding to any encoding or vice-versa.
- * 
+ *
  * s: input string encoded in server's encoding
  * len: byte length of input string s
  * src_encoding: encoding from which input string should be encoded to dest_encoding
@@ -29,7 +29,7 @@ encoding_conv_util(const char *s, int len, int src_encoding, int dest_encoding, 
 		*encodedByteLen = len;
 		return (char *) s;		/* empty string is always valid */
 	}
-	
+
 	return (char *) do_encoding_conversion((unsigned char *) s,
 											  len,
 											  src_encoding,

@@ -1,13 +1,13 @@
 #include "postgres.h"
 #include "fmgr.h"
 #include "mb/pg_wchar.h"
-#include "src/backend/utils/mb/Unicode/sjis_to_utf8.map"
-#include "src/backend/utils/mb/Unicode/utf8_to_sjis.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/sjis_to_utf8.map"
+#include "../../../../../../../src/backend/utils/mb/Unicode/utf8_to_sjis.map"
 
-#include "src/encoding/encoding.h"
+#include "../../../encoding.h"
 
 /* ----------
- * utf8_to_sjis: 
+ * utf8_to_sjis:
  *		src_encoding,	-- source encoding id
  *		dest_encoding,	-- destination encoding id
  *		src,			-- source string (null terminated C string)

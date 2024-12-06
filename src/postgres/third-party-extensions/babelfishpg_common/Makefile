@@ -22,7 +22,7 @@ DATA_built = \
     $(EXTENSION).control \
     sql/$(EXTENSION)--$(EXTVERSION).sql
 
-PG_CPPFLAGS += -I$(top_srcdir) -I$(top_srcdir)/src/backend/utils/mb/Unicode
+PG_CPPFLAGS += -I$(top_srcdir)
 
 OBJS  = src/babelfishpg_common.o
 OBJS += src/varchar.o
