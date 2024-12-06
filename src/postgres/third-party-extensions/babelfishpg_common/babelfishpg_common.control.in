@@ -1,0 +1,7 @@
+# TSQL Datatype extension
+comment = 'Transact SQL Datatype Support'
+default_version = '@EXTVERSION@'
+module_pathname = '@MODULEPATH@'
+relocatable = true
+superuser = true
+requires = ''

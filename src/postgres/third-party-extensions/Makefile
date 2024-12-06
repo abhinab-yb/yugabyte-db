@@ -10,6 +10,9 @@ DIRS = \
 	pg_partman \
 	wal2json \
 	pgtap \
+	babelfishpg_common \
+	babelfishpg_tds \
+	babelfishpg_tsql
 
 BUILDDIRS = $(DIRS:%=build-%)
 INSTALLDIRS = $(DIRS:%=install-%)
