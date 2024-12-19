@@ -1,7 +1,7 @@
 #include "postgres.h"
 #include "mb/pg_wchar.h"
 
-#include "../../../encoding.h"
+#include "../encoding.h"
 
 /*
  * comparison routine for bsearch()

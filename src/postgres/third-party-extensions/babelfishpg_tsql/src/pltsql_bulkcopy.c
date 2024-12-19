@@ -712,7 +712,7 @@ ExecuteBulkCopy(BulkCopyState cstate, int rowCount, int colCount,
 		 * the tuple.
 		 */
 		if (cstate->resultRelInfo->ri_RelationDesc->rd_att->constr)
-			ExecConstraints(cstate->resultRelInfo, myslot, cstate->estate);
+			ExecConstraints(cstate->resultRelInfo, myslot, cstate->estate, NULL);
 
 		/*
 		 * The slot previously might point into the per-tuple

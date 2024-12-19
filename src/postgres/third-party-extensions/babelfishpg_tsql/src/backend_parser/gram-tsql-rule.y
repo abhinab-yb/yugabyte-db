@@ -2276,7 +2276,6 @@ tsql_stmt :
 			| GrantStmt
 			| GrantRoleStmt
 			| ImportForeignSchemaStmt
-			| tsql_IndexStmt
 			| tsql_InsertStmt
 			| ListenStmt
 			| RefreshMatViewStmt
@@ -2967,37 +2966,6 @@ tsql_opt_not_for_replication:
 
 opt_from:	FROM									{}
 			| /* EMPTY */							{}
-		;
-
-tsql_IndexStmt:
-			CREATE opt_unique tsql_opt_cluster tsql_opt_columnstore
-			INDEX opt_concurrently opt_index_name
-			ON relation_expr access_method_clause '(' index_params ')'
-			opt_include where_clause opt_reloptions
-			tsql_opt_on_filegroup
-				{
-					IndexStmt *n = makeNode(IndexStmt);
-					n->unique = $2;
-					n->concurrent = $6;
-					n->idxname = $7;
-					n->relation = $9;
-					n->accessMethod = $10;
-					n->indexParams = $12;
-					n->indexIncludingParams = $14;
-					n->whereClause = $15;
-					n->options = $16;
-					n->excludeOpNames = NIL;
-					n->idxcomment = NULL;
-					n->indexOid = InvalidOid;
-					n->oldNode = InvalidOid;
-					n->primary = false;
-					n->isconstraint = false;
-					n->deferrable = false;
-					n->initdeferred = false;
-					n->transformed = false;
-					n->if_not_exists = false;
-					$$ = (Node *)n;
-				}
 		;
 
 tsql_cluster:

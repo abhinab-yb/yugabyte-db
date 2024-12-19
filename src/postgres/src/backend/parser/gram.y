@@ -1348,9 +1348,9 @@ AlterOptRoleElem:
 						 */
 						$$ = makeDefElem("inherit", (Node *) makeBoolean(false), @1);
 					}
-					else if (strcmp($1, "lock") == 0)
+					else if (strcmp(ident, "lock") == 0)
 						$$ = makeDefElem("islocked", (Node *)makeInteger(true), @1);
-					else if (strcmp($1, "open") == 0)
+					else if (strcmp(ident, "open") == 0)
 						$$ = makeDefElem("islocked", (Node *)makeInteger(false), @1);
 					else
 						ereport(ERROR,
@@ -4450,7 +4450,7 @@ ConstraintElem:
 								   NULL, yyscanner);
 					$$ = (Node *) n;
 				}
-			| PRIMARY KEY '(' yb_index_params ')' opt_c_include opt_definition OptConsTableSpace
+			| PRIMARY KEY '(' columnList ')' opt_c_include opt_definition OptConsTableSpace
 				ConstraintAttributeSpec
 				{
 					Constraint *n = makeNode(Constraint);
@@ -4458,12 +4458,12 @@ ConstraintElem:
 					n->contype = CONSTR_PRIMARY;
 					n->location = @1;
 					/* For Postgres' purpose, make index params available as a column list also */
-					ListCell *lc;
-					foreach(lc, $4)
-					{
-						IndexElem *index_elem = (IndexElem *)lfirst(lc);
-						n->keys = lappend(n->keys, makeString(index_elem->name));
-					}
+					/* ListCell *lc; */
+					/* foreach(lc, $4) */
+					/* { */
+					/* 	IndexElem *index_elem = (IndexElem *)lfirst(lc); */
+					/* 	n->keys = lappend(n->keys, makeString(index_elem->name)); */
+					/* } */
 					n->including = $6;
 					n->options = $7;
 					n->indexname = NULL;

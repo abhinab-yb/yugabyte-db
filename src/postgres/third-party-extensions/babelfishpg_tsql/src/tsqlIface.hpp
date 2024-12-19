@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "../antlr/antlr4cpp_generated_src/TSqlParser/TSqlParserBaseVisitor.h"
+#include "TSqlParser/TSqlParserBaseVisitor.h"
 
 /* unsupported feature handler interface */
 class TsqlUnsupportedFeatureHandler : public TSqlParserBaseVisitor

@@ -22,7 +22,7 @@
  * when batch level statment is compiled and it will be reset when new SQL batch comes in.
  */
 int pltsql_curr_compile_body_position; /* cursor position of function/procedure body in CREATE */
-int pltsql_curr_compile_body_lineno; /* lineno of function/procedure body in CREATE */
+// int pltsql_curr_compile_body_lineno; /* lineno of function/procedure body in CREATE */
 
 /*
  * Used in pltsql_compile_error_callback. Copied from pg_proc.c

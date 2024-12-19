@@ -11,6 +11,7 @@ DIRS = \
 	wal2json \
 	pgtap \
 	babelfishpg_common \
+	babelfishpg_money \
 	babelfishpg_tds \
 	babelfishpg_tsql
 

@@ -14,7 +14,7 @@
 
 %type <node> tsql_stmt
 
-%type <node> tsql_CreateFunctionStmt tsql_VariableSetStmt tsql_CreateTrigStmt tsql_TransactionStmt tsql_UpdateStmt tsql_DeleteStmt tsql_IndexStmt
+%type <node> tsql_CreateFunctionStmt tsql_VariableSetStmt tsql_CreateTrigStmt tsql_TransactionStmt tsql_UpdateStmt tsql_DeleteStmt
 %type <node> tsql_DropIndexStmt tsql_InsertStmt
 %type <node> tsql_CreateLoginStmt tsql_AlterLoginStmt tsql_DropLoginStmt
 %type <node> tsql_CreateUserStmt tsql_DropRoleStmt tsql_AlterUserStmt

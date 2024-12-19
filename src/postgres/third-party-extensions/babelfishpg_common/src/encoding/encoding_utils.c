@@ -7,7 +7,7 @@
 #include "utils/memutils.h"
 #include "utils/syscache.h"
 
-#include "../../../encoding.h"
+#include "encoding.h"
 
 static unsigned char *do_encoding_conversion(unsigned char *src, int len, int src_encoding, int dest_encoding, int *encodedByteLen);
 

@@ -12,6 +12,9 @@ TSQL_SRC = ../babelfishpg_tsql
 PG_CFLAGS += -Werror
 PG_CFLAGS += -fstack-protector-strong
 PG_CFLAGS += -Wno-fortify-source
+PG_CFLAGS += -Wno-tautological-constant-out-of-range-compare
+PG_CFLAGS += -Wno-switch
+PG_CFLAGS += -Wno-constant-conversion
 PG_CPPFLAGS += -I$(TSQL_SRC) -I$(top_srcdir) -I$(tds_top_dir)
 
 # Exclude the following files from the build (sometimes these

@@ -81,10 +81,14 @@ export ANTLR4_RUNTIME_LIB_DIR=/usr/local/lib
 OBJS += src/pltsql_bulkcopy.o
 
 PG_CXXFLAGS += -g -Werror
-PG_CXXFLAGS += -Wno-deprecated -Wno-error=attributes -Wno-suggest-attribute=format # disable some warnings from ANTLR runtime header
+PG_CXXFLAGS += -Wno-deprecated -Wno-error=attributes # disable some warnings from ANTLR runtime header
 PG_CXXFLAGS += -Wno-undef -Wall -Wcpp
 PG_CXXFLAGS += -Wno-register # otherwise C++17 gags on PostgreSQL headers
 PG_CXXFLAGS += -I$(ANTLR4_RUNTIME_INCLUDE_DIR)
+PG_CXXFLAGS += -I$(ANTLR4_RUNTIME_LIB_DIR)
+PG_CXXFLAGS += -Wno-inconsistent-missing-override
+PG_CXXFLAGS += -I$(YB_BUILD_ROOT)/postgres_build/third-party-extensions/babelfishpg_tsql/antlr/antlr4cpp_generated_src
+# PG_CXXFLAGS += -I$(YB_BUILD_ROOT)/postgres_build/third-party-extensions/babelfishpg_tsql/src
 PG_CFLAGS += -g -Werror
 PG_CFLAGS += -fstack-protector-strong
 PG_CFLAGS += -Wno-implicit-fallthrough
@@ -92,7 +96,17 @@ PG_CFLAGS += -Wno-gnu-variable-sized-type-not-at-end
 PG_CFLAGS += -Wno-fortify-source
 PG_CFLAGS += -Wno-sometimes-uninitialized
 PG_CFLAGS += -Wno-unused-but-set-variable
-PG_CPPFLAGS += -I$(TSQLSRC) -I$(top_srcdir) -DFAULT_INJECTOR
+PG_CFLAGS += -Wno-void-pointer-to-enum-cast
+PG_CFLAGS += -Wno-non-literal-null-conversion
+PG_CFLAGS += -Wno-incompatible-pointer-types
+PG_CFLAGS += -Wno-enum-conversion
+PG_CFLAGS += -Wno-tautological-constant-out-of-range-compare
+PG_CFLAGS += -Wno-infinite-recursion
+PG_CFLAGS += -I$(ANTLR4_RUNTIME_INCLUDE_DIR)
+PG_CFLAGS += -L$(ANTLR4_RUNTIME_LIB_DIR)
+PG_CFLAGS += -I$(YB_BUILD_ROOT)/postgres_build/third-party-extensions/babelfishpg_tsql/src
+PG_CFLAGS += -I$(YB_BUILD_ROOT)/postgres_build/third-party-extensions/babelfishpg_tsql/antlr/antlr4cpp_generated_src
+PG_CPPFLAGS += -I$(TSQLSRC) -I$(top_srcdir) -I$(PG_SRC) -I$(YB_BUILD_ROOT)/postgres_build/third-party-extensions/babelfishpg_tsql/antlr/antlr4cpp_generated_src -DFAULT_INJECTOR
 
 SHLIB_LINK += -L$(ANTLR4_RUNTIME_LIB_DIR) $(ANTLR4_RUNTIME_LIB) -lcrypto
 
@@ -167,7 +181,7 @@ KEYWORDS += src/pl_unreserved_kwlist_d.h
 #PERL := perl
 
 # where to find gen_keywordlist.pl and subsidiary files
-TOOLSDIR = $(top_srcdir)/src/tools
+TOOLSDIR = $(PG_SRC)/src/tools
 GEN_KEYWORDLIST = $(PERL) -I $(TOOLSDIR) $(TOOLSDIR)/gen_keywordlist.pl
 GEN_KEYWORDLIST_DEPS = $(TOOLSDIR)/gen_keywordlist.pl $(TOOLSDIR)/PerfectHash.pm
 TSQLSRC = .
@@ -186,8 +200,8 @@ src/pl_gram.h: src/pl_gram.c
 src/pl_gram.c: BISONFLAGS += -d -v
 
 # generate plerrcodes.h: from src/backend/utils/errcodes.txt
-src/plerrcodes.h: $(top_srcdir)/src/backend/utils/errcodes.txt src/generate-plerrcodes.pl
-	echo $(top_srcdir)
+src/plerrcodes.h: $(PG_SRC)/src/backend/utils/errcodes.txt src/generate-plerrcodes.pl
+	echo $(PG_SRC)
 	$(PERL) src/generate-plerrcodes.pl $< > $@
 
 # generate keyword headers for the scanner
@@ -213,7 +227,7 @@ src/backend_parser/kwlist_d.h: src/backend_parser/kwlist.h $(GEN_KEYWORDLIST_DEP
 
 src/backend_parser/keywords.o: src/backend_parser/keywords.c src/backend_parser/kwlist_d.h
 
-src/backend_parser/gram-backend.y: $(top_srcdir)/src/backend/parser/gram.y $(BEPARSERDIR)/gram-tsql-prologue.y.h $(BEPARSERDIR)/gram-tsql-decl.y $(BEPARSERDIR)/gram-tsql-rule.y $(BEPARSERDIR)/gram-tsql-epilogue.y.c $(BEPARSERDIR)/include.pl
+src/backend_parser/gram-backend.y: $(PG_SRC)/src/backend/parser/gram.y $(BEPARSERDIR)/gram-tsql-prologue.y.h $(BEPARSERDIR)/gram-tsql-decl.y $(BEPARSERDIR)/gram-tsql-rule.y $(BEPARSERDIR)/gram-tsql-epilogue.y.c $(BEPARSERDIR)/include.pl
 	$(PERL) $(BEPARSERDIR)/include.pl $(BEPARSERDIR) gram.y < $< > $@
 
 src/backend_parser/gram-backend.c: BISONFLAGS += -d
@@ -223,7 +237,7 @@ src/backend_parser/gram-backend.c: src/backend_parser/gram-backend.y
 src/backend_parser/gram-backend.h: src/backend_parser/gram-backend.c
 	touch $@
 
-src/backend_parser/scan-backend.l: $(top_srcdir)/src/backend/parser/scan.l $(BEPARSERDIR)/scan-tsql-prologue-top.l.h $(BEPARSERDIR)/scan-tsql-prologue.l.h $(BEPARSERDIR)/scan-tsql-decl.l $(BEPARSERDIR)/scan-tsql-rule.l $(BEPARSERDIR)/scan-tsql-epilogue.l.c
+src/backend_parser/scan-backend.l: $(PG_SRC)/src/backend/parser/scan.l $(BEPARSERDIR)/scan-tsql-prologue-top.l.h $(BEPARSERDIR)/scan-tsql-prologue.l.h $(BEPARSERDIR)/scan-tsql-decl.l $(BEPARSERDIR)/scan-tsql-rule.l $(BEPARSERDIR)/scan-tsql-epilogue.l.c
 	$(PERL) $(BEPARSERDIR)/include.pl $(BEPARSERDIR) scan.l < $< > $@
 
 src/backend_parser/scan-backend.c: FLEXFLAGS = -CF -p -p
