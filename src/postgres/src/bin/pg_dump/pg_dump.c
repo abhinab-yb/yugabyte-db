@@ -498,6 +498,7 @@ main(int argc, char **argv)
 		{"on-conflict-do-nothing", no_argument, &dopt.do_nothing, 1},
 		{"rows-per-insert", required_argument, NULL, 10},
 		{"include-foreign-data", required_argument, NULL, 11},
+		{"restrict-key", required_argument, NULL, 25},
 
 		/* YB: does not have short option letter */
 		{"no-serializable-deferrable", no_argument, &no_serializable_deferrable, 1},
@@ -506,8 +507,8 @@ main(int argc, char **argv)
 		{"include-yb-metadata", no_argument, &dopt.include_yb_metadata, 1},
 		{"dump-role-checks", no_argument, &dopt.yb_dump_role_checks, 1},
 		{"read-time", required_argument, NULL, 12},
-		{"rename-database", required_argument, NULL, 25},
-		{"rename-owner", required_argument, NULL, 26},
+		{"rename-database", required_argument, NULL, 26},
+		{"rename-owner", required_argument, NULL, 27},
 
 		{NULL, 0, NULL, 0}
 	};
@@ -760,11 +761,15 @@ main(int argc, char **argv)
 				with_statistics = true;
 				break;
 
-			case 25:			/* YB: --rename-database=new_db_name */
+			case 25:
+				dopt.restrict_key = pg_strdup(optarg);
+				break;
+
+			case 26:			/* YB: --rename-database=new_db_name */
 				dopt.yb_rename_database = pg_strdup(optarg);
 				break;
 
-			case 26:			/* YB: --rename-owner=new_owner_name */
+			case 27:			/* YB: --rename-owner=new_owner_name */
 				dopt.yb_rename_owner = pg_strdup(optarg);
 				break;
 
@@ -899,7 +904,21 @@ main(int argc, char **argv)
 
 	/* archiveFormat specific setup */
 	if (archiveFormat == archNull)
+	{
 		plainText = 1;
+
+		/*
+		 * If you don't provide a restrict key, one will be appointed for you.
+		 */
+		if (!dopt.restrict_key)
+			dopt.restrict_key = generate_restrict_key();
+		if (!dopt.restrict_key)
+			pg_fatal("could not generate restrict key");
+		if (!valid_restrict_key(dopt.restrict_key))
+			pg_fatal("invalid restrict key");
+	}
+	else if (dopt.restrict_key)
+		pg_fatal("option --restrict-key can only be used with --format=plain");
 
 	/* Custom and directory formats are compressed by default, others not */
 	if (compressLevel == -1)
@@ -1179,6 +1198,7 @@ main(int argc, char **argv)
 	ropt->enable_row_security = dopt.enable_row_security;
 	ropt->sequence_data = dopt.sequence_data;
 	ropt->binary_upgrade = dopt.binary_upgrade;
+	ropt->restrict_key = dopt.restrict_key ? pg_strdup(dopt.restrict_key) : NULL;
 
 	if (compressLevel == -1)
 		ropt->compression = 0;
@@ -1298,6 +1318,7 @@ help(const char *progname)
 	printf(_("  --rename-owner=NAME          rewrite every OWNER TO clause whose owner equals\n"
 			 "                               the source database owner to OWNER TO NAME (other\n"
 			 "                               owners are emitted unchanged). Requires -C/--create.\n"));
+	printf(_("  --restrict-key=RESTRICT_KEY  use provided string as psql \\restrict key\n"));
 	printf(_("  --rows-per-insert=NROWS      number of rows per INSERT; implies --inserts\n"));
 	printf(_("  --section=SECTION            dump named section (pre-data, data, or post-data)\n"));
 	printf(_("  --serializable-deferrable    wait until the dump can run without anomalies\n"));

@@ -74,4 +74,7 @@ extern void YBWwrapInRoleChecks(PGconn *conn,
 								const char *role_name1, const char *role_name2,
 								const char *role_name3, PQExpBuffer result);
 
+extern char *generate_restrict_key(void);
+extern bool valid_restrict_key(const char *restrict_key);
+
 #endif							/* DUMPUTILS_H */
