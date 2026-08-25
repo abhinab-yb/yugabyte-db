@@ -935,12 +935,21 @@ dumpRoles(PGconn *conn)
 		fprintf(OPF, "--\n-- Roles\n--\n\n");
 
 		if (include_yb_metadata)
-			fprintf(OPF,
-					"-- Set variable ignore_existing_roles (if not already set)\n"
-					"\\if :{?ignore_existing_roles}\n"
-					"\\else\n"
-					"\\set ignore_existing_roles false\n"
-					"\\endif\n\n");
+		{
+			PQExpBuffer pre = createPQExpBuffer();
+
+			appendPQExpBufferStr(pre,
+								 "-- Set variable ignore_existing_roles (if not already set)\n");
+			ybAppendUnrestrict(pre, restrict_key);
+			appendPQExpBufferStr(pre,
+								 "\\if :{?ignore_existing_roles}\n"
+								 "\\else\n"
+								 "\\set ignore_existing_roles false\n"
+								 "\\endif\n");
+			ybAppendRestrict(pre, restrict_key);
+			fprintf(OPF, "%s\n", pre->data);
+			destroyPQExpBuffer(pre);
+		}
 	}
 
 	for (i = 0; i < PQntuples(res); i++)
@@ -1026,6 +1035,7 @@ dumpRoles(PGconn *conn)
 			{
 				yb_need_endif = true;
 				yb_indent = "    ";
+				ybAppendUnrestrict(buf, restrict_key);
 				appendPQExpBuffer(buf,
 								  "\\set role_exists false\n"
 								  "\\if :ignore_existing_roles\n"
@@ -1038,6 +1048,7 @@ dumpRoles(PGconn *conn)
 								  "\\if :role_exists\n"
 								  "%s\\echo 'Role already exists:' %s\n"
 								  "\\else\n", yb_indent, yb_frolename);
+				ybAppendRestrict(buf, restrict_key);
 			}
 
 			appendPQExpBuffer(buf, "%sCREATE ROLE %s;\n", yb_indent, yb_frolename);
@@ -1110,7 +1121,11 @@ dumpRoles(PGconn *conn)
 							 buf, yb_indent);
 
 		if (yb_need_endif)
+		{
+			ybAppendUnrestrict(buf, restrict_key);
 			appendPQExpBufferStr(buf, "\\endif\n");
+			ybAppendRestrict(buf, restrict_key);
+		}
 
 		if (include_yb_metadata)
 			appendPQExpBufferStr(buf, "\n");
@@ -1202,7 +1217,7 @@ dumpRoleMembership(PGconn *conn)
 								yb_grantor, /* role2; note: yb_grantor can be
 											 * NULL */
 								NULL,	/* role3 */
-								yb_sql);
+								yb_sql, restrict_key);
 			destroyPQExpBuffer(yb_source_sql);
 		}
 
@@ -1259,7 +1274,8 @@ dumpRoleGUCPrivs(PGconn *conn)
 
 		if (!buildACLCommands(conn, fparname, NULL, NULL, "PARAMETER",
 							  paracl, acldefault,
-							  parowner, "", server_version, yb_dump_role_checks, buf))
+							  parowner, "", server_version, yb_dump_role_checks,
+							  restrict_key, buf))
 		{
 			pg_log_error("could not parse ACL list (%s) for parameter \"%s\"",
 						 paracl, parname);
@@ -1342,12 +1358,21 @@ dumpTablespaces(PGconn *conn)
 		fprintf(OPF, "--\n-- Tablespaces\n--\n\n");
 
 		if (include_yb_metadata)
-			fprintf(OPF,
-					"-- Set variable ignore_existing_tablespaces (if not already set)\n"
-					"\\if :{?ignore_existing_tablespaces}\n"
-					"\\else\n"
-					"\\set ignore_existing_tablespaces false\n"
-					"\\endif\n\n");
+		{
+			PQExpBuffer pre = createPQExpBuffer();
+
+			appendPQExpBufferStr(pre,
+								 "-- Set variable ignore_existing_tablespaces (if not already set)\n");
+			ybAppendUnrestrict(pre, restrict_key);
+			appendPQExpBufferStr(pre,
+								 "\\if :{?ignore_existing_tablespaces}\n"
+								 "\\else\n"
+								 "\\set ignore_existing_tablespaces false\n"
+								 "\\endif\n");
+			ybAppendRestrict(pre, restrict_key);
+			fprintf(OPF, "%s\n", pre->data);
+			destroyPQExpBuffer(pre);
+		}
 	}
 
 	for (i = 0; i < PQntuples(res); i++)
@@ -1373,6 +1398,8 @@ dumpTablespaces(PGconn *conn)
 		}
 
 		if (include_yb_metadata)
+		{
+			ybAppendUnrestrict(buf, restrict_key);
 			appendPQExpBuffer(buf,
 							  "\\set tablespace_exists false\n"
 							  "\\if :ignore_existing_tablespaces\n"
@@ -1381,7 +1408,10 @@ dumpTablespaces(PGconn *conn)
 							  "\\endif\n"
 							  "\\if :tablespace_exists\n"
 							  "    \\echo 'Tablespace %s already exists.'\n"
-							  "\\else\n    ", fspcname, fspcname);
+							  "\\else\n", fspcname, fspcname);
+			ybAppendRestrict(buf, restrict_key);
+			appendPQExpBufferStr(buf, "    ");
+		}
 
 		appendPQExpBuffer(buf, "CREATE TABLESPACE %s", fspcname);
 		appendPQExpBuffer(buf, " OWNER %s", fmtId(spcowner));
@@ -1398,14 +1428,19 @@ dumpTablespaces(PGconn *conn)
 		appendPQExpBufferStr(buf, ";\n");
 
 		if (include_yb_metadata)
+		{
+			ybAppendUnrestrict(buf, restrict_key);
 			appendPQExpBufferStr(buf, "\\endif\n");
+			ybAppendRestrict(buf, restrict_key);
+		}
 
 		/* tablespaces can't have initprivs */
 
 		if (!skip_acls &&
 			!buildACLCommands(conn, fspcname, NULL, NULL, "TABLESPACE",
 							  spcacl, acldefault,
-							  spcowner, "", server_version, yb_dump_role_checks, buf))
+							  spcowner, "", server_version, yb_dump_role_checks,
+							  restrict_key, buf))
 		{
 			pg_log_error("could not parse ACL list (%s) for tablespace \"%s\"",
 						 spcacl, spcname);
@@ -1536,7 +1571,7 @@ dumpUserConfig(PGconn *conn, const char *username)
 		resetPQExpBuffer(buf);
 		makeAlterConfigCommand(conn, PQgetvalue(res, i, 0),
 							   "ROLE", username, NULL, NULL,
-							   yb_dump_role_checks, buf);
+							   yb_dump_role_checks, restrict_key, buf);
 		fprintf(OPF, "%s", buf->data);
 	}
 
@@ -2245,7 +2280,7 @@ dumpYbRoleProfiles(PGconn *conn)
 								role_name,	/* role1 */
 								NULL,	/* role2 */
 								NULL,	/* role3 */
-								stmt);
+								stmt, restrict_key);
 			destroyPQExpBuffer(yb_source_sql);
 		}
 

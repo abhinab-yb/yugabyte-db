@@ -3324,6 +3324,32 @@ _tocEntryIsACL(TocEntry *te)
  * Issue SET commands for parameters that we want to have set the same way
  * at all times during execution of a restore script.
  */
+/*
+ * YB: pg_dump emits \restrict/\unrestrict (CVE-2025-8714) to block psql
+ * meta-command injection from attacker-controlled dump content. YB's own
+ * control-flow meta-commands (\if/\else/\endif/\set/\gset/\echo) must run
+ * outside restricted mode, like the \connect handling in _printTocEntry.
+ * Bracket each such block with these helpers; only YB-generated, properly
+ * escaped content may appear between them.
+ */
+static void
+ybBeginUnrestrictedMeta(ArchiveHandle *AH)
+{
+	RestoreOptions *ropt = AH->public.ropt;
+
+	if (ropt && ropt->restrict_key)
+		ahprintf(AH, "\\unrestrict %s\n", ropt->restrict_key);
+}
+
+static void
+ybEndUnrestrictedMeta(ArchiveHandle *AH)
+{
+	RestoreOptions *ropt = AH->public.ropt;
+
+	if (ropt && ropt->restrict_key)
+		ahprintf(AH, "\\restrict %s\n", ropt->restrict_key);
+}
+
 static void
 _doSetFixedOutputState(ArchiveHandle *AH)
 {
@@ -3381,6 +3407,7 @@ _doSetFixedOutputState(ArchiveHandle *AH)
 	if (AH->public.dopt->include_yb_metadata && first_run)
 	{
 		first_run = false;
+		ybBeginUnrestrictedMeta(AH);
 		ahprintf(AH,
 				 "\n-- Set variable use_tablespaces (if not already set)\n"
 				 "\\if :{?use_tablespaces}\n"
@@ -3393,6 +3420,7 @@ _doSetFixedOutputState(ArchiveHandle *AH)
 				 "\\else\n"
 				 "\\set use_roles true\n"
 				 "\\endif\n");
+		ybEndUnrestrictedMeta(AH);
 
 		/*
 		 * If the --create option is specified, the target database will be
@@ -3670,11 +3698,16 @@ _selectTablespace(ArchiveHandle *AH, const char *tablespace)
 		PQclear(res);
 	}
 	else if (AH->public.dopt->include_yb_metadata)
-		ahprintf(AH,
-				 "\\if :use_tablespaces\n"
-				 "    %s;\n"
-				 "\\endif\n\n",
-				 qry->data);
+	{
+		ybBeginUnrestrictedMeta(AH);
+		ahprintf(AH, "\\if :use_tablespaces\n");
+		ybEndUnrestrictedMeta(AH);
+		ahprintf(AH, "    %s;\n", qry->data);
+		ybBeginUnrestrictedMeta(AH);
+		ahprintf(AH, "\\endif\n");
+		ybEndUnrestrictedMeta(AH);
+		ahprintf(AH, "\n");
+	}
 	else
 		ahprintf(AH, "%s;\n\n", qry->data);
 
@@ -4055,25 +4088,34 @@ _printTocEntry(ArchiveHandle *AH, TocEntry *te, const char *pfx)
 
 			if (AH->public.dopt->include_yb_metadata)
 			{
+				ybBeginUnrestrictedMeta(AH);
 				ahprintf(AH, "\\if :use_roles\n");
+				ybEndUnrestrictedMeta(AH);
 				if (AH->public.dopt->yb_dump_role_checks)
 				{
 					PQExpBuffer role_buf = createPQExpBuffer();
 
 					appendStringLiteralAHX(role_buf, eff_owner, AH);
+					ybBeginUnrestrictedMeta(AH);
 					ahprintf(AH, "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = %s"
 							 ") AS role_exists \\gset\n"
-							 "\\if :role_exists\n"
-							 "    %s\n"
-							 "\\else\n"
+							 "\\if :role_exists\n", role_buf->data);
+					ybEndUnrestrictedMeta(AH);
+					ahprintf(AH, "    %s\n", temp->data);
+					ybBeginUnrestrictedMeta(AH);
+					ahprintf(AH, "\\else\n"
 							 "    \\echo 'Skipping owner privilege due to missing role:' %s\n"
-							 "\\endif\n", role_buf->data, temp->data, fmtId(eff_owner));
+							 "\\endif\n", fmtId(eff_owner));
+					ybEndUnrestrictedMeta(AH);
 					destroyPQExpBuffer(role_buf);
 				}
 				else
 					ahprintf(AH, "    %s\n", temp->data);
 
-				ahprintf(AH, "\\endif\n\n");
+				ybBeginUnrestrictedMeta(AH);
+				ahprintf(AH, "\\endif\n");
+				ybEndUnrestrictedMeta(AH);
+				ahprintf(AH, "\n");
 			}
 			else
 				ahprintf(AH, "%s\n\n", temp->data);

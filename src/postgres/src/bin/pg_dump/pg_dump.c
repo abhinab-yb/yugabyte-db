@@ -920,6 +920,20 @@ main(int argc, char **argv)
 	else if (dopt.restrict_key)
 		pg_fatal("option --restrict-key can only be used with --format=plain");
 
+	/*
+	 * YB: --include-yb-metadata guards its statements with psql meta-commands
+	 * (\if, \else, \endif, \set, \gset, \echo).  Several are stored in a TOC
+	 * entry rather than written to the script, so a non-plain archive carries
+	 * them as text that pg_restore replays inside the restricted-mode region it
+	 * brackets the script with, where psql rejects them.  The brackets below
+	 * cannot help there, because pg_restore mints its own restrict key.
+	 *
+	 * This also covers --dump-role-checks, which the check above already
+	 * requires --include-yb-metadata for.
+	 */
+	if (dopt.include_yb_metadata && !plainText)
+		pg_fatal("option --include-yb-metadata can only be used with --format=plain");
+
 	/* Custom and directory formats are compressed by default, others not */
 	if (compressLevel == -1)
 	{
@@ -3709,7 +3723,8 @@ dumpDatabaseConfig(Archive *AH, PQExpBuffer outbuf,
 	for (int i = 0; i < PQntuples(res); i++)
 		makeAlterConfigCommand(conn, PQgetvalue(res, i, 0),
 							   "DATABASE", dbname, NULL, NULL,
-							   yb_dopt->yb_dump_role_checks, outbuf);
+							   yb_dopt->yb_dump_role_checks,
+							   yb_dopt->restrict_key, outbuf);
 
 	PQclear(res);
 
@@ -3722,16 +3737,25 @@ dumpDatabaseConfig(Archive *AH, PQExpBuffer outbuf,
 	res = ExecuteSqlQuery(AH, buf->data, PGRES_TUPLES_OK);
 
 	if (yb_dopt->include_yb_metadata && PQntuples(res) > 0)
+	{
+		ybAppendUnrestrict(outbuf, yb_dopt->restrict_key);
 		appendPQExpBufferStr(outbuf, "\\if :use_roles\n");
+		ybAppendRestrict(outbuf, yb_dopt->restrict_key);
+	}
 
 	for (int i = 0; i < PQntuples(res); i++)
 		makeAlterConfigCommand(conn, PQgetvalue(res, i, 1),
 							   "ROLE", PQgetvalue(res, i, 0),
 							   "DATABASE", dbname,
-							   yb_dopt->yb_dump_role_checks, outbuf);
+							   yb_dopt->yb_dump_role_checks,
+							   yb_dopt->restrict_key, outbuf);
 
 	if (yb_dopt->include_yb_metadata && PQntuples(res) > 0)
+	{
+		ybAppendUnrestrict(outbuf, yb_dopt->restrict_key);
 		appendPQExpBufferStr(outbuf, "\\endif\n");
+		ybAppendRestrict(outbuf, yb_dopt->restrict_key);
+	}
 
 	PQclear(res);
 
@@ -4325,7 +4349,9 @@ dumpPolicy(Archive *fout, const PolicyInfo *polinfo)
 		PQExpBuffer yb_source_sql = query;
 
 		query = createPQExpBuffer();
+		ybAppendUnrestrict(query, dopt->restrict_key);
 		appendPQExpBufferStr(query, "\\if :use_roles\n");
+		ybAppendRestrict(query, dopt->restrict_key);
 
 		if (dopt->yb_dump_role_checks)
 		{
@@ -4333,12 +4359,14 @@ dumpPolicy(Archive *fout, const PolicyInfo *polinfo)
 								polinfo->polroles,	/* role1 */
 								NULL,	/* role2 */
 								NULL,	/* role3 */
-								query);
+								query, dopt->restrict_key);
 		}
 		else
 			appendPQExpBufferStr(query, yb_source_sql->data);
 
+		ybAppendUnrestrict(query, dopt->restrict_key);
 		appendPQExpBufferStr(query, "\\endif\n");
+		ybAppendRestrict(query, dopt->restrict_key);
 		destroyPQExpBuffer(yb_source_sql);
 	}
 
@@ -15802,6 +15830,7 @@ dumpDefaultACL(Archive *fout, const DefaultACLInfo *daclinfo)
 								 daclinfo->defaclrole,
 								 fout->remoteVersion,
 								 dopt->yb_dump_role_checks,
+								 dopt->restrict_key,
 								 q))
 		pg_fatal("could not parse default ACL list (%s)",
 				 daclinfo->dacl.acl);
@@ -15902,7 +15931,8 @@ dumpACL(Archive *fout, DumpId objDumpId, DumpId altDumpId,
 		appendPQExpBufferStr(sql, "SELECT pg_catalog.binary_upgrade_set_record_init_privs(true);\n");
 		if (!buildACLCommands(GetConnection(fout), name, subname, nspname, type,
 							  initprivs, acldefault, owner,
-							  "", fout->remoteVersion, dopt->yb_dump_role_checks, sql))
+							  "", fout->remoteVersion, dopt->yb_dump_role_checks,
+							  dopt->restrict_key, sql))
 			pg_fatal("could not parse initial ACL list (%s) or default (%s) for object \"%s\" (%s)",
 					 initprivs, acldefault, name, type);
 		appendPQExpBufferStr(sql, "SELECT pg_catalog.binary_upgrade_set_record_init_privs(false);\n");
@@ -15927,7 +15957,8 @@ dumpACL(Archive *fout, DumpId objDumpId, DumpId altDumpId,
 
 	if (!buildACLCommands(GetConnection(fout), name, subname, nspname, type,
 						  acls, baseacls, owner,
-						  "", fout->remoteVersion, dopt->yb_dump_role_checks, sql))
+						  "", fout->remoteVersion, dopt->yb_dump_role_checks,
+						  dopt->restrict_key, sql))
 		pg_fatal("could not parse ACL list (%s) or default (%s) for object \"%s\" (%s)",
 				 acls, baseacls, name, type);
 
@@ -15946,7 +15977,13 @@ dumpACL(Archive *fout, DumpId objDumpId, DumpId altDumpId,
 		if (dopt->include_yb_metadata)
 		{
 			yb_use_roles_sql = createPQExpBuffer();
-			appendPQExpBuffer(yb_use_roles_sql, "\\if :use_roles\n%s\\endif\n", sql->data);
+			ybAppendUnrestrict(yb_use_roles_sql, dopt->restrict_key);
+			appendPQExpBufferStr(yb_use_roles_sql, "\\if :use_roles\n");
+			ybAppendRestrict(yb_use_roles_sql, dopt->restrict_key);
+			appendPQExpBufferStr(yb_use_roles_sql, sql->data);
+			ybAppendUnrestrict(yb_use_roles_sql, dopt->restrict_key);
+			appendPQExpBufferStr(yb_use_roles_sql, "\\endif\n");
+			ybAppendRestrict(yb_use_roles_sql, dopt->restrict_key);
 		}
 
 		aclDeps[nDeps++] = objDumpId;
